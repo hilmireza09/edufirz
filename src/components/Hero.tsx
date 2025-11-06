@@ -22,14 +22,15 @@ const Hero = () => {
             </div>
             
             <h1 className="text-5xl md:text-7xl font-bold leading-tight">
-              Learn Anything,{" "}
+              Connecting{" "}
               <span className="gradient-text">
-                Anytime, Anywhere
+                Students & Teachers
               </span>
+              {" "}for Better Learning
             </h1>
             
             <p className="text-lg md:text-xl text-muted-foreground max-w-xl">
-              Unlock your potential with our innovative learning platform. Join thousands of students who are already mastering new skills and achieving their dreams.
+              Empowering education through collaboration. Join our vibrant community where students discover, learn, and grow with dedicated teachers — all in one interactive platform.
             </p>
             
             <div className="flex flex-col sm:flex-row gap-4">
@@ -38,14 +39,15 @@ const Hero = () => {
                 className="text-lg px-8 py-6 bg-gradient-to-r from-primary to-secondary hover:opacity-90 transition-opacity"
               >
                 <BookOpen className="mr-2 h-5 w-5" />
-                Start Learning
+                Join as Student
               </Button>
               <Button 
                 size="lg" 
                 variant="outline" 
                 className="text-lg px-8 py-6 glass-card hover-lift"
               >
-                Explore Courses
+                <Sparkles className="mr-2 h-5 w-5" />
+                Join as Teacher
               </Button>
             </div>
             
