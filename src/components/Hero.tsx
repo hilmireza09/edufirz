@@ -34,24 +34,20 @@ const Hero = () => {
             </p>
             
             <div className="flex flex-col sm:flex-row gap-4">
-              <Button
-                as="a"
-                href="/signup"
-                size="lg"
+              <Button 
+                size="lg" 
                 className="text-lg px-8 py-6 bg-gradient-to-r from-primary to-secondary hover:opacity-90 transition-opacity"
               >
                 <BookOpen className="mr-2 h-5 w-5" />
-                Sign Up
+                Join as Student
               </Button>
-              <Button
-                as="a"
-                href="/login"
-                size="lg"
-                variant="outline"
+              <Button 
+                size="lg" 
+                variant="outline" 
                 className="text-lg px-8 py-6 glass-card hover-lift"
               >
                 <Sparkles className="mr-2 h-5 w-5" />
-                Login
+                Join as Teacher
               </Button>
             </div>
             
