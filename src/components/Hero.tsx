@@ -1,5 +1,6 @@
 import { Button } from "@/components/ui/button";
 import { BookOpen, Sparkles } from "lucide-react";
+import { Link } from "react-router-dom";
 import heroImage from "@/assets/hero-learning.jpg";
 
 const Hero = () => {
@@ -34,21 +35,25 @@ const Hero = () => {
             </p>
             
             <div className="flex flex-col sm:flex-row gap-4">
-              <Button 
-                size="lg" 
-                className="text-lg px-8 py-6 bg-gradient-to-r from-primary to-secondary hover:opacity-90 transition-opacity"
-              >
-                <BookOpen className="mr-2 h-5 w-5" />
-                Join as Student
-              </Button>
-              <Button 
-                size="lg" 
-                variant="outline" 
-                className="text-lg px-8 py-6 glass-card hover-lift"
-              >
-                <Sparkles className="mr-2 h-5 w-5" />
-                Join as Teacher
-              </Button>
+              <Link to="/signup">
+                <Button 
+                  size="lg" 
+                  className="text-lg px-8 py-6 bg-gradient-to-r from-primary to-secondary hover:opacity-90 transition-opacity w-full sm:w-auto"
+                >
+                  <BookOpen className="mr-2 h-5 w-5" />
+                  Join as Student
+                </Button>
+              </Link>
+              <Link to="/signup">
+                <Button 
+                  size="lg" 
+                  variant="outline" 
+                  className="text-lg px-8 py-6 glass-card hover-lift w-full sm:w-auto"
+                >
+                  <Sparkles className="mr-2 h-5 w-5" />
+                  Join as Teacher
+                </Button>
+              </Link>
             </div>
             
             <div className="flex items-center gap-8 pt-4">
