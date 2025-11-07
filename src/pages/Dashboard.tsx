@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import { Button } from '@/components/ui/button';
-import { BookOpen, CreditCard, GraduationCap, Users, LogOut, Menu } from 'lucide-react';
+import { BookOpen, CreditCard, GraduationCap, Users, LogOut, Menu, MessageSquare } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 
 const Dashboard = () => {
@@ -74,6 +74,13 @@ const Dashboard = () => {
       description: 'Join and manage classes',
       color: 'from-primary to-secondary',
       path: '/classes',
+    },
+    {
+      title: 'Forum',
+      icon: MessageSquare,
+      description: 'Collaborate with peers and teachers',
+      color: 'from-secondary to-primary',
+      path: '/forum',
     },
   ];
 
