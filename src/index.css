@@ -158,3 +158,20 @@ All colors MUST be HSL.
     box-shadow: 0 16px 48px rgba(0, 0, 0, 0.12);
   }
 }
+
+@layer utilities {
+  .animate-pulse {
+    animation: pulse 3s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+  }
+  
+  @keyframes pulse {
+    0%, 100% {
+      opacity: 0.4;
+      transform: scale(1);
+    }
+    50% {
+      opacity: 0.6;
+      transform: scale(1.05);
+    }
+  }
+}
