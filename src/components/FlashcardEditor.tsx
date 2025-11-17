@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -19,6 +19,8 @@ type Deck = {
   title: string;
   description: string;
   is_public: boolean;
+  user_id: string;
+  tags?: string[] | null;
   flashcards: Card[];
 };
 
@@ -34,7 +36,18 @@ const FlashcardEditor = ({ deck, onSave, onCancel }: FlashcardEditorProps) => {
   const [isPublic, setIsPublic] = useState(deck.is_public);
   const [cards, setCards] = useState<Card[]>(deck.flashcards || []);
   const [newCard, setNewCard] = useState({ front: '', back: '', hint: '' });
+  const [tags, setTags] = useState<string[]>(deck.tags || []);
+  const originalCardIdsRef = useRef<string[]>([]);
 
+  useEffect(() => {
+    originalCardIdsRef.current = (deck.flashcards || [])
+      .map((c) => c.id)
+      .filter((id): id is string => Boolean(id));
+  }, [deck]);
+
+  /**
+   * Adds a new flashcard to the local editor state.
+   */
   const addCard = () => {
     if (newCard.front.trim() && newCard.back.trim()) {
       setCards([...cards, { ...newCard }]);
@@ -42,16 +55,28 @@ const FlashcardEditor = ({ deck, onSave, onCancel }: FlashcardEditorProps) => {
     }
   };
 
+  /**
+   * Removes a flashcard by index from the local editor state.
+   */
   const removeCard = (index: number) => {
     setCards(cards.filter((_, i) => i !== index));
   };
 
+  /**
+   * Updates a specific field of a flashcard in the local editor state.
+   */
   const updateCard = (index: number, field: keyof Card, value: string) => {
     const updatedCards = [...cards];
     updatedCards[index] = { ...updatedCards[index], [field]: value };
     setCards(updatedCards);
   };
 
+  /**
+   * Persists deck metadata and performs per-card CRUD operations:
+   * - Deletes removed cards
+   * - Updates existing cards
+   * - Inserts new cards
+   */
   const handleSave = async () => {
     try {
       // Save deck
@@ -59,6 +84,7 @@ const FlashcardEditor = ({ deck, onSave, onCancel }: FlashcardEditorProps) => {
         title,
         description,
         is_public: isPublic,
+        tags,
       };
 
       let savedDeck;
@@ -84,33 +110,63 @@ const FlashcardEditor = ({ deck, onSave, onCancel }: FlashcardEditorProps) => {
         if (error) throw error;
         savedDeck = data;
       }
+      // Compute CRUD sets for cards
+      const currentCardsWithIndex = cards.map((c, idx) => ({ ...c, position: idx }));
+      const currentIds = currentCardsWithIndex
+        .map((c) => c.id)
+        .filter((id): id is string => Boolean(id));
+      const originalIds = originalCardIdsRef.current;
 
-      // Delete existing flashcards
-      if (deck.id) {
-        await supabase
+      const toDeleteIds = originalIds.filter((id) => !currentIds.includes(id));
+      const toInsert = currentCardsWithIndex.filter((c) => !c.id);
+      const toUpdate = currentCardsWithIndex.filter((c) => c.id);
+
+      if (toDeleteIds.length > 0) {
+        const { error: delError } = await supabase
           .from('flashcards')
           .delete()
-          .eq('deck_id', deck.id);
+          .in('id', toDeleteIds);
+        if (delError) throw delError;
       }
 
-      // Insert new flashcards
-      if (cards.length > 0) {
-        const flashcardData = cards.map(card => ({
+      if (toUpdate.length > 0) {
+        const updatePayload = toUpdate.map((c) => ({
+          id: c.id,
           deck_id: savedDeck.id,
-          front: card.front,
-          back: card.back,
-          hint: card.hint,
+          front: c.front,
+          back: c.back,
+          hint: c.hint,
+          position: c.position,
         }));
-
-        const { error } = await supabase
+        const { error: upsertError } = await supabase
           .from('flashcards')
-          .insert(flashcardData);
+          .upsert(updatePayload, { onConflict: 'id' });
+        if (upsertError) throw upsertError;
+      }
 
-        if (error) throw error;
+      let insertedCards: any[] = [];
+      if (toInsert.length > 0) {
+        const insertPayload = toInsert.map((c) => ({
+          deck_id: savedDeck.id,
+          front: c.front,
+          back: c.back,
+          hint: c.hint,
+          position: c.position,
+        }));
+        const { data: insertData, error: insertError } = await supabase
+          .from('flashcards')
+          .insert(insertPayload)
+          .select();
+        if (insertError) throw insertError;
+        insertedCards = insertData || [];
       }
 
       toast.success('Deck saved successfully');
-      onSave({ ...savedDeck, flashcards: cards });
+      const finalCards = [
+        ...toUpdate.map((c) => ({ id: c.id as string, front: c.front, back: c.back, hint: c.hint })),
+        ...insertedCards.map((c) => ({ id: c.id, front: c.front, back: c.back, hint: c.hint })),
+      ];
+      onSave({ ...savedDeck, flashcards: finalCards });
     } catch (error) {
       console.error('Error saving deck:', error);
       toast.error('Failed to save deck');
@@ -167,6 +223,14 @@ const FlashcardEditor = ({ deck, onSave, onCancel }: FlashcardEditorProps) => {
               <label htmlFor="public" className="text-sm font-medium text-foreground">
                 Make this deck public
               </label>
+            </div>
+            <div>
+              <label className="text-sm font-medium text-foreground mb-1 block">Tags (comma separated)</label>
+              <Input
+                value={tags.join(', ')}
+                onChange={(e) => setTags(e.target.value.split(',').map((t) => t.trim()).filter(Boolean))}
+                placeholder="e.g., math, science, history"
+              />
             </div>
           </div>
         </CardContent>

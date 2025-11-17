@@ -6,6 +6,7 @@ import { Input } from '@/components/ui/input';
 import { BookOpen, CreditCard, GraduationCap, Users, LogOut, MessageSquare, Settings, Home, Calendar, FileText, Search, ChevronDown, User, Plus, ChevronLeft, ChevronRight, Edit, Trash, Tag } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
+import FlashcardEditor from '@/components/FlashcardEditor';
 
 type Card = {
   id: string;
@@ -189,6 +190,15 @@ const Dashboard = () => {
     setEditingDeck(deck);
   };
 
+  const handleSaveDeck = (updatedDeck: Deck) => {
+    const updatedDecks = decks.map((d) => (d.id === updatedDeck.id ? { ...updatedDeck } : d));
+    if (!decks.some((d) => d.id === updatedDeck.id)) {
+      updatedDecks.unshift(updatedDeck);
+    }
+    setDecks(updatedDecks);
+    setEditingDeck(null);
+  };
+
   const handleDeleteDeck = async (deckId: string) => {
     if (!user) return;
     
@@ -279,148 +289,12 @@ const Dashboard = () => {
         if (editingDeck) {
           return (
             <div className="py-6">
-              <div className="flex justify-between items-center mb-6">
-                <h2 className="text-2xl font-bold text-foreground">
-                  {editingDeck.id ? 'Edit Deck' : 'Create New Deck'}
-                </h2>
-                <Button 
-                  variant="outline" 
-                  onClick={() => setEditingDeck(null)}
-                  className="flex items-center gap-2"
-                >
-                  Back to Decks
-                </Button>
-              </div>
-              
               <div className="bg-card/80 backdrop-blur-sm rounded-2xl border border-border shadow-sm p-6">
-                <div className="space-y-4">
-                  <div>
-                    <label className="text-sm font-medium text-foreground mb-1 block">Deck Title</label>
-                    <Input
-                      value={editingDeck.title}
-                      onChange={(e) => setEditingDeck({...editingDeck, title: e.target.value})}
-                      placeholder="Enter deck title"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="text-sm font-medium text-foreground mb-1 block">Description</label>
-                    <textarea
-                      value={editingDeck.description || ''}
-                      onChange={(e) => setEditingDeck({...editingDeck, description: e.target.value})}
-                      placeholder="Enter deck description"
-                      rows={3}
-                      className="w-full px-3 py-2 border border-border rounded-md bg-background text-foreground"
-                    />
-                  </div>
-
-                  <div className="flex items-center space-x-2">
-                    <input
-                      type="checkbox"
-                      id="public"
-                      checked={editingDeck.is_public}
-                      onChange={(e) => setEditingDeck({...editingDeck, is_public: e.target.checked})}
-                      className="h-4 w-4 rounded border-border text-primary focus:ring-primary"
-                    />
-                    <label htmlFor="public" className="text-sm font-medium text-foreground">
-                      Make this deck public
-                    </label>
-                  </div>
-                  
-                  <div>
-                    <label className="text-sm font-medium text-foreground mb-1 block">Tags (comma separated)</label>
-                    <Input
-                      value={editingDeck.tags?.join(', ') || ''}
-                      onChange={(e) => setEditingDeck({...editingDeck, tags: e.target.value.split(',').map(tag => tag.trim())})}
-                      placeholder="e.g., math, science, history"
-                    />
-                  </div>
-                </div>
-                
-                <div className="mt-6 flex justify-end gap-2">
-                  <Button 
-                    variant="outline" 
-                    onClick={() => setEditingDeck(null)}
-                  >
-                    Cancel
-                  </Button>
-                  <Button 
-                    onClick={async () => {
-                      try {
-                        let savedDeck;
-                        if (editingDeck.id) {
-                          // Update existing deck
-                          const { data, error } = await supabase
-                            .from('decks')
-                            .update({
-                              title: editingDeck.title,
-                              description: editingDeck.description,
-                              is_public: editingDeck.is_public,
-                              tags: editingDeck.tags
-                            })
-                            .eq('id', editingDeck.id)
-                            .select()
-                            .single();
-                          
-                          if (error) throw error;
-                          savedDeck = data;
-                        } else {
-                          // Create new deck
-                          const { data, error } = await supabase
-                            .from('decks')
-                            .insert([{
-                              title: editingDeck.title,
-                              description: editingDeck.description,
-                              is_public: editingDeck.is_public,
-                              tags: editingDeck.tags,
-                              user_id: editingDeck.user_id
-                            }])
-                            .select()
-                            .single();
-                          
-                          if (error) throw error;
-                          savedDeck = data;
-                        }
-                        
-                        // Refresh decks
-                        const { data: updatedDecks } = await supabase
-                          .from('decks')
-                          .select(`
-                            id, 
-                            title, 
-                            description, 
-                            is_public, 
-                            user_id,
-                            tags,
-                            flashcards (
-                              id, 
-                              front, 
-                              back, 
-                              hint
-                            )
-                          `)
-                          .is('deleted_at', null);
-                        
-                        if (updatedDecks) {
-                          const decksData = updatedDecks.map(deck => ({
-                            ...deck,
-                            flashcards: Array.isArray(deck.flashcards) ? deck.flashcards : []
-                          }));
-                          setDecks(decksData);
-                        }
-                        
-                        setEditingDeck(null);
-                        toast.success('Deck saved successfully');
-                      } catch (error) {
-                        console.error('Error saving deck:', error);
-                        toast.error('Failed to save deck');
-                      }
-                    }}
-                    className="bg-gradient-to-r from-primary to-secondary hover:opacity-90"
-                  >
-                    Save Deck
-                  </Button>
-                </div>
+                <FlashcardEditor
+                  deck={editingDeck as any}
+                  onSave={handleSaveDeck}
+                  onCancel={() => setEditingDeck(null)}
+                />
               </div>
             </div>
           );
@@ -457,6 +331,15 @@ const Dashboard = () => {
                       )}
                       {selectedDeck.user_id !== user?.id && (
                         <span className="bg-secondary text-secondary-foreground text-xs px-2 py-1 rounded">Shared</span>
+                      )}
+                      {(userRole === 'admin' || selectedDeck.user_id === user?.id || (userRole === 'teacher' && selectedDeck.user_id === user?.id)) && (
+                        <Button 
+                          variant="outline"
+                          size="sm"
+                          onClick={() => setEditingDeck(selectedDeck)}
+                        >
+                          Edit Deck
+                        </Button>
                       )}
                     </div>
                   </div>

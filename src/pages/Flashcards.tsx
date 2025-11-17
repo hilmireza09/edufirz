@@ -20,6 +20,7 @@ type Deck = {
   description: string | null;
   is_public: boolean;
   user_id: string;
+  tags: string[] | null;
   flashcards: Card[];
 };
 
@@ -70,6 +71,7 @@ const Flashcards = () => {
             description, 
             is_public, 
             user_id,
+            tags,
             flashcards (
               id, 
               front, 
@@ -125,6 +127,7 @@ const Flashcards = () => {
       description: '',
       is_public: false,
       user_id: user.id,
+      tags: [],
       flashcards: [],
     };
     
@@ -368,6 +371,15 @@ const Flashcards = () => {
                       </div>
                       {selectedDeck.description && (
                         <p className="text-muted-foreground mt-1">{selectedDeck.description}</p>
+                      )}
+                      {selectedDeck.tags && selectedDeck.tags.length > 0 && (
+                        <div className="flex flex-wrap gap-1 mt-2">
+                          {selectedDeck.tags.map(tag => (
+                            <span key={tag} className="text-xs bg-primary/10 text-primary px-2 py-0.5 rounded">
+                              {tag}
+                            </span>
+                          ))}
+                        </div>
                       )}
                     </div>
 
