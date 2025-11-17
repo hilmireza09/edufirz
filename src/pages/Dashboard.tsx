@@ -3,7 +3,7 @@ import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { BookOpen, CreditCard, GraduationCap, Users, LogOut, MessageSquare, Settings, Home, Calendar, FileText, Search, ChevronDown, User, Plus, ChevronLeft, ChevronRight, RotateCcw, Edit, Trash, Tag } from 'lucide-react';
+import { BookOpen, CreditCard, GraduationCap, Users, LogOut, MessageSquare, Settings, Home, Calendar, FileText, Search, ChevronDown, User, Plus, Edit, Trash, Tag } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 
@@ -37,14 +37,12 @@ const Dashboard = () => {
   // Flashcard states
   const [decks, setDecks] = useState<Deck[]>([]);
   const [selectedDeck, setSelectedDeck] = useState<Deck | null>(null);
-  const [index, setIndex] = useState(0);
-  const [flipped, setFlipped] = useState(false);
   const [deckSearchQuery, setDeckSearchQuery] = useState('');
   const [tagFilter, setTagFilter] = useState('');
   const [availableTags, setAvailableTags] = useState<string[]>([]);
   const [editingDeck, setEditingDeck] = useState<Deck | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
-  const cardsPerPage = 9;
+  const decksPerPage = 9;
 
   // Close profile menu when clicking outside
   useEffect(() => {
@@ -137,10 +135,6 @@ const Dashboard = () => {
           }
         });
         setAvailableTags(Array.from(tags));
-        
-        if (decksData.length > 0 && !selectedDeck) {
-          setSelectedDeck(decksData[0]);
-        }
       } catch (error) {
         console.error('Error fetching decks:', error);
         toast.error('Failed to load flashcards');
@@ -148,7 +142,7 @@ const Dashboard = () => {
     };
 
     fetchDecks();
-  }, [user, userRole, activeSection, selectedDeck]);
+  }, [user, userRole, activeSection]);
 
   const navigationItems = [
     { id: 'dashboard', title: 'Dashboard', icon: Home },
@@ -174,9 +168,6 @@ const Dashboard = () => {
 
   const handleDeckSelect = (deck: Deck) => {
     setSelectedDeck(deck);
-    setIndex(0);
-    setFlipped(false);
-    setCurrentPage(1); // Reset to first page when selecting a new deck
   };
 
   const handleCreateDeck = () => {
@@ -192,12 +183,10 @@ const Dashboard = () => {
     };
     
     setEditingDeck(newDeck);
-    setSelectedDeck(null);
   };
 
   const handleEditDeck = (deck: Deck) => {
     setEditingDeck(deck);
-    setSelectedDeck(null);
   };
 
   const handleDeleteDeck = async (deckId: string) => {
@@ -227,30 +216,13 @@ const Dashboard = () => {
       
       setDecks(decks.filter(d => d.id !== deckId));
       if (selectedDeck?.id === deckId) {
-        setSelectedDeck(decks.length > 1 ? decks[0] : null);
+        setSelectedDeck(null);
       }
       toast.success('Deck deleted successfully');
     } catch (error) {
       console.error('Error deleting deck:', error);
       toast.error('Failed to delete deck');
     }
-  };
-
-  const next = () => {
-    if (!selectedDeck) return;
-    setFlipped(false);
-    setIndex((i) => (i + 1) % selectedDeck.flashcards.length);
-  };
-
-  const prev = () => {
-    if (!selectedDeck) return;
-    setFlipped(false);
-    setIndex((i) => (i - 1 + selectedDeck.flashcards.length) % selectedDeck.flashcards.length);
-  };
-
-  const reset = () => {
-    setIndex(0);
-    setFlipped(false);
   };
 
   // Filter decks based on search and tag
@@ -264,11 +236,11 @@ const Dashboard = () => {
     return matchesSearch && matchesTag;
   });
 
-  // Pagination logic for flashcards
-  const indexOfLastCard = currentPage * cardsPerPage;
-  const indexOfFirstCard = indexOfLastCard - cardsPerPage;
-  const currentCards = selectedDeck ? selectedDeck.flashcards.slice(indexOfFirstCard, indexOfLastCard) : [];
-  const totalPages = selectedDeck ? Math.ceil(selectedDeck.flashcards.length / cardsPerPage) : 0;
+  // Pagination logic for decks
+  const indexOfLastDeck = currentPage * decksPerPage;
+  const indexOfFirstDeck = indexOfLastDeck - decksPerPage;
+  const currentDecks = filteredDecks.slice(indexOfFirstDeck, indexOfLastDeck);
+  const totalPages = Math.ceil(filteredDecks.length / decksPerPage);
 
   const paginate = (pageNumber: number) => setCurrentPage(pageNumber);
 
@@ -435,7 +407,6 @@ const Dashboard = () => {
                             flashcards: Array.isArray(deck.flashcards) ? deck.flashcards : []
                           }));
                           setDecks(decksData);
-                          setSelectedDeck(savedDeck);
                         }
                         
                         setEditingDeck(null);
@@ -450,6 +421,90 @@ const Dashboard = () => {
                     Save Deck
                   </Button>
                 </div>
+              </div>
+            </div>
+          );
+        }
+        
+        if (selectedDeck) {
+          return (
+            <div className="py-6">
+              <div className="flex justify-between items-center mb-6">
+                <Button 
+                  variant="outline" 
+                  onClick={() => setSelectedDeck(null)}
+                  className="flex items-center gap-2"
+                >
+                  Back to Decks
+                </Button>
+                <div className="flex gap-2">
+                  <Button 
+                    onClick={() => navigate('/flashcards')}
+                    className="bg-gradient-to-r from-primary to-secondary hover:opacity-90"
+                  >
+                    Study Full Screen
+                  </Button>
+                </div>
+              </div>
+              
+              <div className="bg-card/80 backdrop-blur-sm rounded-2xl border border-border shadow-sm p-6">
+                <div className="mb-6">
+                  <div className="flex justify-between items-center">
+                    <h2 className="text-xl font-semibold text-foreground">{selectedDeck.title}</h2>
+                    <div className="flex gap-2">
+                      {selectedDeck.is_public && (
+                        <span className="bg-accent text-accent-foreground text-xs px-2 py-1 rounded">Public</span>
+                      )}
+                      {selectedDeck.user_id !== user?.id && (
+                        <span className="bg-secondary text-secondary-foreground text-xs px-2 py-1 rounded">Shared</span>
+                      )}
+                    </div>
+                  </div>
+                  {selectedDeck.description && (
+                    <p className="text-muted-foreground mt-1">{selectedDeck.description}</p>
+                  )}
+                  {selectedDeck.tags && selectedDeck.tags.length > 0 && (
+                    <div className="flex flex-wrap gap-1 mt-2">
+                      {selectedDeck.tags.map(tag => (
+                        <span key={tag} className="text-xs bg-primary/10 text-primary px-2 py-0.5 rounded">
+                          {tag}
+                        </span>
+                      ))}
+                    </div>
+                  )}
+                </div>
+                
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  {selectedDeck.flashcards.map((card, index) => (
+                    <div 
+                      key={card.id}
+                      className="relative h-40 cursor-pointer [perspective:1000px] select-none"
+                    >
+                      <div className="absolute inset-0 rounded-2xl shadow-lg p-4 flex flex-col items-center justify-center text-center transition-all duration-500 [transform-style:preserve-3d]">
+                        {/* Front of card */}
+                        <div className="absolute inset-0 bg-gradient-to-br from-primary/5 to-secondary/5 rounded-2xl border border-border flex flex-col items-center justify-center [backface-visibility:hidden] p-3">
+                          <span className="text-xs text-primary font-semibold mb-1">QUESTION</span>
+                          <p className="text-sm text-foreground line-clamp-4">{card.front}</p>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+                
+                {selectedDeck.flashcards.length === 0 && (
+                  <div className="text-center py-8">
+                    <p className="text-muted-foreground">This deck has no flashcards yet</p>
+                    {(userRole === 'admin' || selectedDeck.user_id === user?.id || (userRole === 'teacher' && selectedDeck.user_id === user?.id)) && (
+                      <Button 
+                        onClick={() => handleEditDeck(selectedDeck)} 
+                        className="mt-4 flex items-center gap-2 mx-auto"
+                      >
+                        <Plus className="h-4 w-4" />
+                        Add Cards
+                      </Button>
+                    )}
+                  </div>
+                )}
               </div>
             </div>
           );
@@ -479,18 +534,21 @@ const Dashboard = () => {
                 </Button>
               </div>
             ) : (
-              <div className="flex flex-col lg:flex-row gap-6">
-                {/* Deck List with Search and Filter */}
-                <div className="lg:w-1/3">
-                  <div className="bg-card/80 backdrop-blur-sm rounded-2xl p-4 border border-border shadow-sm mb-4">
-                    <div className="relative mb-3">
+              <>
+                {/* Search and Filter */}
+                <div className="bg-card/80 backdrop-blur-sm rounded-2xl p-4 border border-border shadow-sm mb-6">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="relative">
                       <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
                       <Input
                         type="text"
                         placeholder="Search decks..."
                         className="pl-10"
                         value={deckSearchQuery}
-                        onChange={(e) => setDeckSearchQuery(e.target.value)}
+                        onChange={(e) => {
+                          setDeckSearchQuery(e.target.value);
+                          setCurrentPage(1);
+                        }}
                       />
                     </div>
                     
@@ -499,7 +557,10 @@ const Dashboard = () => {
                       <select
                         className="w-full pl-10 pr-4 py-2 rounded-md bg-background border border-border focus:outline-none focus:ring-2 focus:ring-primary/30 text-foreground"
                         value={tagFilter}
-                        onChange={(e) => setTagFilter(e.target.value)}
+                        onChange={(e) => {
+                          setTagFilter(e.target.value);
+                          setCurrentPage(1);
+                        }}
                       >
                         <option value="">All Tags</option>
                         {availableTags.map(tag => (
@@ -508,225 +569,106 @@ const Dashboard = () => {
                       </select>
                     </div>
                   </div>
-                  
-                  <h3 className="text-lg font-semibold text-foreground mb-3">Your Decks ({filteredDecks.length})</h3>
-                  <div className="space-y-3 max-h-[500px] overflow-y-auto pr-2">
-                    {filteredDecks.map((deck) => (
-                      <div 
-                        key={deck.id}
-                        className={`p-4 rounded-xl border cursor-pointer transition-all ${
-                          selectedDeck?.id === deck.id
-                            ? 'border-primary bg-primary/10'
-                            : 'border-border hover:bg-accent'
-                        }`}
-                        onClick={() => handleDeckSelect(deck)}
-                      >
-                        <div className="flex justify-between items-start">
-                          <div>
-                            <h3 className="font-medium text-foreground">{deck.title}</h3>
-                            <p className="text-sm text-muted-foreground mt-1">
-                              {deck.flashcards.length} cards
-                              {deck.is_public && <span className="ml-2 text-xs bg-accent text-accent-foreground px-2 py-0.5 rounded">Public</span>}
-                            </p>
-                          </div>
-                          <div className="flex gap-1">
-                            {(userRole === 'admin' || deck.user_id === user?.id || (userRole === 'teacher' && deck.user_id === user?.id)) && (
-                              <>
-                                <Button 
-                                  size="icon" 
-                                  variant="ghost" 
-                                  className="h-8 w-8"
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    handleEditDeck(deck);
-                                  }}
-                                >
-                                  <Edit className="h-4 w-4" />
-                                </Button>
-                                <Button 
-                                  size="icon" 
-                                  variant="ghost" 
-                                  className="h-8 w-8 text-destructive hover:text-destructive hover:bg-destructive/10"
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    handleDeleteDeck(deck.id);
-                                  }}
-                                >
-                                  <Trash className="h-4 w-4" />
-                                </Button>
-                              </>
-                            )}
-                          </div>
-                        </div>
-                        {deck.description && (
-                          <p className="text-sm text-muted-foreground mt-2">{deck.description}</p>
-                        )}
-                        {deck.tags && deck.tags.length > 0 && (
-                          <div className="flex flex-wrap gap-1 mt-2">
-                            {deck.tags.map(tag => (
-                              <span key={tag} className="text-xs bg-secondary text-secondary-foreground px-2 py-0.5 rounded">
-                                {tag}
-                              </span>
-                            ))}
-                          </div>
-                        )}
-                        <div className="text-xs text-muted-foreground mt-2">
-                          {deck.user_id === user?.id ? 'Your deck' : 'Shared deck'}
-                        </div>
-                      </div>
-                    ))}
-                  </div>
                 </div>
-
-                {/* Flashcard Viewer with Pagination */}
-                <div className="lg:w-2/3">
-                  {selectedDeck ? (
-                    <>
-                      <div className="mb-6">
-                        <div className="flex justify-between items-center">
-                          <h2 className="text-xl font-semibold text-foreground">{selectedDeck.title}</h2>
-                          <div className="flex gap-2">
-                            {selectedDeck.is_public && (
-                              <span className="bg-accent text-accent-foreground text-xs px-2 py-1 rounded">Public</span>
-                            )}
-                            {selectedDeck.user_id !== user?.id && (
-                              <span className="bg-secondary text-secondary-foreground text-xs px-2 py-1 rounded">Shared</span>
-                            )}
-                          </div>
-                        </div>
-                        {selectedDeck.description && (
-                          <p className="text-muted-foreground mt-1">{selectedDeck.description}</p>
-                        )}
-                        {selectedDeck.tags && selectedDeck.tags.length > 0 && (
-                          <div className="flex flex-wrap gap-1 mt-2">
-                            {selectedDeck.tags.map(tag => (
-                              <span key={tag} className="text-xs bg-primary/10 text-primary px-2 py-0.5 rounded">
-                                {tag}
-                              </span>
-                            ))}
-                          </div>
-                        )}
-                      </div>
-
-                      {selectedDeck.flashcards.length === 0 ? (
-                        <div className="text-center py-12">
-                          <p className="text-muted-foreground">This deck has no flashcards yet</p>
-                          {(userRole === 'admin' || selectedDeck.user_id === user?.id || (userRole === 'teacher' && selectedDeck.user_id === user?.id)) && (
+                
+                {/* Decks Grid */}
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                  {currentDecks.map((deck) => (
+                    <div 
+                      key={deck.id}
+                      className="bg-card/80 backdrop-blur-sm rounded-2xl border border-border shadow-sm p-6 cursor-pointer hover:shadow-md transition-all duration-300"
+                      onClick={() => handleDeckSelect(deck)}
+                    >
+                      <div className="flex justify-between items-start mb-3">
+                        <h3 className="font-semibold text-foreground truncate">{deck.title}</h3>
+                        <div className="flex gap-1">
+                          {(userRole === 'admin' || deck.user_id === user?.id || (userRole === 'teacher' && deck.user_id === user?.id)) && (
                             <Button 
-                              onClick={() => handleEditDeck(selectedDeck)} 
-                              className="mt-4 flex items-center gap-2 mx-auto"
+                              size="icon" 
+                              variant="ghost" 
+                              className="h-8 w-8"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleEditDeck(deck);
+                              }}
                             >
-                              <Plus className="h-4 w-4" />
-                              Add Cards
+                              <Edit className="h-4 w-4" />
                             </Button>
                           )}
                         </div>
-                      ) : (
-                        <>
-                          {/* Flashcard Grid with Pagination */}
-                          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-                            {currentCards.map((card, idx) => (
-                              <div 
-                                key={card.id}
-                                className="relative h-40 cursor-pointer [perspective:1000px] select-none"
-                                onClick={() => {
-                                  setIndex(indexOfFirstCard + idx);
-                                  setFlipped(!flipped);
-                                }}
-                              >
-                                <div
-                                  className={`absolute inset-0 rounded-2xl shadow-lg p-4 flex flex-col items-center justify-center text-center transition-all duration-500 [transform-style:preserve-3d] ${
-                                    flipped && index === indexOfFirstCard + idx ? '[transform:rotateY(180deg)]' : ''
-                                  }`}
-                                >
-                                  {/* Front of card */}
-                                  <div className="absolute inset-0 bg-gradient-to-br from-primary/5 to-secondary/5 rounded-2xl border border-border flex flex-col items-center justify-center [backface-visibility:hidden] p-3">
-                                    <span className="text-xs text-primary font-semibold mb-1">QUESTION</span>
-                                    <p className="text-sm text-foreground line-clamp-4">{card.front}</p>
-                                  </div>
-                                  
-                                  {/* Back of card */}
-                                  <div className="absolute inset-0 bg-gradient-to-br from-secondary/5 to-accent/5 rounded-2xl border border-border flex flex-col items-center justify-center [transform:rotateY(180deg)] [backface-visibility:hidden] p-3">
-                                    <span className="text-xs text-secondary font-semibold mb-1">ANSWER</span>
-                                    <p className="text-sm text-foreground line-clamp-4">{card.back}</p>
-                                    {card.hint && (
-                                      <p className="text-xs text-muted-foreground mt-2 line-clamp-2">
-                                        <span className="font-medium">Hint:</span> {card.hint}
-                                      </p>
-                                    )}
-                                  </div>
-                                </div>
-                              </div>
-                            ))}
-                          </div>
-
-                          {/* Pagination Controls */}
-                          {totalPages > 1 && (
-                            <div className="flex items-center justify-between mt-6">
-                              <Button 
-                                onClick={() => paginate(currentPage - 1)} 
-                                disabled={currentPage === 1}
-                                variant="outline"
-                                className="flex items-center gap-2"
-                              >
-                                <ChevronLeft className="h-4 w-4" />
-                                Previous
-                              </Button>
-                              
-                              <div className="flex items-center gap-2">
-                                {Array.from({ length: totalPages }, (_, i) => i + 1).map(page => (
-                                  <Button
-                                    key={page}
-                                    onClick={() => paginate(page)}
-                                    variant={currentPage === page ? "default" : "outline"}
-                                    className={`w-10 h-10 p-0 ${currentPage === page ? 'bg-primary text-primary-foreground' : ''}`}
-                                  >
-                                    {page}
-                                  </Button>
-                                ))}
-                              </div>
-                              
-                              <Button 
-                                onClick={() => paginate(currentPage + 1)} 
-                                disabled={currentPage === totalPages}
-                                variant="outline"
-                                className="flex items-center gap-2"
-                              >
-                                Next
-                                <ChevronRight className="h-4 w-4" />
-                              </Button>
-                            </div>
+                      </div>
+                      
+                      <p className="text-sm text-muted-foreground mb-4 line-clamp-2">
+                        {deck.description || 'No description'}
+                      </p>
+                      
+                      <div className="flex justify-between items-center">
+                        <div className="text-sm text-muted-foreground">
+                          {deck.flashcards.length} cards
+                        </div>
+                        <div className="flex gap-1">
+                          {deck.is_public && (
+                            <span className="text-xs bg-accent text-accent-foreground px-2 py-0.5 rounded">Public</span>
                           )}
-
-                          {/* Progress indicators */}
-                          <div className="flex justify-center mt-6">
-                            <div className="flex gap-2">
-                              {selectedDeck.flashcards.map((_, i) => (
-                                <div 
-                                  key={i}
-                                  className={`w-2 h-2 rounded-full ${
-                                    i === index 
-                                      ? 'bg-primary' 
-                                      : i < index 
-                                        ? 'bg-primary/50' 
-                                        : 'bg-muted'
-                                  }`}
-                                />
-                              ))}
-                            </div>
-                          </div>
-                        </>
-                      )}
-                    </>
-                  ) : (
-                    <div className="text-center py-12">
-                      <CreditCard className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-                      <h2 className="text-xl font-semibold text-foreground mb-2">Select a Deck</h2>
-                      <p className="text-muted-foreground">Choose a deck from the list to start studying</p>
+                          {deck.tags && deck.tags.length > 0 && (
+                            <span className="text-xs bg-primary/10 text-primary px-2 py-0.5 rounded">
+                              {deck.tags[0]}
+                              {deck.tags.length > 1 && ` +${deck.tags.length - 1}`}
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                      
+                      <div className="mt-3 pt-3 border-t border-border">
+                        <div className="text-xs text-muted-foreground">
+                          {deck.user_id === user?.id ? 'Your deck' : 'Shared deck'}
+                        </div>
+                      </div>
                     </div>
-                  )}
+                  ))}
                 </div>
-              </div>
+                
+                {/* Pagination */}
+                {totalPages > 1 && (
+                  <div className="flex items-center justify-center mt-8 gap-2">
+                    <Button 
+                      onClick={() => paginate(currentPage - 1)} 
+                      disabled={currentPage === 1}
+                      variant="outline"
+                      size="sm"
+                      className="flex items-center gap-2"
+                    >
+                      <ChevronLeft className="h-4 w-4" />
+                      Previous
+                    </Button>
+                    
+                    <div className="flex items-center gap-1">
+                      {Array.from({ length: totalPages }, (_, i) => i + 1).map(page => (
+                        <Button
+                          key={page}
+                          onClick={() => paginate(page)}
+                          variant={currentPage === page ? "default" : "outline"}
+                          size="sm"
+                          className={`w-8 h-8 p-0 ${currentPage === page ? 'bg-primary text-primary-foreground' : ''}`}
+                        >
+                          {page}
+                        </Button>
+                      ))}
+                    </div>
+                    
+                    <Button 
+                      onClick={() => paginate(currentPage + 1)} 
+                      disabled={currentPage === totalPages}
+                      variant="outline"
+                      size="sm"
+                      className="flex items-center gap-2"
+                    >
+                      Next
+                      <ChevronRight className="h-4 w-4" />
+                    </Button>
+                  </div>
+                )}
+              </>
             )}
           </div>
         );
@@ -884,7 +826,14 @@ const Dashboard = () => {
             return (
               <button
                 key={item.id}
-                onClick={() => setActiveSection(item.id)}
+                onClick={() => {
+                  setActiveSection(item.id);
+                  if (item.id === 'flashcards') {
+                    setSelectedDeck(null);
+                    setEditingDeck(null);
+                    setCurrentPage(1);
+                  }
+                }}
                 className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-300 ${
                   activeSection === item.id
                     ? 'bg-gradient-to-r from-primary/20 to-secondary/20 text-primary shadow-sm'
