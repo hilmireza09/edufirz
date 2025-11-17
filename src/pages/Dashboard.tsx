@@ -43,6 +43,8 @@ const Dashboard = () => {
   const [tagFilter, setTagFilter] = useState('');
   const [availableTags, setAvailableTags] = useState<string[]>([]);
   const [editingDeck, setEditingDeck] = useState<Deck | null>(null);
+  const [currentPage, setCurrentPage] = useState(1);
+  const cardsPerPage = 9;
 
   // Close profile menu when clicking outside
   useEffect(() => {
@@ -174,6 +176,7 @@ const Dashboard = () => {
     setSelectedDeck(deck);
     setIndex(0);
     setFlipped(false);
+    setCurrentPage(1); // Reset to first page when selecting a new deck
   };
 
   const handleCreateDeck = () => {
@@ -260,6 +263,14 @@ const Dashboard = () => {
     
     return matchesSearch && matchesTag;
   });
+
+  // Pagination logic for flashcards
+  const indexOfLastCard = currentPage * cardsPerPage;
+  const indexOfFirstCard = indexOfLastCard - cardsPerPage;
+  const currentCards = selectedDeck ? selectedDeck.flashcards.slice(indexOfFirstCard, indexOfLastCard) : [];
+  const totalPages = selectedDeck ? Math.ceil(selectedDeck.flashcards.length / cardsPerPage) : 0;
+
+  const paginate = (pageNumber: number) => setCurrentPage(pageNumber);
 
   const renderContent = () => {
     switch (activeSection) {
@@ -567,7 +578,7 @@ const Dashboard = () => {
                   </div>
                 </div>
 
-                {/* Flashcard Viewer */}
+                {/* Flashcard Viewer with Pagination */}
                 <div className="lg:w-2/3">
                   {selectedDeck ? (
                     <>
@@ -612,93 +623,90 @@ const Dashboard = () => {
                         </div>
                       ) : (
                         <>
-                          {/* Flashcard Container */}
-                          <div className="flex justify-center my-8">
-                            <div 
-                              className="relative w-full max-w-lg h-64 cursor-pointer [perspective:1000px] select-none"
-                              onClick={() => setFlipped(!flipped)}
-                            >
-                              <div
-                                className={`absolute inset-0 rounded-2xl shadow-lg p-8 flex items-center justify-center text-center text-lg font-medium transition-all duration-500 [transform-style:preserve-3d] ${
-                                  flipped ? '[transform:rotateY(180deg)]' : ''
-                                }`}
+                          {/* Flashcard Grid with Pagination */}
+                          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+                            {currentCards.map((card, idx) => (
+                              <div 
+                                key={card.id}
+                                className="relative h-40 cursor-pointer [perspective:1000px] select-none"
+                                onClick={() => {
+                                  setIndex(indexOfFirstCard + idx);
+                                  setFlipped(!flipped);
+                                }}
                               >
-                                {/* Front of card */}
-                                <div className="absolute inset-0 bg-gradient-to-br from-primary/5 to-secondary/5 rounded-2xl border border-border flex items-center justify-center [backface-visibility:hidden] p-6">
-                                  <div>
-                                    <span className="text-xs text-primary font-semibold mb-2 block">QUESTION</span>
-                                    <p className="text-xl text-foreground">{selectedDeck.flashcards[index]?.front || ''}</p>
+                                <div
+                                  className={`absolute inset-0 rounded-2xl shadow-lg p-4 flex flex-col items-center justify-center text-center transition-all duration-500 [transform-style:preserve-3d] ${
+                                    flipped && index === indexOfFirstCard + idx ? '[transform:rotateY(180deg)]' : ''
+                                  }`}
+                                >
+                                  {/* Front of card */}
+                                  <div className="absolute inset-0 bg-gradient-to-br from-primary/5 to-secondary/5 rounded-2xl border border-border flex flex-col items-center justify-center [backface-visibility:hidden] p-3">
+                                    <span className="text-xs text-primary font-semibold mb-1">QUESTION</span>
+                                    <p className="text-sm text-foreground line-clamp-4">{card.front}</p>
                                   </div>
-                                </div>
-                                
-                                {/* Back of card */}
-                                <div className="absolute inset-0 bg-gradient-to-br from-secondary/5 to-accent/5 rounded-2xl border border-border flex items-center justify-center [transform:rotateY(180deg)] [backface-visibility:hidden] p-6">
-                                  <div>
-                                    <span className="text-xs text-secondary font-semibold mb-2 block">ANSWER</span>
-                                    <p className="text-xl text-foreground">{selectedDeck.flashcards[index]?.back || ''}</p>
-                                    {selectedDeck.flashcards[index]?.hint && (
-                                      <p className="text-sm text-muted-foreground mt-4">
-                                        <span className="font-medium">Hint:</span> {selectedDeck.flashcards[index]?.hint}
+                                  
+                                  {/* Back of card */}
+                                  <div className="absolute inset-0 bg-gradient-to-br from-secondary/5 to-accent/5 rounded-2xl border border-border flex flex-col items-center justify-center [transform:rotateY(180deg)] [backface-visibility:hidden] p-3">
+                                    <span className="text-xs text-secondary font-semibold mb-1">ANSWER</span>
+                                    <p className="text-sm text-foreground line-clamp-4">{card.back}</p>
+                                    {card.hint && (
+                                      <p className="text-xs text-muted-foreground mt-2 line-clamp-2">
+                                        <span className="font-medium">Hint:</span> {card.hint}
                                       </p>
                                     )}
                                   </div>
                                 </div>
                               </div>
-                            </div>
+                            ))}
                           </div>
 
-                          {/* Controls */}
-                          <div className="flex flex-col sm:flex-row items-center justify-between gap-4 mt-8">
-                            <div className="flex items-center gap-4">
-                              <div className="bg-muted px-4 py-2 rounded-lg">
-                                <span className="text-sm text-muted-foreground">Card</span>
-                                <span className="font-semibold ml-2">{index + 1} / {selectedDeck.flashcards.length}</span>
-                              </div>
-                              <Button variant="outline" onClick={reset} className="flex items-center gap-2">
-                                <RotateCcw className="h-4 w-4" />
-                                Reset
-                              </Button>
-                            </div>
-                            
-                            <div className="flex gap-2">
+                          {/* Pagination Controls */}
+                          {totalPages > 1 && (
+                            <div className="flex items-center justify-between mt-6">
                               <Button 
-                                variant="outline" 
-                                onClick={prev} 
-                                disabled={selectedDeck.flashcards.length <= 1}
+                                onClick={() => paginate(currentPage - 1)} 
+                                disabled={currentPage === 1}
+                                variant="outline"
                                 className="flex items-center gap-2"
                               >
                                 <ChevronLeft className="h-4 w-4" />
                                 Previous
                               </Button>
                               
-                              <Button 
-                                onClick={() => setFlipped(!flipped)} 
-                                className="bg-gradient-to-r from-primary to-secondary hover:opacity-90"
-                              >
-                                {flipped ? 'Show Question' : 'Show Answer'}
-                              </Button>
+                              <div className="flex items-center gap-2">
+                                {Array.from({ length: totalPages }, (_, i) => i + 1).map(page => (
+                                  <Button
+                                    key={page}
+                                    onClick={() => paginate(page)}
+                                    variant={currentPage === page ? "default" : "outline"}
+                                    className={`w-10 h-10 p-0 ${currentPage === page ? 'bg-primary text-primary-foreground' : ''}`}
+                                  >
+                                    {page}
+                                  </Button>
+                                ))}
+                              </div>
                               
                               <Button 
-                                variant="outline" 
-                                onClick={next} 
-                                disabled={selectedDeck.flashcards.length <= 1}
+                                onClick={() => paginate(currentPage + 1)} 
+                                disabled={currentPage === totalPages}
+                                variant="outline"
                                 className="flex items-center gap-2"
                               >
                                 Next
                                 <ChevronRight className="h-4 w-4" />
                               </Button>
                             </div>
-                          </div>
+                          )}
 
                           {/* Progress indicators */}
-                          <div className="flex justify-center mt-8">
+                          <div className="flex justify-center mt-6">
                             <div className="flex gap-2">
                               {selectedDeck.flashcards.map((_, i) => (
                                 <div 
                                   key={i}
-                                  className={`w-3 h-3 rounded-full ${
+                                  className={`w-2 h-2 rounded-full ${
                                     i === index 
-                                      ? 'bg-primary w-6' 
+                                      ? 'bg-primary' 
                                       : i < index 
                                         ? 'bg-primary/50' 
                                         : 'bg-muted'
