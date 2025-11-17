@@ -3,7 +3,7 @@ import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { BookOpen, CreditCard, GraduationCap, Users, LogOut, MessageSquare, Settings, Home, Calendar, FileText, Search, ChevronDown, User, Plus, ChevronLeft, ChevronRight, Edit, Trash, Tag } from 'lucide-react';
+import { BookOpen, CreditCard, GraduationCap, Users, LogOut, MessageSquare, Settings, Home, Calendar, FileText, Search, ChevronDown, User, Plus, ChevronLeft, ChevronRight, Edit, Trash, Tag, RotateCcw } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import FlashcardEditor from '@/components/FlashcardEditor';
@@ -44,6 +44,8 @@ const Dashboard = () => {
   const [editingDeck, setEditingDeck] = useState<Deck | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
   const decksPerPage = 9;
+  const [studyIndex, setStudyIndex] = useState(0);
+  const [studyFlipped, setStudyFlipped] = useState(false);
 
   // Close profile menu when clicking outside
   useEffect(() => {
@@ -167,8 +169,13 @@ const Dashboard = () => {
     console.log('Searching for:', searchQuery);
   };
 
+  /**
+   * Selects a deck for study mode and resets study state.
+   */
   const handleDeckSelect = (deck: Deck) => {
     setSelectedDeck(deck);
+    setStudyIndex(0);
+    setStudyFlipped(false);
   };
 
   const handleCreateDeck = () => {
@@ -312,12 +319,14 @@ const Dashboard = () => {
                   Back to Decks
                 </Button>
                 <div className="flex gap-2">
-                  <Button 
-                    onClick={() => navigate('/flashcards')}
-                    className="bg-gradient-to-r from-primary to-secondary hover:opacity-90"
-                  >
-                    Study Full Screen
-                  </Button>
+                  {(userRole === 'admin' || selectedDeck.user_id === user?.id || (userRole === 'teacher' && selectedDeck.user_id === user?.id)) && (
+                    <Button 
+                      variant="outline"
+                      onClick={() => setEditingDeck(selectedDeck)}
+                    >
+                      Edit Deck
+                    </Button>
+                  )}
                 </div>
               </div>
               
@@ -331,15 +340,6 @@ const Dashboard = () => {
                       )}
                       {selectedDeck.user_id !== user?.id && (
                         <span className="bg-secondary text-secondary-foreground text-xs px-2 py-1 rounded">Shared</span>
-                      )}
-                      {(userRole === 'admin' || selectedDeck.user_id === user?.id || (userRole === 'teacher' && selectedDeck.user_id === user?.id)) && (
-                        <Button 
-                          variant="outline"
-                          size="sm"
-                          onClick={() => setEditingDeck(selectedDeck)}
-                        >
-                          Edit Deck
-                        </Button>
                       )}
                     </div>
                   </div>
@@ -356,24 +356,6 @@ const Dashboard = () => {
                     </div>
                   )}
                 </div>
-                
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  {selectedDeck.flashcards.map((card, index) => (
-                    <div 
-                      key={card.id}
-                      className="relative h-40 cursor-pointer [perspective:1000px] select-none"
-                    >
-                      <div className="absolute inset-0 rounded-2xl shadow-lg p-4 flex flex-col items-center justify-center text-center transition-all duration-500 [transform-style:preserve-3d]">
-                        {/* Front of card */}
-                        <div className="absolute inset-0 bg-gradient-to-br from-primary/5 to-secondary/5 rounded-2xl border border-border flex flex-col items-center justify-center [backface-visibility:hidden] p-3">
-                          <span className="text-xs text-primary font-semibold mb-1">QUESTION</span>
-                          <p className="text-sm text-foreground line-clamp-4">{card.front}</p>
-                        </div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-                
                 {selectedDeck.flashcards.length === 0 && (
                   <div className="text-center py-8">
                     <p className="text-muted-foreground">This deck has no flashcards yet</p>
@@ -387,6 +369,92 @@ const Dashboard = () => {
                       </Button>
                     )}
                   </div>
+                )}
+                {selectedDeck.flashcards.length > 0 && (
+                  <>
+                    <div className="flex items-center justify-between mb-4">
+                      <div className="bg-muted px-3 py-1 rounded-lg">
+                        <span className="text-sm text-muted-foreground">Card</span>
+                        <span className="font-semibold ml-2">{studyIndex + 1} / {selectedDeck.flashcards.length}</span>
+                      </div>
+                      <Button variant="outline" onClick={() => { setStudyIndex(0); setStudyFlipped(false); }} className="flex items-center gap-2">
+                        <RotateCcw className="h-4 w-4" />
+                        Reset
+                      </Button>
+                    </div>
+                    <div className="flex justify-center my-6">
+                      <div 
+                        className="relative w-full max-w-lg h-64 cursor-pointer [perspective:1000px] select-none"
+                        onClick={() => setStudyFlipped(!studyFlipped)}
+                      >
+                        <div
+                          className={`absolute inset-0 rounded-2xl shadow-lg p-8 flex items-center justify-center text-center text-lg font-medium transition-all duration-500 [transform-style:preserve-3d] ${
+                            studyFlipped ? '[transform:rotateY(180deg)]' : ''
+                          }`}
+                        >
+                          <div className="absolute inset-0 bg-gradient-to-br from-primary/5 to-secondary/5 rounded-2xl border border-border flex items-center justify-center [backface-visibility:hidden] p-6">
+                            <div>
+                              <span className="text-xs text-primary font-semibold mb-2 block">QUESTION</span>
+                              <p className="text-xl text-foreground">{selectedDeck.flashcards[studyIndex]?.front || ''}</p>
+                            </div>
+                          </div>
+                          <div className="absolute inset-0 bg-gradient-to-br from-secondary/5 to-accent/5 rounded-2xl border border-border flex items-center justify-center [transform:rotateY(180deg)] [backface-visibility:hidden] p-6">
+                            <div>
+                              <span className="text-xs text-secondary font-semibold mb-2 block">ANSWER</span>
+                              <p className="text-xl text-foreground">{selectedDeck.flashcards[studyIndex]?.back || ''}</p>
+                              {selectedDeck.flashcards[studyIndex]?.hint && (
+                                <p className="text-sm text-muted-foreground mt-4">
+                                  <span className="font-medium">Hint:</span> {selectedDeck.flashcards[studyIndex]?.hint}
+                                </p>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                    <div className="flex flex-col sm:flex-row items-center justify-center gap-4 mt-4">
+                      <Button 
+                        variant="outline" 
+                        onClick={() => { setStudyFlipped(false); setStudyIndex((i) => (i - 1 + selectedDeck.flashcards.length) % selectedDeck.flashcards.length); }} 
+                        disabled={selectedDeck.flashcards.length <= 1}
+                        className="w-full sm:w-auto flex items-center gap-2"
+                      >
+                        <ChevronLeft className="h-4 w-4" />
+                        Previous
+                      </Button>
+                      <Button 
+                        onClick={() => setStudyFlipped(!studyFlipped)} 
+                        className="w-full sm:w-auto bg-gradient-to-r from-primary to-secondary hover:opacity-90"
+                      >
+                        {studyFlipped ? 'Show Question' : 'Show Answer'}
+                      </Button>
+                      <Button 
+                        variant="outline" 
+                        onClick={() => { setStudyFlipped(false); setStudyIndex((i) => (i + 1) % selectedDeck.flashcards.length); }} 
+                        disabled={selectedDeck.flashcards.length <= 1}
+                        className="w-full sm:w-auto flex items-center gap-2"
+                      >
+                        Next
+                        <ChevronRight className="h-4 w-4" />
+                      </Button>
+                    </div>
+                    <div className="flex justify-center mt-6">
+                      <div className="flex gap-2">
+                        {selectedDeck.flashcards.map((_, i) => (
+                          <div 
+                            key={i}
+                            className={`w-3 h-3 rounded-full ${
+                              i === studyIndex 
+                                ? 'bg-primary w-6' 
+                                : i < studyIndex 
+                                  ? 'bg-primary/50' 
+                                  : 'bg-muted'
+                            }`}
+                          />
+                        ))}
+                      </div>
+                    </div>
+                  </>
                 )}
               </div>
             </div>
