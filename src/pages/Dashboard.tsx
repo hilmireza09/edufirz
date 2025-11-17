@@ -1,8 +1,8 @@
-import { useState } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import { Button } from '@/components/ui/button';
-import { BookOpen, CreditCard, GraduationCap, Users, LogOut, MessageSquare, Settings, Home, Calendar, FileText } from 'lucide-react';
+import { BookOpen, CreditCard, GraduationCap, Users, LogOut, MessageSquare, Settings, Home, Calendar, FileText, Search, ChevronDown } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 
 const Dashboard = () => {
@@ -11,6 +11,23 @@ const Dashboard = () => {
   const [profile, setProfile] = useState<any>(null);
   const [userRole, setUserRole] = useState<string>('student');
   const [activeSection, setActiveSection] = useState('dashboard');
+  const [isProfileMenuOpen, setIsProfileMenuOpen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+  const profileMenuRef = useRef<HTMLDivElement>(null);
+
+  // Close profile menu when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (profileMenuRef.current && !profileMenuRef.current.contains(event.target as Node)) {
+        setIsProfileMenuOpen(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, []);
 
   const navigationItems = [
     { id: 'dashboard', title: 'Dashboard', icon: Home },
@@ -27,6 +44,12 @@ const Dashboard = () => {
     { title: 'Resources', icon: BookOpen },
     { title: 'Grades', icon: GraduationCap },
   ];
+
+  const handleSearch = (e: React.FormEvent) => {
+    e.preventDefault();
+    // Search functionality would be implemented here
+    console.log('Searching for:', searchQuery);
+  };
 
   const renderContent = () => {
     switch (activeSection) {
@@ -152,13 +175,6 @@ const Dashboard = () => {
             <BookOpen className="h-8 w-8 text-primary" />
             <span className="text-2xl font-bold gradient-text">EduLearn</span>
           </div>
-          
-          <div className="text-sm font-medium text-foreground">
-            {profile?.full_name || user?.email}
-          </div>
-          <div className="text-xs text-muted-foreground capitalize">
-            {userRole}
-          </div>
         </div>
         
         <nav className="space-y-2">
@@ -198,13 +214,59 @@ const Dashboard = () => {
         {/* Header */}
         <header className="glass-card border-b border-border/50 p-4">
           <div className="flex items-center justify-between">
-            <h1 className="text-2xl font-bold text-foreground capitalize">
-              {activeSection}
-            </h1>
-            <div className="flex items-center gap-4">
-              <div className="w-10 h-10 rounded-full bg-gradient-to-br from-primary to-secondary flex items-center justify-center text-white font-semibold">
-                {profile?.full_name?.charAt(0) || user?.email?.charAt(0) || 'U'}
+            {/* Search Bar */}
+            <form onSubmit={handleSearch} className="flex-1 max-w-md">
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
+                <input
+                  type="text"
+                  placeholder="Search courses, resources, or topics..."
+                  className="w-full pl-10 pr-4 py-2 rounded-lg bg-background/50 border border-border focus:outline-none focus:ring-2 focus:ring-primary/50"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                />
               </div>
+            </form>
+
+            {/* User Profile */}
+            <div className="relative" ref={profileMenuRef}>
+              <button
+                onClick={() => setIsProfileMenuOpen(!isProfileMenuOpen)}
+                className="flex items-center gap-2 focus:outline-none"
+              >
+                <div className="w-10 h-10 rounded-full bg-gradient-to-br from-primary to-secondary flex items-center justify-center text-white font-semibold">
+                  {profile?.full_name?.charAt(0) || user?.email?.charAt(0) || 'U'}
+                </div>
+                <ChevronDown className="h-4 w-4 text-muted-foreground" />
+              </button>
+
+              {isProfileMenuOpen && (
+                <div className="absolute right-0 mt-2 w-64 glass-card rounded-xl shadow-lg py-2 z-10 border border-white/20">
+                  <div className="px-4 py-3 border-b border-white/10">
+                    <p className="font-medium text-foreground truncate">
+                      {profile?.full_name || user?.email}
+                    </p>
+                    <p className="text-sm text-muted-foreground capitalize">
+                      {userRole}
+                    </p>
+                  </div>
+                  <div className="px-4 py-2">
+                    <p className="text-xs text-muted-foreground truncate">
+                      {user?.email}
+                    </p>
+                  </div>
+                  <div className="px-4 py-2">
+                    <Button
+                      variant="outline"
+                      className="w-full justify-start gap-2 border-white/30 hover:bg-white/20"
+                      onClick={signOut}
+                    >
+                      <LogOut className="h-4 w-4" />
+                      <span>Sign Out</span>
+                    </Button>
+                  </div>
+                </div>
+              )}
             </div>
           </div>
         </header>
