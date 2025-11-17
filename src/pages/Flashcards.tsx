@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button';
 import { ArrowLeft, CreditCard, ChevronLeft, ChevronRight, RotateCcw, Plus, Edit, Trash } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
+import FlashcardEditor from '@/components/FlashcardEditor';
 
 type Card = {
   id: string;
@@ -30,6 +31,7 @@ const Flashcards = () => {
   const [flipped, setFlipped] = useState(false);
   const [userRole, setUserRole] = useState<string>('student');
   const [loading, setLoading] = useState(true);
+  const [editingDeck, setEditingDeck] = useState<Deck | null>(null);
 
   // Fetch user role
   useEffect(() => {
@@ -94,7 +96,7 @@ const Flashcards = () => {
         }));
 
         setDecks(decksData);
-        if (decksData.length > 0 && !selectedDeck) {
+        if (decksData.length > 0 && !selectedDeck && !editingDeck) {
           setSelectedDeck(decksData[0]);
         }
       } catch (error) {
@@ -104,7 +106,7 @@ const Flashcards = () => {
     };
 
     fetchDecks();
-  }, [user, userRole, loading, selectedDeck]);
+  }, [user, userRole, loading, selectedDeck, editingDeck]);
 
   const handleDeckSelect = (deck: Deck) => {
     setSelectedDeck(deck);
@@ -112,31 +114,24 @@ const Flashcards = () => {
     setFlipped(false);
   };
 
-  const handleCreateDeck = async () => {
+  const handleCreateDeck = () => {
     if (!user) return;
     
-    try {
-      const { data, error } = await supabase
-        .from('decks')
-        .insert({
-          title: 'New Deck',
-          description: 'Description for your new deck',
-          user_id: user.id,
-          is_public: false
-        })
-        .select()
-        .single();
+    const newDeck: any = {
+      title: 'New Deck',
+      description: '',
+      is_public: false,
+      user_id: user.id,
+      flashcards: [],
+    };
+    
+    setEditingDeck(newDeck);
+    setSelectedDeck(null);
+  };
 
-      if (error) throw error;
-      
-      const newDeck = { ...data, flashcards: [] };
-      setDecks([newDeck, ...decks]);
-      setSelectedDeck(newDeck);
-      toast.success('Deck created successfully');
-    } catch (error) {
-      console.error('Error creating deck:', error);
-      toast.error('Failed to create deck');
-    }
+  const handleEditDeck = (deck: Deck) => {
+    setEditingDeck(deck);
+    setSelectedDeck(null);
   };
 
   const handleDeleteDeck = async (deckId: string) => {
@@ -175,6 +170,22 @@ const Flashcards = () => {
     }
   };
 
+  const handleSaveDeck = (updatedDeck: Deck) => {
+    // Update the decks list with the saved deck
+    const updatedDecks = decks.map(deck => 
+      deck.id === updatedDeck.id ? updatedDeck : deck
+    );
+    
+    // If it's a new deck, add it to the list
+    if (!decks.some(deck => deck.id === updatedDeck.id)) {
+      updatedDecks.unshift(updatedDeck);
+    }
+    
+    setDecks(updatedDecks);
+    setSelectedDeck(updatedDeck);
+    setEditingDeck(null);
+  };
+
   const next = () => {
     if (!selectedDeck) return;
     setFlipped(false);
@@ -198,6 +209,20 @@ const Flashcards = () => {
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto"></div>
           <p className="mt-4 text-muted-foreground">Loading flashcards...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (editingDeck) {
+    return (
+      <div className="min-h-screen p-4 md:p-8">
+        <div className="max-w-6xl mx-auto">
+          <FlashcardEditor 
+            deck={editingDeck} 
+            onSave={handleSaveDeck}
+            onCancel={() => setEditingDeck(null)}
+          />
         </div>
       </div>
     );
@@ -285,7 +310,15 @@ const Flashcards = () => {
                         <div className="flex gap-1">
                           {(userRole === 'admin' || deck.user_id === user?.id || (userRole === 'teacher' && deck.user_id === user?.id)) && (
                             <>
-                              <Button size="icon" variant="ghost" className="h-8 w-8">
+                              <Button 
+                                size="icon" 
+                                variant="ghost" 
+                                className="h-8 w-8"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleEditDeck(deck);
+                                }}
+                              >
                                 <Edit className="h-4 w-4" />
                               </Button>
                               <Button 
@@ -338,6 +371,15 @@ const Flashcards = () => {
                     {selectedDeck.flashcards.length === 0 ? (
                       <div className="text-center py-12">
                         <p className="text-muted-foreground">This deck has no flashcards yet</p>
+                        {(userRole === 'admin' || selectedDeck.user_id === user?.id || (userRole === 'teacher' && selectedDeck.user_id === user?.id)) && (
+                          <Button 
+                            onClick={() => handleEditDeck(selectedDeck)} 
+                            className="mt-4 flex items-center gap-2 mx-auto"
+                          >
+                            <Plus className="h-4 w-4" />
+                            Add Cards
+                          </Button>
+                        )}
                       </div>
                     ) : (
                       <>
