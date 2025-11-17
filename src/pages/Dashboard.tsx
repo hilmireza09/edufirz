@@ -2,8 +2,27 @@ import { useState, useRef, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import { Button } from '@/components/ui/button';
-import { BookOpen, CreditCard, GraduationCap, Users, LogOut, MessageSquare, Settings, Home, Calendar, FileText, Search, ChevronDown, User } from 'lucide-react';
+import { Input } from '@/components/ui/input';
+import { BookOpen, CreditCard, GraduationCap, Users, LogOut, MessageSquare, Settings, Home, Calendar, FileText, Search, ChevronDown, User, Plus, ChevronLeft, ChevronRight, RotateCcw, Edit, Trash, Tag } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
+import { toast } from 'sonner';
+
+type Card = {
+  id: string;
+  front: string;
+  back: string;
+  hint: string | null;
+};
+
+type Deck = {
+  id: string;
+  title: string;
+  description: string | null;
+  is_public: boolean;
+  user_id: string;
+  tags: string[] | null;
+  flashcards: Card[];
+};
 
 const Dashboard = () => {
   const { user, signOut, loading } = useAuth();
@@ -14,6 +33,16 @@ const Dashboard = () => {
   const [isProfileMenuOpen, setIsProfileMenuOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const profileMenuRef = useRef<HTMLDivElement>(null);
+  
+  // Flashcard states
+  const [decks, setDecks] = useState<Deck[]>([]);
+  const [selectedDeck, setSelectedDeck] = useState<Deck | null>(null);
+  const [index, setIndex] = useState(0);
+  const [flipped, setFlipped] = useState(false);
+  const [deckSearchQuery, setDeckSearchQuery] = useState('');
+  const [tagFilter, setTagFilter] = useState('');
+  const [availableTags, setAvailableTags] = useState<string[]>([]);
+  const [editingDeck, setEditingDeck] = useState<Deck | null>(null);
 
   // Close profile menu when clicking outside
   useEffect(() => {
@@ -53,6 +82,72 @@ const Dashboard = () => {
     fetchProfile();
   }, [user]);
 
+  // Fetch decks when flashcards section is active
+  useEffect(() => {
+    const fetchDecks = async () => {
+      if (!user || activeSection !== 'flashcards') return;
+      
+      try {
+        let query = supabase
+          .from('decks')
+          .select(`
+            id, 
+            title, 
+            description, 
+            is_public, 
+            user_id,
+            tags,
+            flashcards (
+              id, 
+              front, 
+              back, 
+              hint
+            )
+          `)
+          .is('deleted_at', null);
+
+        // Role-based deck access
+        if (userRole === 'student') {
+          // Students see their own decks + public decks
+          query = query.or(`user_id.eq.${user.id},is_public.eq.true`);
+        } else if (userRole === 'teacher') {
+          // Teachers see their own decks + public decks
+          query = query.or(`user_id.eq.${user.id},is_public.eq.true`);
+        }
+        // Admins see all decks (handled by RLS)
+
+        const { data, error } = await query.order('created_at', { ascending: false });
+
+        if (error) throw error;
+        
+        const decksData = data.map(deck => ({
+          ...deck,
+          flashcards: Array.isArray(deck.flashcards) ? deck.flashcards : []
+        }));
+
+        setDecks(decksData);
+        
+        // Extract all unique tags
+        const tags = new Set<string>();
+        decksData.forEach(deck => {
+          if (deck.tags && Array.isArray(deck.tags)) {
+            deck.tags.forEach(tag => tags.add(tag));
+          }
+        });
+        setAvailableTags(Array.from(tags));
+        
+        if (decksData.length > 0 && !selectedDeck) {
+          setSelectedDeck(decksData[0]);
+        }
+      } catch (error) {
+        console.error('Error fetching decks:', error);
+        toast.error('Failed to load flashcards');
+      }
+    };
+
+    fetchDecks();
+  }, [user, userRole, activeSection, selectedDeck]);
+
   const navigationItems = [
     { id: 'dashboard', title: 'Dashboard', icon: Home },
     { id: 'flashcards', title: 'Flashcards', icon: CreditCard },
@@ -74,6 +169,97 @@ const Dashboard = () => {
     // Search functionality would be implemented here
     console.log('Searching for:', searchQuery);
   };
+
+  const handleDeckSelect = (deck: Deck) => {
+    setSelectedDeck(deck);
+    setIndex(0);
+    setFlipped(false);
+  };
+
+  const handleCreateDeck = () => {
+    if (!user) return;
+    
+    const newDeck: any = {
+      title: 'New Deck',
+      description: '',
+      is_public: false,
+      user_id: user.id,
+      tags: [],
+      flashcards: [],
+    };
+    
+    setEditingDeck(newDeck);
+    setSelectedDeck(null);
+  };
+
+  const handleEditDeck = (deck: Deck) => {
+    setEditingDeck(deck);
+    setSelectedDeck(null);
+  };
+
+  const handleDeleteDeck = async (deckId: string) => {
+    if (!user) return;
+    
+    // Check permissions
+    const deck = decks.find(d => d.id === deckId);
+    if (!deck) return;
+    
+    const canDelete = 
+      userRole === 'admin' || 
+      deck.user_id === user.id || 
+      (userRole === 'teacher' && deck.user_id === user.id);
+    
+    if (!canDelete) {
+      toast.error('You do not have permission to delete this deck');
+      return;
+    }
+    
+    try {
+      const { error } = await supabase
+        .from('decks')
+        .update({ deleted_at: new Date().toISOString() })
+        .eq('id', deckId);
+
+      if (error) throw error;
+      
+      setDecks(decks.filter(d => d.id !== deckId));
+      if (selectedDeck?.id === deckId) {
+        setSelectedDeck(decks.length > 1 ? decks[0] : null);
+      }
+      toast.success('Deck deleted successfully');
+    } catch (error) {
+      console.error('Error deleting deck:', error);
+      toast.error('Failed to delete deck');
+    }
+  };
+
+  const next = () => {
+    if (!selectedDeck) return;
+    setFlipped(false);
+    setIndex((i) => (i + 1) % selectedDeck.flashcards.length);
+  };
+
+  const prev = () => {
+    if (!selectedDeck) return;
+    setFlipped(false);
+    setIndex((i) => (i - 1 + selectedDeck.flashcards.length) % selectedDeck.flashcards.length);
+  };
+
+  const reset = () => {
+    setIndex(0);
+    setFlipped(false);
+  };
+
+  // Filter decks based on search and tag
+  const filteredDecks = decks.filter(deck => {
+    const matchesSearch = deck.title.toLowerCase().includes(deckSearchQuery.toLowerCase()) ||
+      deck.description?.toLowerCase().includes(deckSearchQuery.toLowerCase());
+    
+    const matchesTag = tagFilter === '' || 
+      (deck.tags && Array.isArray(deck.tags) && deck.tags.includes(tagFilter));
+    
+    return matchesSearch && matchesTag;
+  });
 
   const renderContent = () => {
     switch (activeSection) {
@@ -107,85 +293,433 @@ const Dashboard = () => {
           </div>
         );
       case 'flashcards':
+        if (editingDeck) {
+          return (
+            <div className="py-6">
+              <div className="flex justify-between items-center mb-6">
+                <h2 className="text-2xl font-bold text-foreground">
+                  {editingDeck.id ? 'Edit Deck' : 'Create New Deck'}
+                </h2>
+                <Button 
+                  variant="outline" 
+                  onClick={() => setEditingDeck(null)}
+                  className="flex items-center gap-2"
+                >
+                  Back to Decks
+                </Button>
+              </div>
+              
+              <div className="bg-card/80 backdrop-blur-sm rounded-2xl border border-border shadow-sm p-6">
+                <div className="space-y-4">
+                  <div>
+                    <label className="text-sm font-medium text-foreground mb-1 block">Deck Title</label>
+                    <Input
+                      value={editingDeck.title}
+                      onChange={(e) => setEditingDeck({...editingDeck, title: e.target.value})}
+                      placeholder="Enter deck title"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="text-sm font-medium text-foreground mb-1 block">Description</label>
+                    <textarea
+                      value={editingDeck.description || ''}
+                      onChange={(e) => setEditingDeck({...editingDeck, description: e.target.value})}
+                      placeholder="Enter deck description"
+                      rows={3}
+                      className="w-full px-3 py-2 border border-border rounded-md bg-background text-foreground"
+                    />
+                  </div>
+
+                  <div className="flex items-center space-x-2">
+                    <input
+                      type="checkbox"
+                      id="public"
+                      checked={editingDeck.is_public}
+                      onChange={(e) => setEditingDeck({...editingDeck, is_public: e.target.checked})}
+                      className="h-4 w-4 rounded border-border text-primary focus:ring-primary"
+                    />
+                    <label htmlFor="public" className="text-sm font-medium text-foreground">
+                      Make this deck public
+                    </label>
+                  </div>
+                  
+                  <div>
+                    <label className="text-sm font-medium text-foreground mb-1 block">Tags (comma separated)</label>
+                    <Input
+                      value={editingDeck.tags?.join(', ') || ''}
+                      onChange={(e) => setEditingDeck({...editingDeck, tags: e.target.value.split(',').map(tag => tag.trim())})}
+                      placeholder="e.g., math, science, history"
+                    />
+                  </div>
+                </div>
+                
+                <div className="mt-6 flex justify-end gap-2">
+                  <Button 
+                    variant="outline" 
+                    onClick={() => setEditingDeck(null)}
+                  >
+                    Cancel
+                  </Button>
+                  <Button 
+                    onClick={async () => {
+                      try {
+                        let savedDeck;
+                        if (editingDeck.id) {
+                          // Update existing deck
+                          const { data, error } = await supabase
+                            .from('decks')
+                            .update({
+                              title: editingDeck.title,
+                              description: editingDeck.description,
+                              is_public: editingDeck.is_public,
+                              tags: editingDeck.tags
+                            })
+                            .eq('id', editingDeck.id)
+                            .select()
+                            .single();
+                          
+                          if (error) throw error;
+                          savedDeck = data;
+                        } else {
+                          // Create new deck
+                          const { data, error } = await supabase
+                            .from('decks')
+                            .insert([{
+                              title: editingDeck.title,
+                              description: editingDeck.description,
+                              is_public: editingDeck.is_public,
+                              tags: editingDeck.tags,
+                              user_id: editingDeck.user_id
+                            }])
+                            .select()
+                            .single();
+                          
+                          if (error) throw error;
+                          savedDeck = data;
+                        }
+                        
+                        // Refresh decks
+                        const { data: updatedDecks } = await supabase
+                          .from('decks')
+                          .select(`
+                            id, 
+                            title, 
+                            description, 
+                            is_public, 
+                            user_id,
+                            tags,
+                            flashcards (
+                              id, 
+                              front, 
+                              back, 
+                              hint
+                            )
+                          `)
+                          .is('deleted_at', null);
+                        
+                        if (updatedDecks) {
+                          const decksData = updatedDecks.map(deck => ({
+                            ...deck,
+                            flashcards: Array.isArray(deck.flashcards) ? deck.flashcards : []
+                          }));
+                          setDecks(decksData);
+                          setSelectedDeck(savedDeck);
+                        }
+                        
+                        setEditingDeck(null);
+                        toast.success('Deck saved successfully');
+                      } catch (error) {
+                        console.error('Error saving deck:', error);
+                        toast.error('Failed to save deck');
+                      }
+                    }}
+                    className="bg-gradient-to-r from-primary to-secondary hover:opacity-90"
+                  >
+                    Save Deck
+                  </Button>
+                </div>
+              </div>
+            </div>
+          );
+        }
+        
         return (
           <div className="py-6">
-            <div className="flex justify-between items-center mb-6">
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
               <div>
                 <h2 className="text-2xl font-bold text-foreground">Flashcards</h2>
                 <p className="text-muted-foreground">Study and memorize key concepts</p>
               </div>
-              <Button onClick={() => navigate('/flashcards')} className="bg-gradient-to-r from-primary to-secondary hover:opacity-90">
-                Open Flashcards
+              <Button onClick={handleCreateDeck} className="flex items-center gap-2">
+                <Plus className="h-4 w-4" />
+                New Deck
               </Button>
             </div>
             
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-              <div className="bg-card/80 backdrop-blur-sm p-6 rounded-2xl border border-border shadow-sm">
-                <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-secondary/20 to-accent/20 flex items-center justify-center mb-4">
-                  <CreditCard className="h-6 w-6 text-secondary" />
-                </div>
-                <h3 className="font-semibold text-foreground mb-2">Create Decks</h3>
-                <p className="text-sm text-muted-foreground">Build custom flashcard decks for any subject</p>
+            {decks.length === 0 ? (
+              <div className="text-center py-12">
+                <CreditCard className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+                <h2 className="text-xl font-semibold text-foreground mb-2">No Flashcard Decks</h2>
+                <p className="text-muted-foreground mb-6">Create your first deck to get started</p>
+                <Button onClick={handleCreateDeck} className="flex items-center gap-2 mx-auto">
+                  <Plus className="h-4 w-4" />
+                  Create Deck
+                </Button>
               </div>
-              
-              <div className="bg-card/80 backdrop-blur-sm p-6 rounded-2xl border border-border shadow-sm">
-                <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-primary/20 to-secondary/20 flex items-center justify-center mb-4">
-                  <BookOpen className="h-6 w-6 text-primary" />
+            ) : (
+              <div className="flex flex-col lg:flex-row gap-6">
+                {/* Deck List with Search and Filter */}
+                <div className="lg:w-1/3">
+                  <div className="bg-card/80 backdrop-blur-sm rounded-2xl p-4 border border-border shadow-sm mb-4">
+                    <div className="relative mb-3">
+                      <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
+                      <Input
+                        type="text"
+                        placeholder="Search decks..."
+                        className="pl-10"
+                        value={deckSearchQuery}
+                        onChange={(e) => setDeckSearchQuery(e.target.value)}
+                      />
+                    </div>
+                    
+                    <div className="relative">
+                      <Tag className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
+                      <select
+                        className="w-full pl-10 pr-4 py-2 rounded-md bg-background border border-border focus:outline-none focus:ring-2 focus:ring-primary/30 text-foreground"
+                        value={tagFilter}
+                        onChange={(e) => setTagFilter(e.target.value)}
+                      >
+                        <option value="">All Tags</option>
+                        {availableTags.map(tag => (
+                          <option key={tag} value={tag}>{tag}</option>
+                        ))}
+                      </select>
+                    </div>
+                  </div>
+                  
+                  <h3 className="text-lg font-semibold text-foreground mb-3">Your Decks ({filteredDecks.length})</h3>
+                  <div className="space-y-3 max-h-[500px] overflow-y-auto pr-2">
+                    {filteredDecks.map((deck) => (
+                      <div 
+                        key={deck.id}
+                        className={`p-4 rounded-xl border cursor-pointer transition-all ${
+                          selectedDeck?.id === deck.id
+                            ? 'border-primary bg-primary/10'
+                            : 'border-border hover:bg-accent'
+                        }`}
+                        onClick={() => handleDeckSelect(deck)}
+                      >
+                        <div className="flex justify-between items-start">
+                          <div>
+                            <h3 className="font-medium text-foreground">{deck.title}</h3>
+                            <p className="text-sm text-muted-foreground mt-1">
+                              {deck.flashcards.length} cards
+                              {deck.is_public && <span className="ml-2 text-xs bg-accent text-accent-foreground px-2 py-0.5 rounded">Public</span>}
+                            </p>
+                          </div>
+                          <div className="flex gap-1">
+                            {(userRole === 'admin' || deck.user_id === user?.id || (userRole === 'teacher' && deck.user_id === user?.id)) && (
+                              <>
+                                <Button 
+                                  size="icon" 
+                                  variant="ghost" 
+                                  className="h-8 w-8"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleEditDeck(deck);
+                                  }}
+                                >
+                                  <Edit className="h-4 w-4" />
+                                </Button>
+                                <Button 
+                                  size="icon" 
+                                  variant="ghost" 
+                                  className="h-8 w-8 text-destructive hover:text-destructive hover:bg-destructive/10"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleDeleteDeck(deck.id);
+                                  }}
+                                >
+                                  <Trash className="h-4 w-4" />
+                                </Button>
+                              </>
+                            )}
+                          </div>
+                        </div>
+                        {deck.description && (
+                          <p className="text-sm text-muted-foreground mt-2">{deck.description}</p>
+                        )}
+                        {deck.tags && deck.tags.length > 0 && (
+                          <div className="flex flex-wrap gap-1 mt-2">
+                            {deck.tags.map(tag => (
+                              <span key={tag} className="text-xs bg-secondary text-secondary-foreground px-2 py-0.5 rounded">
+                                {tag}
+                              </span>
+                            ))}
+                          </div>
+                        )}
+                        <div className="text-xs text-muted-foreground mt-2">
+                          {deck.user_id === user?.id ? 'Your deck' : 'Shared deck'}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
                 </div>
-                <h3 className="font-semibold text-foreground mb-2">Study Mode</h3>
-                <p className="text-sm text-muted-foreground">Flip through cards and test your knowledge</p>
+
+                {/* Flashcard Viewer */}
+                <div className="lg:w-2/3">
+                  {selectedDeck ? (
+                    <>
+                      <div className="mb-6">
+                        <div className="flex justify-between items-center">
+                          <h2 className="text-xl font-semibold text-foreground">{selectedDeck.title}</h2>
+                          <div className="flex gap-2">
+                            {selectedDeck.is_public && (
+                              <span className="bg-accent text-accent-foreground text-xs px-2 py-1 rounded">Public</span>
+                            )}
+                            {selectedDeck.user_id !== user?.id && (
+                              <span className="bg-secondary text-secondary-foreground text-xs px-2 py-1 rounded">Shared</span>
+                            )}
+                          </div>
+                        </div>
+                        {selectedDeck.description && (
+                          <p className="text-muted-foreground mt-1">{selectedDeck.description}</p>
+                        )}
+                        {selectedDeck.tags && selectedDeck.tags.length > 0 && (
+                          <div className="flex flex-wrap gap-1 mt-2">
+                            {selectedDeck.tags.map(tag => (
+                              <span key={tag} className="text-xs bg-primary/10 text-primary px-2 py-0.5 rounded">
+                                {tag}
+                              </span>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+
+                      {selectedDeck.flashcards.length === 0 ? (
+                        <div className="text-center py-12">
+                          <p className="text-muted-foreground">This deck has no flashcards yet</p>
+                          {(userRole === 'admin' || selectedDeck.user_id === user?.id || (userRole === 'teacher' && selectedDeck.user_id === user?.id)) && (
+                            <Button 
+                              onClick={() => handleEditDeck(selectedDeck)} 
+                              className="mt-4 flex items-center gap-2 mx-auto"
+                            >
+                              <Plus className="h-4 w-4" />
+                              Add Cards
+                            </Button>
+                          )}
+                        </div>
+                      ) : (
+                        <>
+                          {/* Flashcard Container */}
+                          <div className="flex justify-center my-8">
+                            <div 
+                              className="relative w-full max-w-lg h-64 cursor-pointer [perspective:1000px] select-none"
+                              onClick={() => setFlipped(!flipped)}
+                            >
+                              <div
+                                className={`absolute inset-0 rounded-2xl shadow-lg p-8 flex items-center justify-center text-center text-lg font-medium transition-all duration-500 [transform-style:preserve-3d] ${
+                                  flipped ? '[transform:rotateY(180deg)]' : ''
+                                }`}
+                              >
+                                {/* Front of card */}
+                                <div className="absolute inset-0 bg-gradient-to-br from-primary/5 to-secondary/5 rounded-2xl border border-border flex items-center justify-center [backface-visibility:hidden] p-6">
+                                  <div>
+                                    <span className="text-xs text-primary font-semibold mb-2 block">QUESTION</span>
+                                    <p className="text-xl text-foreground">{selectedDeck.flashcards[index]?.front || ''}</p>
+                                  </div>
+                                </div>
+                                
+                                {/* Back of card */}
+                                <div className="absolute inset-0 bg-gradient-to-br from-secondary/5 to-accent/5 rounded-2xl border border-border flex items-center justify-center [transform:rotateY(180deg)] [backface-visibility:hidden] p-6">
+                                  <div>
+                                    <span className="text-xs text-secondary font-semibold mb-2 block">ANSWER</span>
+                                    <p className="text-xl text-foreground">{selectedDeck.flashcards[index]?.back || ''}</p>
+                                    {selectedDeck.flashcards[index]?.hint && (
+                                      <p className="text-sm text-muted-foreground mt-4">
+                                        <span className="font-medium">Hint:</span> {selectedDeck.flashcards[index]?.hint}
+                                      </p>
+                                    )}
+                                  </div>
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+
+                          {/* Controls */}
+                          <div className="flex flex-col sm:flex-row items-center justify-between gap-4 mt-8">
+                            <div className="flex items-center gap-4">
+                              <div className="bg-muted px-4 py-2 rounded-lg">
+                                <span className="text-sm text-muted-foreground">Card</span>
+                                <span className="font-semibold ml-2">{index + 1} / {selectedDeck.flashcards.length}</span>
+                              </div>
+                              <Button variant="outline" onClick={reset} className="flex items-center gap-2">
+                                <RotateCcw className="h-4 w-4" />
+                                Reset
+                              </Button>
+                            </div>
+                            
+                            <div className="flex gap-2">
+                              <Button 
+                                variant="outline" 
+                                onClick={prev} 
+                                disabled={selectedDeck.flashcards.length <= 1}
+                                className="flex items-center gap-2"
+                              >
+                                <ChevronLeft className="h-4 w-4" />
+                                Previous
+                              </Button>
+                              
+                              <Button 
+                                onClick={() => setFlipped(!flipped)} 
+                                className="bg-gradient-to-r from-primary to-secondary hover:opacity-90"
+                              >
+                                {flipped ? 'Show Question' : 'Show Answer'}
+                              </Button>
+                              
+                              <Button 
+                                variant="outline" 
+                                onClick={next} 
+                                disabled={selectedDeck.flashcards.length <= 1}
+                                className="flex items-center gap-2"
+                              >
+                                Next
+                                <ChevronRight className="h-4 w-4" />
+                              </Button>
+                            </div>
+                          </div>
+
+                          {/* Progress indicators */}
+                          <div className="flex justify-center mt-8">
+                            <div className="flex gap-2">
+                              {selectedDeck.flashcards.map((_, i) => (
+                                <div 
+                                  key={i}
+                                  className={`w-3 h-3 rounded-full ${
+                                    i === index 
+                                      ? 'bg-primary w-6' 
+                                      : i < index 
+                                        ? 'bg-primary/50' 
+                                        : 'bg-muted'
+                                  }`}
+                                />
+                              ))}
+                            </div>
+                          </div>
+                        </>
+                      )}
+                    </>
+                  ) : (
+                    <div className="text-center py-12">
+                      <CreditCard className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+                      <h2 className="text-xl font-semibold text-foreground mb-2">Select a Deck</h2>
+                      <p className="text-muted-foreground">Choose a deck from the list to start studying</p>
+                    </div>
+                  )}
+                </div>
               </div>
-              
-              <div className="bg-card/80 backdrop-blur-sm p-6 rounded-2xl border border-border shadow-sm">
-                <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-accent/20 to-primary/20 flex items-center justify-center mb-4">
-                  <Users className="h-6 w-6 text-accent" />
-                </div>
-                <h3 className="font-semibold text-foreground mb-2">Share Decks</h3>
-                <p className="text-sm text-muted-foreground">Share your decks with classmates</p>
-              </div>
-            </div>
-            
-            <div className="mt-8 bg-card/80 backdrop-blur-sm p-6 rounded-2xl border border-border shadow-sm">
-              <h3 className="font-semibold text-foreground mb-4">Getting Started</h3>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="flex items-start gap-3">
-                  <div className="mt-1 w-6 h-6 rounded-full bg-primary/20 flex items-center justify-center">
-                    <span className="text-xs font-bold text-primary">1</span>
-                  </div>
-                  <div>
-                    <h4 className="font-medium text-foreground">Create a Deck</h4>
-                    <p className="text-sm text-muted-foreground">Click "Open Flashcards" and create your first deck</p>
-                  </div>
-                </div>
-                <div className="flex items-start gap-3">
-                  <div className="mt-1 w-6 h-6 rounded-full bg-primary/20 flex items-center justify-center">
-                    <span className="text-xs font-bold text-primary">2</span>
-                  </div>
-                  <div>
-                    <h4 className="font-medium text-foreground">Add Cards</h4>
-                    <p className="text-sm text-muted-foreground">Add flashcards with questions and answers</p>
-                  </div>
-                </div>
-                <div className="flex items-start gap-3">
-                  <div className="mt-1 w-6 h-6 rounded-full bg-primary/20 flex items-center justify-center">
-                    <span className="text-xs font-bold text-primary">3</span>
-                  </div>
-                  <div>
-                    <h4 className="font-medium text-foreground">Study</h4>
-                    <p className="text-sm text-muted-foreground">Flip through cards to test your knowledge</p>
-                  </div>
-                </div>
-                <div className="flex items-start gap-3">
-                  <div className="mt-1 w-6 h-6 rounded-full bg-primary/20 flex items-center justify-center">
-                    <span className="text-xs font-bold text-primary">4</span>
-                  </div>
-                  <div>
-                    <h4 className="font-medium text-foreground">Track Progress</h4>
-                    <p className="text-sm text-muted-foreground">Monitor your learning with progress indicators</p>
-                  </div>
-                </div>
-              </div>
-            </div>
+            )}
           </div>
         );
       case 'quizzes':
