@@ -68,7 +68,7 @@ const Dashboard = () => {
               {quickAccessItems.map((item, index) => (
                 <div 
                   key={item.title}
-                  className="glass-card p-6 rounded-2xl hover-lift animate-fade-in-up"
+                  className="bg-card/80 backdrop-blur-sm p-6 rounded-2xl hover-lift animate-fade-in-up border border-border shadow-sm"
                   style={{ animationDelay: `${index * 0.1}s` }}
                 >
                   <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-primary/20 to-secondary/20 flex items-center justify-center mb-4 mx-auto">
@@ -91,7 +91,7 @@ const Dashboard = () => {
             <p className="text-muted-foreground mb-8 max-w-md mx-auto">
               Practice with digital flashcards to reinforce your learning.
             </p>
-            <div className="glass-card p-8 rounded-2xl max-w-md mx-auto">
+            <div className="bg-card/80 backdrop-blur-sm p-8 rounded-2xl max-w-md mx-auto border border-border shadow-sm">
               <p className="text-muted-foreground">Flashcard features coming soon</p>
             </div>
           </div>
@@ -106,7 +106,7 @@ const Dashboard = () => {
             <p className="text-muted-foreground mb-8 max-w-md mx-auto">
               Test your knowledge with interactive quizzes.
             </p>
-            <div className="glass-card p-8 rounded-2xl max-w-md mx-auto">
+            <div className="bg-card/80 backdrop-blur-sm p-8 rounded-2xl max-w-md mx-auto border border-border shadow-sm">
               <p className="text-muted-foreground">Quiz features coming soon</p>
             </div>
           </div>
@@ -121,7 +121,7 @@ const Dashboard = () => {
             <p className="text-muted-foreground mb-8 max-w-md mx-auto">
               Join and manage your classes and coursework.
             </p>
-            <div className="glass-card p-8 rounded-2xl max-w-md mx-auto">
+            <div className="bg-card/80 backdrop-blur-sm p-8 rounded-2xl max-w-md mx-auto border border-border shadow-sm">
               <p className="text-muted-foreground">Class features coming soon</p>
             </div>
           </div>
@@ -136,7 +136,7 @@ const Dashboard = () => {
             <p className="text-muted-foreground mb-8 max-w-md mx-auto">
               Collaborate with peers and teachers in our community forum.
             </p>
-            <div className="glass-card p-8 rounded-2xl max-w-md mx-auto">
+            <div className="bg-card/80 backdrop-blur-sm p-8 rounded-2xl max-w-md mx-auto border border-border shadow-sm">
               <p className="text-muted-foreground">Forum features coming soon</p>
             </div>
           </div>
@@ -151,7 +151,7 @@ const Dashboard = () => {
             <p className="text-muted-foreground mb-8 max-w-md mx-auto">
               Customize your learning experience and preferences.
             </p>
-            <div className="glass-card p-8 rounded-2xl max-w-md mx-auto">
+            <div className="bg-card/80 backdrop-blur-sm p-8 rounded-2xl max-w-md mx-auto border border-border shadow-sm">
               <p className="text-muted-foreground">Settings features coming soon</p>
             </div>
           </div>
@@ -169,11 +169,11 @@ const Dashboard = () => {
   return (
     <div className="min-h-screen flex">
       {/* Glassmorphism Sidebar */}
-      <div className="w-64 min-h-screen p-6 bg-white/20 backdrop-blur-xl border-r border-white/30 sticky top-0">
+      <div className="w-64 min-h-screen p-6 bg-background/80 backdrop-blur-xl border-r border-border sticky top-0">
         <div className="mb-8">
           <div className="flex items-center gap-2 mb-6">
             <BookOpen className="h-8 w-8 text-primary" />
-            <span className="text-2xl font-bold gradient-text">EduLearn</span>
+            <span className="text-2xl font-bold bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent">EduLearn</span>
           </div>
         </div>
         
@@ -186,8 +186,8 @@ const Dashboard = () => {
                 onClick={() => setActiveSection(item.id)}
                 className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-300 ${
                   activeSection === item.id
-                    ? 'bg-gradient-to-r from-primary/20 to-secondary/20 text-primary shadow-lg'
-                    : 'text-foreground hover:bg-white/30'
+                    ? 'bg-gradient-to-r from-primary/20 to-secondary/20 text-primary shadow-sm'
+                    : 'text-foreground hover:bg-accent'
                 }`}
               >
                 <Icon className="h-5 w-5" />
@@ -200,7 +200,7 @@ const Dashboard = () => {
         <div className="mt-auto pt-8">
           <Button
             variant="outline"
-            className="w-full justify-start gap-3 border-white/30 hover:bg-white/20"
+            className="w-full justify-start gap-3 border-border hover:bg-accent"
             onClick={signOut}
           >
             <LogOut className="h-5 w-5" />
@@ -212,7 +212,7 @@ const Dashboard = () => {
       {/* Main Content Area */}
       <div className="flex-1 flex flex-col">
         {/* Header */}
-        <header className="glass-card border-b border-border/50 p-4">
+        <header className="bg-background/80 backdrop-blur-xl border-b border-border p-4">
           <div className="flex items-center justify-between">
             {/* Search Bar */}
             <form onSubmit={handleSearch} className="flex-1 max-w-md">
@@ -221,7 +221,7 @@ const Dashboard = () => {
                 <input
                   type="text"
                   placeholder="Search courses, resources, or topics..."
-                  className="w-full pl-10 pr-4 py-2 rounded-lg bg-background/50 border border-border focus:outline-none focus:ring-2 focus:ring-primary/50"
+                  className="w-full pl-10 pr-4 py-2 rounded-lg bg-card border border-border focus:outline-none focus:ring-2 focus:ring-primary/30"
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                 />
@@ -241,8 +241,8 @@ const Dashboard = () => {
               </button>
 
               {isProfileMenuOpen && (
-                <div className="absolute right-0 mt-2 w-64 glass-card rounded-xl shadow-lg py-2 z-10 border border-white/20">
-                  <div className="px-4 py-3 border-b border-white/10">
+                <div className="absolute right-0 mt-2 w-64 bg-card rounded-xl shadow-lg py-2 z-10 border border-border">
+                  <div className="px-4 py-3 border-b border-border">
                     <p className="font-medium text-foreground truncate">
                       {profile?.full_name || user?.email}
                     </p>
@@ -258,7 +258,7 @@ const Dashboard = () => {
                   <div className="px-4 py-2">
                     <Button
                       variant="outline"
-                      className="w-full justify-start gap-2 border-white/30 hover:bg-white/20"
+                      className="w-full justify-start gap-2 border-border hover:bg-accent"
                       onClick={signOut}
                     >
                       <LogOut className="h-4 w-4" />
@@ -272,8 +272,8 @@ const Dashboard = () => {
         </header>
 
         {/* Content Area */}
-        <main className="flex-1 p-6 overflow-auto">
-          <div className="glass-card rounded-2xl h-full">
+        <main className="flex-1 p-6 overflow-auto bg-gradient-to-br from-background to-muted">
+          <div className="rounded-2xl h-full">
             {renderContent()}
           </div>
         </main>
