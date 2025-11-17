@@ -46,6 +46,9 @@ const Flashcards = () => {
       
       if (!error && data) {
         setUserRole(data.role || 'student');
+      } else {
+        // Default to student role if not found
+        setUserRole('student');
       }
       setLoading(false);
     };
