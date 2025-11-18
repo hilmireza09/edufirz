@@ -1,23 +1,18 @@
 ﻿import { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
-import { BookOpen, CreditCard, Users, LogOut, MessageSquare, Settings, Home, Calendar, FileText, Search, ChevronDown, User, Plus, Edit, Trash, Clock, Tag, CheckCircle, XCircle, GraduationCap, ChevronLeft, ChevronRight } from 'lucide-react';
+import { BookOpen, CreditCard, Users, LogOut, MessageSquare, Settings, Home, Calendar, FileText, Search, ChevronDown, User, Plus, Edit, Trash, Clock, Tag, CheckCircle, XCircle, GraduationCap, ChevronLeft, ChevronRight, Sparkles } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { toast } from 'sonner';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Card as UICard, CardContent } from '@/components/ui/card';
+import { QuestionEditor, QuizQuestion as QuestionEditorType } from '@/components/QuestionEditor';
 
-type QuizQuestion = {
+type QuizQuestion = QuestionEditorType & {
   id?: string;
-  question: string;
-  options: string[] | null;
-  correct_answer: string;
-  explanation: string | null;
-  points: number | null;
-  order_index: number | null;
-  type: string;
+  correct_answers?: string[];
 };
 
 type Quiz = {
@@ -243,8 +238,9 @@ const Quizzes = () => {
       ...questionDrafts,
       {
         question: '',
-        options: [],
+        options: ['', '', '', ''],
         correct_answer: '',
+        correct_answers: [],
         explanation: '',
         points: 1,
         order_index: questionDrafts.length,
@@ -331,6 +327,7 @@ const Quizzes = () => {
           question: q.question,
           options: q.options,
           correct_answer: q.correct_answer,
+          correct_answers: q.correct_answers, // Support for checkbox questions
           explanation: q.explanation,
           points: q.points,
           order_index: q.order_index,
@@ -349,6 +346,7 @@ const Quizzes = () => {
           question: q.question,
           options: q.options,
           correct_answer: q.correct_answer,
+          correct_answers: q.correct_answers, // Support for checkbox questions
           explanation: q.explanation,
           points: q.points,
           order_index: q.order_index,
@@ -724,62 +722,124 @@ const Quizzes = () => {
 
             {mode === 'edit' && editingQuiz && (
               <div className="space-y-6">
-                <div className="flex justify-between items-center">
-                  <h2 className="text-2xl font-bold">{editingQuiz.id ? 'Edit Quiz' : 'Create New Quiz'}</h2>
-                  <div className="flex gap-2">
-                    <Button variant="outline" onClick={() => { setEditingQuiz(null); setMode('list'); }}>Cancel</Button>
-                    <Button onClick={handleSaveQuiz} className="bg-gradient-to-r from-primary to-secondary hover:opacity-90">Save Quiz</Button>
+                {/* Header */}
+                <div className="bg-gradient-to-r from-primary/10 via-secondary/10 to-accent/10 rounded-2xl p-6 border border-border/50">
+                  <div className="flex justify-between items-center">
+                    <div>
+                      <h2 className="text-3xl font-bold mb-2">
+                        {editingQuiz.id ? '✏️ Edit Quiz' : '✨ Create New Quiz'}
+                      </h2>
+                      <p className="text-muted-foreground">
+                        Build engaging assessments with multiple question types
+                      </p>
+                    </div>
+                    <div className="flex gap-3">
+                      <Button 
+                        variant="outline" 
+                        onClick={() => { setEditingQuiz(null); setMode('list'); }}
+                        className="border-border hover:bg-accent"
+                      >
+                        Cancel
+                      </Button>
+                      <Button 
+                        onClick={handleSaveQuiz} 
+                        className="bg-gradient-to-r from-primary to-secondary hover:opacity-90 shadow-md"
+                      >
+                        <CheckCircle className="h-4 w-4 mr-2" />
+                        Save Quiz
+                      </Button>
+                    </div>
                   </div>
                 </div>
-                <UICard className="bg-card/80 backdrop-blur-sm border border-border">
-                  <CardContent className="p-6">
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      <div>
-                        <label className="text-sm font-medium mb-1 block">Title</label>
-                        <Input value={editingQuiz.title} onChange={(e) => setEditingQuiz({ ...(editingQuiz as Quiz), title: e.target.value })} />
+
+                {/* Quiz Details Card */}
+                <UICard className="bg-gradient-to-br from-card/95 to-card/80 backdrop-blur-sm border-2 border-border/50 shadow-lg">
+                  <CardContent className="p-8">
+                    <h3 className="text-xl font-semibold mb-6 flex items-center gap-2">
+                      <FileText className="h-5 w-5 text-primary" />
+                      Quiz Details
+                    </h3>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                      <div className="md:col-span-2">
+                        <label className="text-sm font-medium mb-2 block">Quiz Title</label>
+                        <Input 
+                          value={editingQuiz.title} 
+                          onChange={(e) => setEditingQuiz({ ...(editingQuiz as Quiz), title: e.target.value })} 
+                          placeholder="Enter an engaging quiz title..."
+                          className="text-lg h-12 bg-background/50 border-border/50 focus:border-primary/50"
+                        />
+                      </div>
+                      <div className="md:col-span-2">
+                        <label className="text-sm font-medium mb-2 block">Description</label>
+                        <Textarea 
+                          value={editingQuiz.description || ''} 
+                          onChange={(e) => setEditingQuiz({ ...(editingQuiz as Quiz), description: e.target.value })} 
+                          rows={3} 
+                          placeholder="Provide a brief description of this quiz..."
+                          className="resize-none bg-background/50 border-border/50 focus:border-primary/50"
+                        />
                       </div>
                       <div>
-                        <label className="text-sm font-medium mb-1 block">Status</label>
+                        <label className="text-sm font-medium mb-2 block">Status</label>
                         <select
-                          className="w-full px-3 py-2 rounded-md bg-background border border-border"
+                          className="w-full h-10 px-3 py-2 rounded-md bg-background/50 border border-border/50 focus:border-primary/50 focus:outline-none focus:ring-2 focus:ring-primary/30 transition-all"
                           value={editingQuiz.status}
                           onChange={(e) => setEditingQuiz({ ...(editingQuiz as Quiz), status: e.target.value })}
                         >
-                          <option value="draft">Draft</option>
-                          <option value="published">Published</option>
+                          <option value="draft">📝 Draft</option>
+                          <option value="published">✅ Published</option>
                         </select>
                       </div>
-                      <div className="md:col-span-2">
-                        <label className="text-sm font-medium mb-1 block">Description</label>
-                        <Textarea value={editingQuiz.description || ''} onChange={(e) => setEditingQuiz({ ...(editingQuiz as Quiz), description: e.target.value })} rows={3} />
-                      </div>
                       <div>
-                        <label className="text-sm font-medium mb-1 block">Difficulty</label>
+                        <label className="text-sm font-medium mb-2 block">Difficulty</label>
                         <select
-                          className="w-full px-3 py-2 rounded-md bg-background border border-border"
+                          className="w-full h-10 px-3 py-2 rounded-md bg-background/50 border border-border/50 focus:border-primary/50 focus:outline-none focus:ring-2 focus:ring-primary/30 transition-all"
                           value={editingQuiz.difficulty || 'easy'}
                           onChange={(e) => setEditingQuiz({ ...(editingQuiz as Quiz), difficulty: e.target.value })}
                         >
-                          <option value="easy">Easy</option>
-                          <option value="medium">Medium</option>
-                          <option value="hard">Hard</option>
+                          <option value="easy">🟢 Easy</option>
+                          <option value="medium">🟡 Medium</option>
+                          <option value="hard">🔴 Hard</option>
                         </select>
                       </div>
                       <div>
-                        <label className="text-sm font-medium mb-1 block">Category</label>
-                        <Input value={editingQuiz.category || ''} onChange={(e) => setEditingQuiz({ ...(editingQuiz as Quiz), category: e.target.value })} />
+                        <label className="text-sm font-medium mb-2 block">Category</label>
+                        <Input 
+                          value={editingQuiz.category || ''} 
+                          onChange={(e) => setEditingQuiz({ ...(editingQuiz as Quiz), category: e.target.value })} 
+                          placeholder="e.g., Mathematics, Science..."
+                          className="bg-background/50 border-border/50 focus:border-primary/50"
+                        />
                       </div>
                       <div>
-                        <label className="text-sm font-medium mb-1 block">Attempts Allowed</label>
-                        <Input type="number" value={editingQuiz.attempts_allowed ?? 1} onChange={(e) => setEditingQuiz({ ...(editingQuiz as Quiz), attempts_allowed: Number(e.target.value) })} />
+                        <label className="text-sm font-medium mb-2 block">Attempts Allowed</label>
+                        <Input 
+                          type="number" 
+                          value={editingQuiz.attempts_allowed ?? 1} 
+                          onChange={(e) => setEditingQuiz({ ...(editingQuiz as Quiz), attempts_allowed: Number(e.target.value) })} 
+                          min={1}
+                          className="bg-background/50 border-border/50 focus:border-primary/50"
+                        />
                       </div>
                       <div>
-                        <label className="text-sm font-medium mb-1 block">Time Limit (minutes)</label>
-                        <Input type="number" value={editingQuiz.time_limit ?? 0} onChange={(e) => setEditingQuiz({ ...(editingQuiz as Quiz), time_limit: Number(e.target.value) })} />
+                        <label className="text-sm font-medium mb-2 block">Time Limit (minutes)</label>
+                        <Input 
+                          type="number" 
+                          value={editingQuiz.time_limit ?? 0} 
+                          onChange={(e) => setEditingQuiz({ ...(editingQuiz as Quiz), time_limit: Number(e.target.value) })} 
+                          min={0}
+                          placeholder="0 = No limit"
+                          className="bg-background/50 border-border/50 focus:border-primary/50"
+                        />
                       </div>
                       <div>
-                        <label className="text-sm font-medium mb-1 block">Due Date</label>
-                        <Input type="date" value={editingQuiz.due_date ? editingQuiz.due_date.substring(0,10) : ''} onChange={(e) => setEditingQuiz({ ...(editingQuiz as Quiz), due_date: e.target.value })} />
+                        <label className="text-sm font-medium mb-2 block">Due Date</label>
+                        <Input 
+                          type="date" 
+                          value={editingQuiz.due_date ? editingQuiz.due_date.substring(0,10) : ''} 
+                          onChange={(e) => setEditingQuiz({ ...(editingQuiz as Quiz), due_date: e.target.value })} 
+                          className="bg-background/50 border-border/50 focus:border-primary/50"
+                        />
                       </div>
                     </div>
                   </CardContent>
@@ -787,92 +847,36 @@ const Quizzes = () => {
 
                 <div className="space-y-4">
                   <div className="flex justify-between items-center">
-                    <h3 className="text-lg font-semibold">Questions</h3>
-                    <Button onClick={addQuestion} variant="outline" className="flex items-center gap-2">
+                    <h3 className="text-lg font-semibold flex items-center gap-2">
+                      <Sparkles className="h-5 w-5 text-primary" />
+                      Questions
+                    </h3>
+                    <Button onClick={addQuestion} className="flex items-center gap-2 bg-gradient-to-r from-primary to-secondary hover:opacity-90">
                       <Plus className="h-4 w-4" />
                       Add Question
                     </Button>
                   </div>
 
+                  {questionDrafts.length === 0 && (
+                    <div className="text-center py-12 bg-card/50 rounded-2xl border-2 border-dashed border-border">
+                      <Sparkles className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+                      <h3 className="text-lg font-semibold mb-2">No questions yet</h3>
+                      <p className="text-muted-foreground mb-4">Get started by adding your first question</p>
+                      <Button onClick={addQuestion} className="bg-gradient-to-r from-primary to-secondary hover:opacity-90">
+                        <Plus className="h-4 w-4 mr-2" />
+                        Add Your First Question
+                      </Button>
+                    </div>
+                  )}
+
                   {questionDrafts.map((question, index) => (
-                    <UICard key={index} className="bg-card/80 backdrop-blur-sm border border-border">
-                      <CardContent className="p-6">
-                        <div className="flex justify-between items-start mb-4">
-                          <h4 className="font-medium">Question {index + 1}</h4>
-                          <Button
-                            size="icon"
-                            variant="ghost"
-                            className="text-destructive hover:text-destructive hover:bg-destructive/10"
-                            onClick={() => removeQuestion(index)}
-                          >
-                            <Trash className="h-4 w-4" />
-                          </Button>
-                        </div>
-
-                        <div className="space-y-4">
-                          <div>
-                            <label className="text-sm font-medium mb-1 block">Question Text</label>
-                            <Textarea
-                              value={question.question}
-                              onChange={(e) => updateQuestion(index, 'question', e.target.value)}
-                              rows={2}
-                            />
-                          </div>
-
-                          <div>
-                            <label className="text-sm font-medium mb-1 block">Question Type</label>
-                            <select
-                              className="w-full px-3 py-2 rounded-md bg-background border border-border"
-                              value={question.type}
-                              onChange={(e) => updateQuestion(index, 'type', e.target.value)}
-                            >
-                              <option value="multiple_choice">Multiple Choice</option>
-                              <option value="true_false">True/False</option>
-                            </select>
-                          </div>
-
-                          {question.type === 'multiple_choice' && (
-                            <div>
-                              <label className="text-sm font-medium mb-1 block">Options (one per line)</label>
-                              <Textarea
-                                value={question.options?.join('\n') || ''}
-                                onChange={(e) => updateQuestion(index, 'options', e.target.value.split('\n').filter(opt => opt.trim()))}
-                                rows={4}
-                                placeholder="Option 1&#10;Option 2&#10;Option 3&#10;Option 4"
-                              />
-                            </div>
-                          )}
-
-                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            <div>
-                              <label className="text-sm font-medium mb-1 block">Correct Answer</label>
-                              <Input
-                                value={question.correct_answer}
-                                onChange={(e) => updateQuestion(index, 'correct_answer', e.target.value)}
-                                placeholder={question.type === 'true_false' ? 'True or False' : 'Enter the correct answer'}
-                              />
-                            </div>
-                            <div>
-                              <label className="text-sm font-medium mb-1 block">Points</label>
-                              <Input
-                                type="number"
-                                value={question.points || 1}
-                                onChange={(e) => updateQuestion(index, 'points', Number(e.target.value))}
-                              />
-                            </div>
-                          </div>
-
-                          <div>
-                            <label className="text-sm font-medium mb-1 block">Explanation (optional)</label>
-                            <Textarea
-                              value={question.explanation || ''}
-                              onChange={(e) => updateQuestion(index, 'explanation', e.target.value)}
-                              rows={2}
-                            />
-                          </div>
-                        </div>
-                      </CardContent>
-                    </UICard>
+                    <QuestionEditor
+                      key={index}
+                      question={question}
+                      index={index}
+                      onUpdate={updateQuestion}
+                      onRemove={removeQuestion}
+                    />
                   ))}
                 </div>
               </div>
