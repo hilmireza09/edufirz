@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import { Button } from '@/components/ui/button';
@@ -45,12 +45,14 @@ const Flashcards = () => {
   const [editingDeck, setEditingDeck] = useState<Deck | null>(null);
   const [profile, setProfile] = useState<Profile | null>(null);
   const [isProfileMenuOpen, setIsProfileMenuOpen] = useState(false);
+  const profileMenuRef = useRef<HTMLDivElement>(null);
 
   // New state for search and pagination
   const [generalSearchQuery, setGeneralSearchQuery] = useState('');
   const [flashcardsSearchQuery, setFlashcardsSearchQuery] = useState('');
   const [selectedTag, setSelectedTag] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
+  const [searchQuery, setSearchQuery] = useState('');
   const decksPerPage = 9;
 
   const navigationItems = [
@@ -140,6 +142,20 @@ const Flashcards = () => {
     fetchDecks();
   }, [user, userRole, loading, selectedDeck, editingDeck]);
 
+  // Close profile menu when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (profileMenuRef.current && !profileMenuRef.current.contains(event.target as Node)) {
+        setIsProfileMenuOpen(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, []);
+
   // Filtering and pagination logic
   const { filteredDecks, allTags, totalPages, currentDecks } = useMemo(() => {
     // Filter decks based on search query and selected tag
@@ -196,6 +212,12 @@ const Flashcards = () => {
 
     setEditingDeck(newDeck);
     setSelectedDeck(null);
+  };
+
+  const handleSearch = (e: React.FormEvent) => {
+    e.preventDefault();
+    // Handle search logic here - could search across decks, flashcards, etc.
+    console.log('Searching for:', searchQuery);
   };
 
   // Reset to first page when filters change
@@ -362,73 +384,61 @@ const Flashcards = () => {
       {/* Main Content */}
       <div className="flex-1 flex flex-col">
         {/* Header with General Search */}
-        <header className="p-6 border-b border-border bg-background/80 backdrop-blur-xl">
-          <div className="flex justify-between items-center">
-            <div>
-              <h1 className="text-2xl font-bold text-foreground">Flashcards</h1>
-              <p className="text-muted-foreground">Study and memorize key concepts</p>
-            </div>
-            
-            <div className="flex items-center gap-4">
-              {/* General Search Bar */}
+        <header className="bg-background/80 backdrop-blur-xl border-b border-border p-4">
+          <div className="flex items-center justify-between">
+            {/* Search Bar */}
+            <form onSubmit={handleSearch} className="flex-1 max-w-md">
               <div className="relative">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                <Input
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
+                <input
                   type="text"
-                  placeholder="Search across all content..."
-                  value={generalSearchQuery}
-                  onChange={(e) => setGeneralSearchQuery(e.target.value)}
-                  className="pl-10 w-64 bg-background/50 backdrop-blur-sm border-border"
+                  placeholder="Search courses, resources, or topics..."
+                  className="w-full pl-10 pr-4 py-2 rounded-lg bg-card border border-border focus:outline-none focus:ring-2 focus:ring-primary/30"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
                 />
               </div>
+            </form>
 
-              {(userRole === 'teacher' || userRole === 'admin' || userRole === 'student') && (
-                <Button onClick={handleCreateDeck} className="flex items-center gap-2">
-                  <Plus className="h-4 w-4" />
-                  New Deck
-                </Button>
+            {/* User Profile */}
+            <div className="relative" ref={profileMenuRef}>
+              <button
+                onClick={() => setIsProfileMenuOpen(!isProfileMenuOpen)}
+                className="flex items-center gap-2 focus:outline-none"
+              >
+                <div className="w-10 h-10 rounded-full bg-gradient-to-br from-primary to-secondary flex items-center justify-center text-white font-semibold">
+                  {profile?.full_name?.charAt(0) || user?.email?.charAt(0) || 'U'}
+                </div>
+                <ChevronDown className="h-4 w-4 text-muted-foreground" />
+              </button>
+
+              {isProfileMenuOpen && (
+                <div className="absolute right-0 mt-2 w-64 bg-card rounded-xl shadow-lg py-2 z-10 border border-border">
+                  <div className="px-4 py-3 border-b border-border">
+                    <p className="font-medium text-foreground truncate">
+                      {profile?.full_name || user?.email}
+                    </p>
+                    <p className="text-sm text-muted-foreground capitalize">
+                      {userRole}
+                    </p>
+                  </div>
+                  <div className="px-4 py-2">
+                    <p className="text-xs text-muted-foreground truncate">
+                      {user?.email}
+                    </p>
+                  </div>
+                  <div className="px-4 py-2">
+                    <Button
+                      variant="outline"
+                      className="w-full justify-start gap-2 border-border hover:bg-accent"
+                      onClick={signOut}
+                    >
+                      <LogOut className="h-4 w-4" />
+                      <span>Sign Out</span>
+                    </Button>
+                  </div>
+                </div>
               )}
-              
-              {/* Profile Menu */}
-              <div className="relative">
-                <button
-                  onClick={() => setIsProfileMenuOpen(!isProfileMenuOpen)}
-                  className="flex items-center gap-3 p-2 rounded-xl hover:bg-accent transition-colors"
-                >
-                  <div className="w-8 h-8 rounded-full bg-gradient-to-br from-primary to-secondary flex items-center justify-center text-white text-sm font-medium">
-                    {profile?.full_name?.charAt(0) || user?.email?.charAt(0) || 'U'}
-                  </div>
-                  <ChevronDown className="h-4 w-4 text-muted-foreground" />
-                </button>
-
-                {isProfileMenuOpen && (
-                  <div className="absolute right-0 mt-2 w-64 bg-card rounded-xl shadow-lg py-2 z-10 border border-border">
-                    <div className="px-4 py-3 border-b border-border">
-                      <p className="font-medium text-foreground truncate">
-                        {profile?.full_name || user?.email}
-                      </p>
-                      <p className="text-sm text-muted-foreground capitalize">
-                        {userRole}
-                      </p>
-                    </div>
-                    <div className="px-4 py-2">
-                      <p className="text-xs text-muted-foreground truncate">
-                        {user?.email}
-                      </p>
-                    </div>
-                    <div className="px-4 py-2">
-                      <Button
-                        variant="outline"
-                        className="w-full justify-start gap-2 border-border hover:bg-accent"
-                        onClick={signOut}
-                      >
-                        <LogOut className="h-4 w-4" />
-                        <span>Sign Out</span>
-                      </Button>
-                    </div>
-                  </div>
-                )}
-              </div>
             </div>
           </div>
         </header>
@@ -436,9 +446,15 @@ const Flashcards = () => {
         {/* Content Area */}
         <main className="flex-1 p-6 overflow-auto bg-gradient-to-br from-background to-muted">
           <div className="space-y-6">
+            {/* Page Title */}
+            <div className="text-center">
+              <h1 className="text-3xl font-bold text-foreground mb-2">Flashcards</h1>
+              <p className="text-muted-foreground">Study and memorize key concepts</p>
+            </div>
+
             {/* Search and Filter Controls */}
             <div className="bg-card/50 backdrop-blur-sm border border-border rounded-2xl p-6">
-              <div className="flex flex-col md:flex-row gap-4">
+              <div className="flex flex-col md:flex-row gap-4 items-end">
                 <div className="flex-1">
                   <div className="relative">
                     <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
@@ -463,6 +479,12 @@ const Flashcards = () => {
                     </SelectContent>
                   </Select>
                 </div>
+                {(userRole === 'teacher' || userRole === 'admin' || userRole === 'student') && (
+                  <Button onClick={handleCreateDeck} className="flex items-center gap-2 whitespace-nowrap">
+                    <Plus className="h-4 w-4" />
+                    New Deck
+                  </Button>
+                )}
               </div>
             </div>
 
