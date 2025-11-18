@@ -7,6 +7,7 @@ import { BookOpen, CreditCard, GraduationCap, Users, LogOut, MessageSquare, Sett
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import FlashcardEditor from '@/components/FlashcardEditor';
+import Quizzes from '@/pages/Quizzes';
 
 type Card = {
   id: string;
@@ -625,17 +626,8 @@ const Dashboard = () => {
         );
       case 'quizzes':
         return (
-          <div className="text-center py-12">
-            <div className="inline-block p-4 rounded-full bg-gradient-to-br from-accent/10 to-primary/10 mb-6">
-              <GraduationCap className="h-12 w-12 text-accent" />
-            </div>
-            <h2 className="text-2xl font-bold text-foreground mb-2">Quizzes</h2>
-            <p className="text-muted-foreground mb-8 max-w-md mx-auto">
-              Test your knowledge with interactive quizzes.
-            </p>
-            <Button onClick={() => navigate('/quizzes')} className="bg-gradient-to-r from-primary to-secondary hover:opacity-90">
-              Start Quiz
-            </Button>
+          <div className="py-6">
+            <Quizzes />
           </div>
         );
       case 'classes':
