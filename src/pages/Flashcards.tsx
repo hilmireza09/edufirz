@@ -1,8 +1,11 @@
-import { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
+import { useState, useEffect, useMemo } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import { Button } from '@/components/ui/button';
-import { ArrowLeft, CreditCard, ChevronLeft, ChevronRight, RotateCcw, Plus, Edit, Trash } from 'lucide-react';
+import { Input } from '@/components/ui/input';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Badge } from '@/components/ui/badge';
+import { BookOpen, CreditCard, Users, LogOut, MessageSquare, Settings, Home, Calendar, FileText, Search, ChevronDown, User, Plus, ChevronLeft, ChevronRight, Edit, Trash, Tag, RotateCcw, CheckCircle, XCircle, X } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import FlashcardEditor from '@/components/FlashcardEditor';
@@ -24,8 +27,15 @@ type Deck = {
   flashcards: Card[];
 };
 
+type Profile = {
+  id: string;
+  role: string;
+  [key: string]: unknown;
+};
+
 const Flashcards = () => {
-  const { user } = useAuth();
+  const { user, signOut } = useAuth();
+  const navigate = useNavigate();
   const [decks, setDecks] = useState<Deck[]>([]);
   const [selectedDeck, setSelectedDeck] = useState<Deck | null>(null);
   const [index, setIndex] = useState(0);
@@ -33,6 +43,24 @@ const Flashcards = () => {
   const [userRole, setUserRole] = useState<string>('student');
   const [loading, setLoading] = useState(true);
   const [editingDeck, setEditingDeck] = useState<Deck | null>(null);
+  const [profile, setProfile] = useState<Profile | null>(null);
+  const [isProfileMenuOpen, setIsProfileMenuOpen] = useState(false);
+
+  // New state for search and pagination
+  const [generalSearchQuery, setGeneralSearchQuery] = useState('');
+  const [flashcardsSearchQuery, setFlashcardsSearchQuery] = useState('');
+  const [selectedTag, setSelectedTag] = useState('');
+  const [currentPage, setCurrentPage] = useState(1);
+  const decksPerPage = 9;
+
+  const navigationItems = [
+    { id: 'dashboard', title: 'Dashboard', icon: Home },
+    { id: 'flashcards', title: 'Flashcards', icon: CreditCard },
+    { id: 'quizzes', title: 'Quizzes', icon: BookOpen },
+    { id: 'classes', title: 'Classes', icon: Users },
+    { id: 'forum', title: 'Forum', icon: MessageSquare },
+    { id: 'settings', title: 'Settings', icon: Settings },
+  ];
 
   // Fetch user role
   useEffect(() => {
@@ -41,14 +69,15 @@ const Flashcards = () => {
       
       const { data, error } = await supabase
         .from('profiles')
-        .select('role')
+        .select('*')
         .eq('id', user.id)
         .single();
       
       if (!error && data) {
         setUserRole(data.role || 'student');
+        setProfile(data);
       } else {
-        // Default to student role if not found
+        console.error('Error fetching profile:', error);
         setUserRole('student');
       }
       setLoading(false);
@@ -101,9 +130,7 @@ const Flashcards = () => {
         }));
 
         setDecks(decksData);
-        if (decksData.length > 0 && !selectedDeck && !editingDeck) {
-          setSelectedDeck(decksData[0]);
-        }
+        // Removed auto-selection of first deck - let user choose manually
       } catch (error) {
         console.error('Error fetching decks:', error);
         toast.error('Failed to load flashcards');
@@ -113,6 +140,41 @@ const Flashcards = () => {
     fetchDecks();
   }, [user, userRole, loading, selectedDeck, editingDeck]);
 
+  // Filtering and pagination logic
+  const { filteredDecks, allTags, totalPages, currentDecks } = useMemo(() => {
+    // Filter decks based on search query and selected tag
+    const filtered = decks.filter(deck => {
+      const matchesSearch = flashcardsSearchQuery === '' ||
+        deck.title.toLowerCase().includes(flashcardsSearchQuery.toLowerCase()) ||
+        deck.description?.toLowerCase().includes(flashcardsSearchQuery.toLowerCase()) ||
+        deck.flashcards.some(card =>
+          card.front.toLowerCase().includes(flashcardsSearchQuery.toLowerCase()) ||
+          card.back.toLowerCase().includes(flashcardsSearchQuery.toLowerCase())
+        );
+
+      const matchesTag = selectedTag === '' || selectedTag === 'all' ||
+        (deck.tags && deck.tags.includes(selectedTag));
+
+      return matchesSearch && matchesTag;
+    });
+
+    // Extract all unique tags
+    const tagSet = new Set<string>();
+    filtered.forEach(deck => {
+      if (deck.tags) {
+        deck.tags.forEach(tag => tagSet.add(tag));
+      }
+    });
+    const allTags = Array.from(tagSet).sort();
+
+    // Calculate pagination
+    const totalPages = Math.ceil(filtered.length / decksPerPage);
+    const startIndex = (currentPage - 1) * decksPerPage;
+    const currentDecks = filtered.slice(startIndex, startIndex + decksPerPage);
+
+    return { filteredDecks: filtered, allTags, totalPages, currentDecks };
+  }, [decks, flashcardsSearchQuery, selectedTag, currentPage, decksPerPage]);
+
   const handleDeckSelect = (deck: Deck) => {
     setSelectedDeck(deck);
     setIndex(0);
@@ -121,8 +183,9 @@ const Flashcards = () => {
 
   const handleCreateDeck = () => {
     if (!user) return;
-    
-    const newDeck: any = {
+
+    const newDeck: Deck = {
+      id: '',
       title: 'New Deck',
       description: '',
       is_public: false,
@@ -130,10 +193,15 @@ const Flashcards = () => {
       tags: [],
       flashcards: [],
     };
-    
+
     setEditingDeck(newDeck);
     setSelectedDeck(null);
   };
+
+  // Reset to first page when filters change
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [flashcardsSearchQuery, selectedTag]);
 
   const handleEditDeck = (deck: Deck) => {
     setEditingDeck(deck);
@@ -235,90 +303,204 @@ const Flashcards = () => {
   }
 
   return (
-    <div className="min-h-screen p-4 md:p-8">
-      <div className="max-w-6xl mx-auto">
-        <div className="flex justify-between items-center mb-6">
-          <Link to="/dashboard">
-            <Button variant="ghost">
-              <ArrowLeft className="mr-2 h-4 w-4" />
-              Back to Dashboard
-            </Button>
-          </Link>
-          
-          {(userRole === 'teacher' || userRole === 'admin' || userRole === 'student') && (
-            <Button onClick={handleCreateDeck} className="flex items-center gap-2">
-              <Plus className="h-4 w-4" />
-              New Deck
-            </Button>
-          )}
+    <div className="min-h-screen flex">
+      {/* Glassmorphism Sidebar */}
+      <div className="w-64 min-h-screen p-6 bg-background/80 backdrop-blur-xl border-r border-border sticky top-0">
+        <div className="mb-8">
+          <div className="flex items-center gap-2 mb-6">
+            <BookOpen className="h-8 w-8 text-primary" />
+            <span className="text-2xl font-bold bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent">EduLearn</span>
+          </div>
         </div>
         
-        <div className="bg-card/80 backdrop-blur-sm rounded-2xl p-6 md:p-8 border border-border shadow-sm">
-          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8">
-            <div className="flex items-center gap-3">
-              <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-secondary to-accent flex items-center justify-center">
-                <CreditCard className="h-6 w-6 text-white" />
-              </div>
-              <div>
-                <h1 className="text-2xl md:text-3xl font-bold text-foreground">Flashcards</h1>
-                <p className="text-muted-foreground">Study and memorize key concepts</p>
-              </div>
+        <nav className="space-y-2">
+          {navigationItems.map((item) => {
+            const Icon = item.icon;
+            return (
+              <button
+                key={item.id}
+                onClick={() => {
+                  if (item.id === 'dashboard') {
+                    navigate('/dashboard');
+                  } else if (item.id === 'flashcards') {
+                    navigate('/flashcards');
+                  } else if (item.id === 'quizzes') {
+                    navigate('/quizzes');
+                  } else if (item.id === 'classes') {
+                    navigate('/classes');
+                  } else if (item.id === 'forum') {
+                    navigate('/forum');
+                  } else if (item.id === 'settings') {
+                    navigate('/dashboard');
+                  }
+                }}
+                className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-300 ${
+                  item.id === 'flashcards'
+                    ? 'bg-gradient-to-r from-primary/20 to-secondary/20 text-primary shadow-sm'
+                    : 'text-foreground hover:bg-accent'
+                }`}
+              >
+                <Icon className="h-5 w-5" />
+                <span>{item.title}</span>
+              </button>
+            );
+          })}
+        </nav>
+        
+        <div className="mt-auto pt-8">
+          <Button
+            variant="outline"
+            className="w-full justify-start gap-3 border-border hover:bg-accent"
+            onClick={signOut}
+          >
+            <LogOut className="h-5 w-5" />
+            <span>Sign Out</span>
+          </Button>
+        </div>
+      </div>
+
+      {/* Main Content */}
+      <div className="flex-1 flex flex-col">
+        {/* Header with General Search */}
+        <header className="p-6 border-b border-border bg-background/80 backdrop-blur-xl">
+          <div className="flex justify-between items-center">
+            <div>
+              <h1 className="text-2xl font-bold text-foreground">Flashcards</h1>
+              <p className="text-muted-foreground">Study and memorize key concepts</p>
             </div>
             
-            {selectedDeck && (
-              <div className="flex items-center gap-4">
-                <div className="bg-muted px-4 py-2 rounded-lg">
-                  <span className="text-sm text-muted-foreground">Card</span>
-                  <span className="font-semibold ml-2">{index + 1} / {selectedDeck.flashcards.length}</span>
-                </div>
-                <Button variant="outline" onClick={reset} className="flex items-center gap-2">
-                  <RotateCcw className="h-4 w-4" />
-                  Reset
-                </Button>
+            <div className="flex items-center gap-4">
+              {/* General Search Bar */}
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Input
+                  type="text"
+                  placeholder="Search across all content..."
+                  value={generalSearchQuery}
+                  onChange={(e) => setGeneralSearchQuery(e.target.value)}
+                  className="pl-10 w-64 bg-background/50 backdrop-blur-sm border-border"
+                />
               </div>
-            )}
-          </div>
 
-          {decks.length === 0 ? (
-            <div className="text-center py-12">
-              <CreditCard className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-              <h2 className="text-xl font-semibold text-foreground mb-2">No Flashcard Decks</h2>
-              <p className="text-muted-foreground mb-6">Create your first deck to get started</p>
-              <Button onClick={handleCreateDeck} className="flex items-center gap-2 mx-auto">
-                <Plus className="h-4 w-4" />
-                Create Deck
-              </Button>
+              {(userRole === 'teacher' || userRole === 'admin' || userRole === 'student') && (
+                <Button onClick={handleCreateDeck} className="flex items-center gap-2">
+                  <Plus className="h-4 w-4" />
+                  New Deck
+                </Button>
+              )}
+              
+              {/* Profile Menu */}
+              <div className="relative">
+                <button
+                  onClick={() => setIsProfileMenuOpen(!isProfileMenuOpen)}
+                  className="flex items-center gap-3 p-2 rounded-xl hover:bg-accent transition-colors"
+                >
+                  <div className="w-8 h-8 rounded-full bg-gradient-to-br from-primary to-secondary flex items-center justify-center text-white text-sm font-medium">
+                    {profile?.full_name?.charAt(0) || user?.email?.charAt(0) || 'U'}
+                  </div>
+                  <ChevronDown className="h-4 w-4 text-muted-foreground" />
+                </button>
+
+                {isProfileMenuOpen && (
+                  <div className="absolute right-0 mt-2 w-64 bg-card rounded-xl shadow-lg py-2 z-10 border border-border">
+                    <div className="px-4 py-3 border-b border-border">
+                      <p className="font-medium text-foreground truncate">
+                        {profile?.full_name || user?.email}
+                      </p>
+                      <p className="text-sm text-muted-foreground capitalize">
+                        {userRole}
+                      </p>
+                    </div>
+                    <div className="px-4 py-2">
+                      <p className="text-xs text-muted-foreground truncate">
+                        {user?.email}
+                      </p>
+                    </div>
+                    <div className="px-4 py-2">
+                      <Button
+                        variant="outline"
+                        className="w-full justify-start gap-2 border-border hover:bg-accent"
+                        onClick={signOut}
+                      >
+                        <LogOut className="h-4 w-4" />
+                        <span>Sign Out</span>
+                      </Button>
+                    </div>
+                  </div>
+                )}
+              </div>
             </div>
-          ) : (
-            <div className="flex flex-col lg:flex-row gap-8">
-              {/* Deck List */}
-              <div className="lg:w-1/3">
-                <h2 className="text-lg font-semibold text-foreground mb-4">Your Decks</h2>
-                <div className="space-y-3 max-h-[500px] overflow-y-auto pr-2">
-                  {decks.map((deck) => (
-                    <div 
+          </div>
+        </header>
+
+        {/* Content Area */}
+        <main className="flex-1 p-6 overflow-auto bg-gradient-to-br from-background to-muted">
+          <div className="space-y-6">
+            {/* Search and Filter Controls */}
+            <div className="bg-card/50 backdrop-blur-sm border border-border rounded-2xl p-6">
+              <div className="flex flex-col md:flex-row gap-4">
+                <div className="flex-1">
+                  <div className="relative">
+                    <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                    <Input
+                      placeholder="Search flashcards..."
+                      value={flashcardsSearchQuery}
+                      onChange={(e) => setFlashcardsSearchQuery(e.target.value)}
+                      className="pl-10 bg-background/50 border-border"
+                    />
+                  </div>
+                </div>
+                <div className="md:w-48">
+                  <Select value={selectedTag} onValueChange={setSelectedTag}>
+                    <SelectTrigger className="bg-background/50 border-border">
+                      <SelectValue placeholder="Filter by tag" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All Tags</SelectItem>
+                      {allTags.map(tag => (
+                        <SelectItem key={tag} value={tag}>{tag}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+            </div>
+
+            {/* Decks Grid */}
+            {filteredDecks.length === 0 ? (
+              <div className="text-center py-12">
+                <CreditCard className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+                <h2 className="text-xl font-semibold text-foreground mb-2">No Flashcard Decks Found</h2>
+                <p className="text-muted-foreground mb-6">
+                  {decks.length === 0 ? "Create your first deck to get started" : "Try adjusting your search or filter"}
+                </p>
+                {decks.length === 0 && (
+                  <Button onClick={handleCreateDeck} className="flex items-center gap-2 mx-auto">
+                    <Plus className="h-4 w-4" />
+                    Create Deck
+                  </Button>
+                )}
+              </div>
+            ) : (
+              <>
+                {/* Grid Layout */}
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                  {currentDecks.map((deck) => (
+                    <div
                       key={deck.id}
-                      className={`p-4 rounded-xl border cursor-pointer transition-all ${
-                        selectedDeck?.id === deck.id
-                          ? 'border-primary bg-primary/10'
-                          : 'border-border hover:bg-accent'
-                      }`}
+                      className="bg-card/50 backdrop-blur-sm border border-border rounded-2xl p-6 hover:bg-card/70 transition-all cursor-pointer group"
                       onClick={() => handleDeckSelect(deck)}
                     >
-                      <div className="flex justify-between items-start">
-                        <div>
-                          <h3 className="font-medium text-foreground">{deck.title}</h3>
-                          <p className="text-sm text-muted-foreground mt-1">
-                            {deck.flashcards.length} cards
-                            {deck.is_public && <span className="ml-2 text-xs bg-accent text-accent-foreground px-2 py-0.5 rounded">Public</span>}
-                          </p>
+                      <div className="flex items-start justify-between mb-4">
+                        <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-primary/20 to-secondary/20 flex items-center justify-center">
+                          <CreditCard className="h-6 w-6 text-primary" />
                         </div>
-                        <div className="flex gap-1">
+                        <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                           {(userRole === 'admin' || deck.user_id === user?.id || (userRole === 'teacher' && deck.user_id === user?.id)) && (
                             <>
-                              <Button 
-                                size="icon" 
-                                variant="ghost" 
+                              <Button
+                                size="icon"
+                                variant="ghost"
                                 className="h-8 w-8"
                                 onClick={(e) => {
                                   e.stopPropagation();
@@ -327,9 +509,9 @@ const Flashcards = () => {
                               >
                                 <Edit className="h-4 w-4" />
                               </Button>
-                              <Button 
-                                size="icon" 
-                                variant="ghost" 
+                              <Button
+                                size="icon"
+                                variant="ghost"
                                 className="h-8 w-8 text-destructive hover:text-destructive hover:bg-destructive/10"
                                 onClick={(e) => {
                                   e.stopPropagation();
@@ -342,53 +524,122 @@ const Flashcards = () => {
                           )}
                         </div>
                       </div>
-                      {deck.description && (
-                        <p className="text-sm text-muted-foreground mt-2">{deck.description}</p>
-                      )}
-                      <div className="text-xs text-muted-foreground mt-2">
-                        {deck.user_id === user?.id ? 'Your deck' : 'Shared deck'}
+
+                      <div className="space-y-3">
+                        <div>
+                          <h3 className="font-semibold text-foreground text-lg line-clamp-2">{deck.title}</h3>
+                          {deck.description && (
+                            <p className="text-sm text-muted-foreground line-clamp-2 mt-1">{deck.description}</p>
+                          )}
+                        </div>
+
+                        <div className="flex items-center justify-between text-sm">
+                          <span className="text-muted-foreground">{deck.flashcards.length} cards</span>
+                          <div className="flex gap-1">
+                            {deck.is_public && (
+                              <Badge variant="secondary" className="text-xs">Public</Badge>
+                            )}
+                            {deck.user_id !== user?.id && (
+                              <Badge variant="outline" className="text-xs">Shared</Badge>
+                            )}
+                          </div>
+                        </div>
+
+                        {deck.tags && deck.tags.length > 0 && (
+                          <div className="flex flex-wrap gap-1">
+                            {deck.tags.slice(0, 3).map(tag => (
+                              <Badge key={tag} variant="outline" className="text-xs">
+                                {tag}
+                              </Badge>
+                            ))}
+                            {deck.tags.length > 3 && (
+                              <Badge variant="outline" className="text-xs">
+                                +{deck.tags.length - 3}
+                              </Badge>
+                            )}
+                          </div>
+                        )}
+
+                        <div className="text-xs text-muted-foreground">
+                          {deck.user_id === user?.id ? 'Your deck' : 'Shared deck'}
+                        </div>
                       </div>
                     </div>
                   ))}
                 </div>
-              </div>
 
-              {/* Flashcard Viewer */}
-              <div className="lg:w-2/3">
-                {selectedDeck ? (
-                  <>
-                    <div className="mb-6">
-                      <div className="flex justify-between items-center">
-                        <h2 className="text-xl font-semibold text-foreground">{selectedDeck.title}</h2>
-                        <div className="flex gap-2">
-                          {selectedDeck.is_public && (
-                            <span className="bg-accent text-accent-foreground text-xs px-2 py-1 rounded">Public</span>
-                          )}
-                          {selectedDeck.user_id !== user?.id && (
-                            <span className="bg-secondary text-secondary-foreground text-xs px-2 py-1 rounded">Shared</span>
-                          )}
-                        </div>
+                {/* Pagination */}
+                {totalPages > 1 && (
+                  <div className="flex justify-center mt-8">
+                    <div className="flex items-center gap-2">
+                      <Button
+                        variant="outline"
+                        onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+                        disabled={currentPage === 1}
+                        className="flex items-center gap-2"
+                      >
+                        <ChevronLeft className="h-4 w-4" />
+                        Previous
+                      </Button>
+
+                      <div className="flex gap-1">
+                        {Array.from({ length: totalPages }, (_, i) => i + 1).map(page => (
+                          <Button
+                            key={page}
+                            variant={page === currentPage ? "default" : "outline"}
+                            onClick={() => setCurrentPage(page)}
+                            className="w-10 h-10"
+                          >
+                            {page}
+                          </Button>
+                        ))}
                       </div>
-                      {selectedDeck.description && (
-                        <p className="text-muted-foreground mt-1">{selectedDeck.description}</p>
-                      )}
-                      {selectedDeck.tags && selectedDeck.tags.length > 0 && (
-                        <div className="flex flex-wrap gap-1 mt-2">
-                          {selectedDeck.tags.map(tag => (
-                            <span key={tag} className="text-xs bg-primary/10 text-primary px-2 py-0.5 rounded">
-                              {tag}
-                            </span>
-                          ))}
-                        </div>
-                      )}
-                    </div>
 
+                      <Button
+                        variant="outline"
+                        onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
+                        disabled={currentPage === totalPages}
+                        className="flex items-center gap-2"
+                      >
+                        Next
+                        <ChevronRight className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  </div>
+                )}
+              </>
+            )}
+
+            {/* Focused Learning View */}
+            {selectedDeck && (
+              <div className="fixed inset-0 bg-background/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+                <div className="bg-card border border-border rounded-2xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-hidden">
+                  <div className="p-6 border-b border-border">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <h2 className="text-xl font-semibold text-foreground">{selectedDeck.title}</h2>
+                        <p className="text-sm text-muted-foreground mt-1">
+                          Card {index + 1} of {selectedDeck.flashcards.length}
+                        </p>
+                      </div>
+                      <Button 
+                        variant="ghost" 
+                        onClick={() => setSelectedDeck(null)} 
+                        className="h-8 w-8 p-0 hover:bg-muted rounded-full"
+                        aria-label="Close learning view"
+                      >
+                        <X className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  </div>
+
+                  <div className="p-6">
                     {selectedDeck.flashcards.length === 0 ? (
                       <div className="text-center py-12">
                         <p className="text-muted-foreground">This deck has no flashcards yet</p>
                         {(userRole === 'admin' || selectedDeck.user_id === user?.id || (userRole === 'teacher' && selectedDeck.user_id === user?.id)) && (
-                          <Button 
-                            onClick={() => handleEditDeck(selectedDeck)} 
+                          <Button
+                            onClick={() => handleEditDeck(selectedDeck)}
                             className="mt-4 flex items-center gap-2 mx-auto"
                           >
                             <Plus className="h-4 w-4" />
@@ -400,32 +651,34 @@ const Flashcards = () => {
                       <>
                         {/* Flashcard Container */}
                         <div className="flex justify-center my-8">
-                          <div 
-                            className="relative w-full max-w-lg h-64 cursor-pointer [perspective:1000px] select-none"
+                          <div
+                            className="relative w-full max-w-lg h-80 cursor-pointer [perspective:1000px] select-none"
                             onClick={() => setFlipped(!flipped)}
                           >
                             <div
-                              className={`absolute inset-0 rounded-2xl shadow-lg p-8 flex items-center justify-center text-center text-lg font-medium transition-all duration-500 [transform-style:preserve-3d] ${
+                              className={`absolute inset-0 rounded-2xl shadow-lg p-8 flex items-center justify-center text-center transition-all duration-500 [transform-style:preserve-3d] ${
                                 flipped ? '[transform:rotateY(180deg)]' : ''
                               }`}
                             >
                               {/* Front of card */}
-                              <div className="absolute inset-0 bg-gradient-to-br from-primary/5 to-secondary/5 rounded-2xl border border-border flex items-center justify-center [backface-visibility:hidden] p-6">
+                              <div className="absolute inset-0 bg-gradient-to-br from-primary/10 to-secondary/10 rounded-2xl border border-border flex items-center justify-center [backface-visibility:hidden] p-6">
                                 <div>
-                                  <span className="text-xs text-primary font-semibold mb-2 block">QUESTION</span>
-                                  <p className="text-xl text-foreground">{selectedDeck.flashcards[index]?.front || ''}</p>
+                                  <span className="text-xs text-primary font-semibold mb-4 block uppercase tracking-wide">Question</span>
+                                  <p className="text-xl text-foreground leading-relaxed">{selectedDeck.flashcards[index]?.front || ''}</p>
                                 </div>
                               </div>
-                              
+
                               {/* Back of card */}
-                              <div className="absolute inset-0 bg-gradient-to-br from-secondary/5 to-accent/5 rounded-2xl border border-border flex items-center justify-center [transform:rotateY(180deg)] [backface-visibility:hidden] p-6">
+                              <div className="absolute inset-0 bg-gradient-to-br from-secondary/10 to-accent/10 rounded-2xl border border-border flex items-center justify-center [transform:rotateY(180deg)] [backface-visibility:hidden] p-6">
                                 <div>
-                                  <span className="text-xs text-secondary font-semibold mb-2 block">ANSWER</span>
-                                  <p className="text-xl text-foreground">{selectedDeck.flashcards[index]?.back || ''}</p>
+                                  <span className="text-xs text-secondary font-semibold mb-4 block uppercase tracking-wide">Answer</span>
+                                  <p className="text-xl text-foreground leading-relaxed">{selectedDeck.flashcards[index]?.back || ''}</p>
                                   {selectedDeck.flashcards[index]?.hint && (
-                                    <p className="text-sm text-muted-foreground mt-4">
-                                      <span className="font-medium">Hint:</span> {selectedDeck.flashcards[index]?.hint}
-                                    </p>
+                                    <div className="mt-6 p-4 bg-muted/50 rounded-lg">
+                                      <p className="text-sm text-muted-foreground">
+                                        <span className="font-medium text-foreground">Hint:</span> {selectedDeck.flashcards[index]?.hint}
+                                      </p>
+                                    </div>
                                   )}
                                 </div>
                               </div>
@@ -434,27 +687,27 @@ const Flashcards = () => {
                         </div>
 
                         {/* Controls */}
-                        <div className="flex flex-col sm:flex-row items-center justify-center gap-4 mt-8">
-                          <Button 
-                            variant="outline" 
-                            onClick={prev} 
+                        <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
+                          <Button
+                            variant="outline"
+                            onClick={prev}
                             disabled={selectedDeck.flashcards.length <= 1}
                             className="w-full sm:w-auto flex items-center gap-2"
                           >
                             <ChevronLeft className="h-4 w-4" />
                             Previous
                           </Button>
-                          
-                          <Button 
-                            onClick={() => setFlipped(!flipped)} 
+
+                          <Button
+                            onClick={() => setFlipped(!flipped)}
                             className="w-full sm:w-auto bg-gradient-to-r from-primary to-secondary hover:opacity-90"
                           >
                             {flipped ? 'Show Question' : 'Show Answer'}
                           </Button>
-                          
-                          <Button 
-                            variant="outline" 
-                            onClick={next} 
+
+                          <Button
+                            variant="outline"
+                            onClick={next}
                             disabled={selectedDeck.flashcards.length <= 1}
                             className="w-full sm:w-auto flex items-center gap-2"
                           >
@@ -464,16 +717,16 @@ const Flashcards = () => {
                         </div>
 
                         {/* Progress indicators */}
-                        <div className="flex justify-center mt-8">
+                        <div className="flex justify-center mt-6">
                           <div className="flex gap-2">
                             {selectedDeck.flashcards.map((_, i) => (
-                              <div 
+                              <div
                                 key={i}
-                                className={`w-3 h-3 rounded-full ${
-                                  i === index 
-                                    ? 'bg-primary w-6' 
-                                    : i < index 
-                                      ? 'bg-primary/50' 
+                                className={`w-3 h-3 rounded-full transition-all ${
+                                  i === index
+                                    ? 'bg-primary w-6'
+                                    : i < index
+                                      ? 'bg-primary/50'
                                       : 'bg-muted'
                                 }`}
                               />
@@ -482,18 +735,12 @@ const Flashcards = () => {
                         </div>
                       </>
                     )}
-                  </>
-                ) : (
-                  <div className="text-center py-12">
-                    <CreditCard className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-                    <h2 className="text-xl font-semibold text-foreground mb-2">Select a Deck</h2>
-                    <p className="text-muted-foreground">Choose a deck from the list to start studying</p>
                   </div>
-                )}
+                </div>
               </div>
-            </div>
-          )}
-        </div>
+            )}
+          </div>
+        </main>
       </div>
     </div>
   );
