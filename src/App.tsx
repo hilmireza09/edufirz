@@ -14,6 +14,7 @@ import Classes from "./pages/Classes";
 import ClassDetails from "./pages/ClassDetails";
 import Forum from "./pages/Forum";
 import NotFound from "./pages/NotFound";
+import Settings from "./pages/Settings";
 
 const queryClient = new QueryClient();
 
@@ -34,6 +35,7 @@ const App = () => (
             <Route path="/classes" element={<Classes />} />
             <Route path="/classes/:id/*" element={<ClassDetails />} />
             <Route path="/forum/*" element={<Forum />} />
+            <Route path="/settings" element={<Settings />} />
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
             <Route path="*" element={<NotFound />} />
           </Routes>

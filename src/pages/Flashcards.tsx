@@ -9,6 +9,8 @@ import { BookOpen, CreditCard, Users, LogOut, MessageSquare, Settings, Home, Cal
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import FlashcardEditor from '@/components/FlashcardEditor';
+import { Sidebar } from '@/components/Sidebar';
+import { Header } from '@/components/Header';
 import { ConfirmationDialog } from '@/components/ui/confirmation-dialog';
 
 type Card = {
@@ -31,6 +33,7 @@ type Deck = {
 type Profile = {
   id: string;
   role: string;
+  full_name?: string;
   [key: string]: unknown;
 };
 
@@ -49,7 +52,6 @@ const Flashcards = () => {
   const profileMenuRef = useRef<HTMLDivElement>(null);
 
   // New state for search and pagination
-  const [generalSearchQuery, setGeneralSearchQuery] = useState('');
   const [flashcardsSearchQuery, setFlashcardsSearchQuery] = useState('');
   const [selectedTag, setSelectedTag] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
@@ -315,10 +317,10 @@ const Flashcards = () => {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-50 via-purple-50 to-slate-100">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto"></div>
-          <p className="mt-4 text-muted-foreground">Loading flashcards...</p>
+          <p className="mt-4 text-muted-foreground animate-pulse">Loading your decks...</p>
         </div>
       </div>
     );
@@ -326,8 +328,8 @@ const Flashcards = () => {
 
   if (editingDeck) {
     return (
-      <div className="min-h-screen p-4 md:p-8">
-        <div className="max-w-6xl mx-auto">
+      <div className="min-h-screen bg-gradient-to-br from-slate-50 via-purple-50 to-slate-100 p-4 md:p-8">
+        <div className="max-w-6xl mx-auto bg-white/80 backdrop-blur-xl rounded-3xl shadow-2xl border border-white/20 overflow-hidden">
           <FlashcardEditor 
             deck={editingDeck} 
             onSave={handleSaveDeck}
@@ -339,153 +341,63 @@ const Flashcards = () => {
   }
 
   return (
-    <div className="min-h-screen flex">
-      {/* Glassmorphism Sidebar */}
-      <div className="w-64 min-h-screen p-6 bg-background/80 backdrop-blur-xl border-r border-border sticky top-0">
-        <div className="mb-8">
-          <div className="flex items-center gap-2 mb-6">
-            <BookOpen className="h-8 w-8 text-primary" />
-            <span className="text-2xl font-bold bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent">EduLearn</span>
-          </div>
-        </div>
-        
-        <nav className="space-y-2">
-          {navigationItems.map((item) => {
-            const Icon = item.icon;
-            return (
-              <button
-                key={item.id}
-                onClick={() => {
-                  if (item.id === 'dashboard') {
-                    navigate('/dashboard');
-                  } else if (item.id === 'flashcards') {
-                    navigate('/flashcards');
-                  } else if (item.id === 'quizzes') {
-                    navigate('/quizzes');
-                  } else if (item.id === 'classes') {
-                    navigate('/classes');
-                  } else if (item.id === 'forum') {
-                    navigate('/forum');
-                  } else if (item.id === 'settings') {
-                    navigate('/dashboard');
-                  }
-                }}
-                className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-300 ${
-                  item.id === 'flashcards'
-                    ? 'bg-gradient-to-r from-primary/20 to-secondary/20 text-primary shadow-sm'
-                    : 'text-foreground hover:bg-accent'
-                }`}
-              >
-                <Icon className="h-5 w-5" />
-                <span>{item.title}</span>
-              </button>
-            );
-          })}
-        </nav>
-        
-        <div className="mt-auto pt-8">
-          <Button
-            variant="outline"
-            className="w-full justify-start gap-3 border-border hover:bg-accent"
-            onClick={signOut}
-          >
-            <LogOut className="h-5 w-5" />
-            <span>Sign Out</span>
-          </Button>
-        </div>
-      </div>
+    <div className="min-h-screen flex bg-gradient-to-br from-slate-50 via-purple-50 to-slate-100 dark:from-slate-950 dark:via-slate-900 dark:to-slate-950 overflow-hidden">
+      <Sidebar />
 
       {/* Main Content */}
-      <div className="flex-1 flex flex-col">
-        {/* Header with General Search */}
-        <header className="bg-background/80 backdrop-blur-xl border-b border-border p-4">
-          <div className="flex items-center justify-between">
-            {/* Search Bar */}
-            <form onSubmit={handleSearch} className="flex-1 max-w-md">
-              <div className="relative">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
-                <input
-                  type="text"
-                  placeholder="Search courses, resources, or topics..."
-                  className="w-full pl-10 pr-4 py-2 rounded-lg bg-card border border-border focus:outline-none focus:ring-2 focus:ring-primary/30"
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                />
-              </div>
-            </form>
+      <div className="flex-1 flex flex-col min-h-screen relative">
+        {/* Decorative Background Elements */}
+        <div className="absolute inset-0 overflow-hidden pointer-events-none">
+          <div className="absolute top-[-10%] right-[-5%] w-[500px] h-[500px] rounded-full bg-purple-400/10 blur-[120px]" />
+          <div className="absolute bottom-[-10%] left-[-10%] w-[600px] h-[600px] rounded-full bg-blue-400/10 blur-[120px]" />
+        </div>
 
-            {/* User Profile */}
-            <div className="relative" ref={profileMenuRef}>
-              <button
-                onClick={() => setIsProfileMenuOpen(!isProfileMenuOpen)}
-                className="flex items-center gap-2 focus:outline-none"
-              >
-                <div className="w-10 h-10 rounded-full bg-gradient-to-br from-primary to-secondary flex items-center justify-center text-white font-semibold">
-                  {profile?.full_name?.charAt(0) || user?.email?.charAt(0) || 'U'}
-                </div>
-                <ChevronDown className="h-4 w-4 text-muted-foreground" />
-              </button>
-
-              {isProfileMenuOpen && (
-                <div className="absolute right-0 mt-2 w-64 bg-card rounded-xl shadow-lg py-2 z-10 border border-border">
-                  <div className="px-4 py-3 border-b border-border">
-                    <p className="font-medium text-foreground truncate">
-                      {profile?.full_name || user?.email}
-                    </p>
-                    <p className="text-sm text-muted-foreground capitalize">
-                      {userRole}
-                    </p>
-                  </div>
-                  <div className="px-4 py-2">
-                    <p className="text-xs text-muted-foreground truncate">
-                      {user?.email}
-                    </p>
-                  </div>
-                  <div className="px-4 py-2">
-                    <Button
-                      variant="outline"
-                      className="w-full justify-start gap-2 border-border hover:bg-accent"
-                      onClick={signOut}
-                    >
-                      <LogOut className="h-4 w-4" />
-                      <span>Sign Out</span>
-                    </Button>
-                  </div>
-                </div>
-              )}
-            </div>
-          </div>
-        </header>
+        {/* Header */}
+        <Header />
 
         {/* Content Area */}
-        <main className="flex-1 p-6 overflow-auto bg-gradient-to-br from-background to-muted">
-          <div className="space-y-6">
-            {/* Page Title */}
-            <div className="text-center">
-              <h1 className="text-3xl font-bold text-foreground mb-2">Flashcards</h1>
-              <p className="text-muted-foreground">Study and memorize key concepts</p>
+        <main className="flex-1 p-4 md:p-8 z-10 overflow-y-auto custom-scrollbar">
+          <div className="max-w-7xl mx-auto space-y-8">
+            {/* Page Header */}
+            <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+              <div>
+                <h1 className="text-4xl font-bold bg-gradient-to-r from-gray-900 to-gray-600 bg-clip-text text-transparent mb-2">Flashcards</h1>
+                <p className="text-muted-foreground text-lg">Master your subjects with interactive study decks.</p>
+              </div>
+              {(userRole === 'teacher' || userRole === 'admin' || userRole === 'student') && (
+                <Button 
+                  onClick={handleCreateDeck} 
+                  className="bg-primary hover:bg-primary/90 text-white shadow-lg shadow-primary/25 rounded-xl px-5 py-3 h-auto text-base font-medium transition-all hover:-translate-y-0.5"
+                >
+                  <Plus className="h-5 w-5 mr-2" />
+                  Create New Deck
+                </Button>
+              )}
             </div>
 
             {/* Search and Filter Controls */}
-            <div className="bg-card/50 backdrop-blur-sm border border-border rounded-2xl p-6">
-              <div className="flex flex-col md:flex-row gap-4 items-end">
-                <div className="flex-1">
-                  <div className="relative">
-                    <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <div className="bg-white/60 backdrop-blur-xl border border-white/40 rounded-2xl p-6 shadow-xl shadow-gray-200/20">
+              <div className="flex flex-col md:flex-row gap-4 items-center">
+                <div className="flex-1 w-full">
+                  <div className="relative group">
+                    <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 h-5 w-5 text-muted-foreground group-focus-within:text-primary transition-colors" />
                     <Input
-                      placeholder="Search flashcards..."
+                      placeholder="Search your decks..."
                       value={flashcardsSearchQuery}
                       onChange={(e) => setFlashcardsSearchQuery(e.target.value)}
-                      className="pl-10 bg-background/50 border-border"
+                      className="pl-12 h-12 bg-white/50 border-white/20 focus:bg-white focus:ring-2 focus:ring-primary/20 rounded-xl text-base transition-all"
                     />
                   </div>
                 </div>
-                <div className="md:w-48">
+                <div className="w-full md:w-64">
                   <Select value={selectedTag} onValueChange={setSelectedTag}>
-                    <SelectTrigger className="bg-background/50 border-border">
-                      <SelectValue placeholder="Filter by tag" />
+                    <SelectTrigger className="h-12 bg-white/50 border-white/20 focus:ring-2 focus:ring-primary/20 rounded-xl">
+                      <div className="flex items-center gap-2 text-muted-foreground">
+                        <Tag className="h-4 w-4" />
+                        <SelectValue placeholder="Filter by tag" />
+                      </div>
                     </SelectTrigger>
-                    <SelectContent>
+                    <SelectContent className="bg-white/90 backdrop-blur-xl border-white/20 rounded-xl shadow-xl">
                       <SelectItem value="all">All Tags</SelectItem>
                       {allTags.map(tag => (
                         <SelectItem key={tag} value={tag}>{tag}</SelectItem>
@@ -493,111 +405,107 @@ const Flashcards = () => {
                     </SelectContent>
                   </Select>
                 </div>
-                {(userRole === 'teacher' || userRole === 'admin' || userRole === 'student') && (
-                  <Button onClick={handleCreateDeck} className="flex items-center gap-2 whitespace-nowrap">
-                    <Plus className="h-4 w-4" />
-                    New Deck
-                  </Button>
-                )}
               </div>
             </div>
 
             {/* Decks Grid */}
             {filteredDecks.length === 0 ? (
-              <div className="text-center py-12">
-                <CreditCard className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-                <h2 className="text-xl font-semibold text-foreground mb-2">No Flashcard Decks Found</h2>
-                <p className="text-muted-foreground mb-6">
-                  {decks.length === 0 ? "Create your first deck to get started" : "Try adjusting your search or filter"}
+              <div className="text-center py-20 bg-white/40 backdrop-blur-sm rounded-3xl border border-white/20 border-dashed">
+                <div className="w-20 h-20 bg-primary/5 rounded-full flex items-center justify-center mx-auto mb-6">
+                  <CreditCard className="h-10 w-10 text-primary/40" />
+                </div>
+                <h2 className="text-2xl font-semibold text-gray-800 mb-2">No Decks Found</h2>
+                <p className="text-muted-foreground mb-8 max-w-md mx-auto">
+                  We couldn't find any flashcard decks matching your search. Try adjusting your filters or create a new one.
                 </p>
-                {decks.length === 0 && (
-                  <Button onClick={handleCreateDeck} className="flex items-center gap-2 mx-auto">
-                    <Plus className="h-4 w-4" />
-                    Create Deck
-                  </Button>
-                )}
+                <Button onClick={handleCreateDeck} variant="outline" className="border-primary/20 text-primary hover:bg-primary/5">
+                  Create Your First Deck
+                </Button>
               </div>
             ) : (
               <>
-                {/* Grid Layout */}
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                   {currentDecks.map((deck) => (
                     <div
                       key={deck.id}
-                      className="bg-card/50 backdrop-blur-sm border border-border rounded-2xl p-6 hover:bg-card/70 transition-all cursor-pointer group"
+                      className="group relative bg-white/60 backdrop-blur-lg border border-white/40 rounded-2xl p-6 hover:shadow-2xl hover:shadow-primary/10 transition-all duration-300 hover:-translate-y-1 cursor-pointer overflow-hidden"
                       onClick={() => handleDeckSelect(deck)}
                     >
-                      <div className="flex items-start justify-between mb-4">
-                        <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-primary/20 to-secondary/20 flex items-center justify-center">
-                          <CreditCard className="h-6 w-6 text-primary" />
-                        </div>
-                        <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                          {(userRole === 'admin' || deck.user_id === user?.id || (userRole === 'teacher' && deck.user_id === user?.id)) && (
-                            <>
-                              <Button
-                                size="icon"
-                                variant="ghost"
-                                className="h-8 w-8"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  handleEditDeck(deck);
-                                }}
-                              >
-                                <Edit className="h-4 w-4" />
-                              </Button>
-                              <Button
-                                size="icon"
-                                variant="ghost"
-                                className="h-8 w-8 text-destructive hover:text-destructive hover:bg-destructive/10"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  handleDeleteDeck(deck.id);
-                                }}
-                              >
-                                <Trash className="h-4 w-4" />
-                              </Button>
-                            </>
-                          )}
-                        </div>
-                      </div>
+                      {/* Hover Gradient Overlay */}
+                      <div className="absolute inset-0 bg-gradient-to-br from-primary/5 to-purple-500/5 opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
 
-                      <div className="space-y-3">
-                        <div>
-                          <h3 className="font-semibold text-foreground text-lg line-clamp-2">{deck.title}</h3>
-                          {deck.description && (
-                            <p className="text-sm text-muted-foreground line-clamp-2 mt-1">{deck.description}</p>
-                          )}
-                        </div>
-
-                        <div className="flex items-center justify-between text-sm">
-                          <span className="text-muted-foreground">{deck.flashcards.length} cards</span>
-                          <div className="flex gap-1">
-                            {deck.is_public && (
-                              <Badge variant="secondary" className="text-xs">Public</Badge>
-                            )}
-                            {deck.user_id !== user?.id && (
-                              <Badge variant="outline" className="text-xs">Shared</Badge>
+                      <div className="relative z-10">
+                        <div className="flex items-start justify-between mb-4">
+                          <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-white to-gray-50 border border-white/50 shadow-sm flex items-center justify-center group-hover:scale-105 transition-transform duration-300">
+                            <CreditCard className="h-7 w-7 text-primary" />
+                          </div>
+                          <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-all duration-300 translate-x-2 group-hover:translate-x-0">
+                            {(userRole === 'admin' || deck.user_id === user?.id || (userRole === 'teacher' && deck.user_id === user?.id)) && (
+                              <>
+                                <Button
+                                  size="icon"
+                                  variant="ghost"
+                                  className="h-9 w-9 rounded-full hover:bg-white/80 hover:text-primary"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleEditDeck(deck);
+                                  }}
+                                >
+                                  <Edit className="h-4 w-4" />
+                                </Button>
+                                <Button
+                                  size="icon"
+                                  variant="ghost"
+                                  className="h-9 w-9 rounded-full hover:bg-red-50 hover:text-red-500"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleDeleteDeck(deck.id);
+                                  }}
+                                >
+                                  <Trash className="h-4 w-4" />
+                                </Button>
+                              </>
                             )}
                           </div>
                         </div>
 
-                        {deck.tags && deck.tags.length > 0 && (
-                          <div className="flex flex-wrap gap-1">
-                            {deck.tags.slice(0, 3).map(tag => (
-                              <Badge key={tag} variant="outline" className="text-xs">
-                                {tag}
-                              </Badge>
-                            ))}
-                            {deck.tags.length > 3 && (
-                              <Badge variant="outline" className="text-xs">
-                                +{deck.tags.length - 3}
-                              </Badge>
-                            )}
+                        <div className="space-y-3">
+                          <div>
+                            <h3 className="font-bold text-gray-800 text-xl line-clamp-1 group-hover:text-primary transition-colors">{deck.title}</h3>
+                            <p className="text-sm text-muted-foreground line-clamp-2 mt-1 h-10 leading-relaxed">
+                              {deck.description || 'No description provided.'}
+                            </p>
                           </div>
-                        )}
 
-                        <div className="text-xs text-muted-foreground">
-                          {deck.user_id === user?.id ? 'Your deck' : 'Shared deck'}
+                          <div className="pt-4 border-t border-gray-100/50 flex items-center justify-between">
+                            <div className="flex items-center gap-2 text-sm font-medium text-gray-600">
+                              <div className="w-2 h-2 rounded-full bg-green-400" />
+                              {deck.flashcards.length} Cards
+                            </div>
+                            <div className="flex gap-2">
+                              {deck.is_public && (
+                                <span className="px-2.5 py-1 rounded-full bg-blue-50 text-blue-600 text-xs font-medium border border-blue-100">Public</span>
+                              )}
+                              {deck.user_id !== user?.id && (
+                                <span className="px-2.5 py-1 rounded-full bg-purple-50 text-purple-600 text-xs font-medium border border-purple-100">Shared</span>
+                              )}
+                            </div>
+                          </div>
+
+                          {deck.tags && deck.tags.length > 0 && (
+                            <div className="flex flex-wrap gap-1.5 pt-2">
+                              {deck.tags.slice(0, 3).map(tag => (
+                                <span key={tag} className="px-2 py-0.5 rounded-md bg-gray-100/80 text-gray-500 text-xs border border-gray-200">
+                                  #{tag}
+                                </span>
+                              ))}
+                              {deck.tags.length > 3 && (
+                                <span className="px-2 py-0.5 rounded-md bg-gray-50 text-gray-400 text-xs border border-gray-100">
+                                  +{deck.tags.length - 3}
+                                </span>
+                              )}
+                            </div>
+                          )}
                         </div>
                       </div>
                     </div>
@@ -606,25 +514,25 @@ const Flashcards = () => {
 
                 {/* Pagination */}
                 {totalPages > 1 && (
-                  <div className="flex justify-center mt-8">
-                    <div className="flex items-center gap-2">
+                  <div className="flex justify-center mt-12">
+                    <div className="bg-white/60 backdrop-blur-xl border border-white/40 rounded-2xl p-2 flex items-center gap-2 shadow-lg">
                       <Button
-                        variant="outline"
+                        variant="ghost"
                         onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
                         disabled={currentPage === 1}
-                        className="flex items-center gap-2"
+                        className="rounded-xl hover:bg-white/80"
                       >
-                        <ChevronLeft className="h-4 w-4" />
-                        Previous
+                        <ChevronLeft className="h-4 w-4 mr-1" />
+                        Prev
                       </Button>
 
-                      <div className="flex gap-1">
+                      <div className="flex gap-1 px-2">
                         {Array.from({ length: totalPages }, (_, i) => i + 1).map(page => (
                           <Button
                             key={page}
-                            variant={page === currentPage ? "default" : "outline"}
+                            variant={page === currentPage ? "default" : "ghost"}
                             onClick={() => setCurrentPage(page)}
-                            className="w-10 h-10"
+                            className={`w-9 h-9 rounded-xl p-0 ${page === currentPage ? 'bg-primary text-white shadow-md' : 'hover:bg-white/80'}`}
                           >
                             {page}
                           </Button>
@@ -632,152 +540,156 @@ const Flashcards = () => {
                       </div>
 
                       <Button
-                        variant="outline"
+                        variant="ghost"
                         onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
                         disabled={currentPage === totalPages}
-                        className="flex items-center gap-2"
+                        className="rounded-xl hover:bg-white/80"
                       >
                         Next
-                        <ChevronRight className="h-4 w-4" />
+                        <ChevronRight className="h-4 w-4 ml-1" />
                       </Button>
                     </div>
                   </div>
                 )}
               </>
             )}
-
-            {/* Focused Learning View */}
-            {selectedDeck && (
-              <div className="fixed inset-0 bg-background/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-                <div className="bg-card border border-border rounded-2xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-hidden">
-                  <div className="p-6 border-b border-border">
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <h2 className="text-xl font-semibold text-foreground">{selectedDeck.title}</h2>
-                        <p className="text-sm text-muted-foreground mt-1">
-                          Card {index + 1} of {selectedDeck.flashcards.length}
-                        </p>
-                      </div>
-                      <Button 
-                        variant="ghost" 
-                        onClick={() => setSelectedDeck(null)} 
-                        className="h-8 w-8 p-0 hover:bg-muted rounded-full"
-                        aria-label="Close learning view"
-                      >
-                        <X className="h-4 w-4" />
-                      </Button>
-                    </div>
-                  </div>
-
-                  <div className="p-6">
-                    {selectedDeck.flashcards.length === 0 ? (
-                      <div className="text-center py-12">
-                        <p className="text-muted-foreground">This deck has no flashcards yet</p>
-                        {(userRole === 'admin' || selectedDeck.user_id === user?.id || (userRole === 'teacher' && selectedDeck.user_id === user?.id)) && (
-                          <Button
-                            onClick={() => handleEditDeck(selectedDeck)}
-                            className="mt-4 flex items-center gap-2 mx-auto"
-                          >
-                            <Plus className="h-4 w-4" />
-                            Add Cards
-                          </Button>
-                        )}
-                      </div>
-                    ) : (
-                      <>
-                        {/* Flashcard Container */}
-                        <div className="flex justify-center my-8">
-                          <div
-                            className="relative w-full max-w-lg h-80 cursor-pointer [perspective:1000px] select-none"
-                            onClick={() => setFlipped(!flipped)}
-                          >
-                            <div
-                              className={`absolute inset-0 rounded-2xl shadow-lg p-8 flex items-center justify-center text-center transition-all duration-500 [transform-style:preserve-3d] ${
-                                flipped ? '[transform:rotateY(180deg)]' : ''
-                              }`}
-                            >
-                              {/* Front of card */}
-                              <div className="absolute inset-0 bg-gradient-to-br from-primary/10 to-secondary/10 rounded-2xl border border-border flex items-center justify-center [backface-visibility:hidden] p-6">
-                                <div>
-                                  <span className="text-xs text-primary font-semibold mb-4 block uppercase tracking-wide">Question</span>
-                                  <p className="text-xl text-foreground leading-relaxed">{selectedDeck.flashcards[index]?.front || ''}</p>
-                                </div>
-                              </div>
-
-                              {/* Back of card */}
-                              <div className="absolute inset-0 bg-gradient-to-br from-secondary/10 to-accent/10 rounded-2xl border border-border flex items-center justify-center [transform:rotateY(180deg)] [backface-visibility:hidden] p-6">
-                                <div>
-                                  <span className="text-xs text-secondary font-semibold mb-4 block uppercase tracking-wide">Answer</span>
-                                  <p className="text-xl text-foreground leading-relaxed">{selectedDeck.flashcards[index]?.back || ''}</p>
-                                  {selectedDeck.flashcards[index]?.hint && (
-                                    <div className="mt-6 p-4 bg-muted/50 rounded-lg">
-                                      <p className="text-sm text-muted-foreground">
-                                        <span className="font-medium text-foreground">Hint:</span> {selectedDeck.flashcards[index]?.hint}
-                                      </p>
-                                    </div>
-                                  )}
-                                </div>
-                              </div>
-                            </div>
-                          </div>
-                        </div>
-
-                        {/* Controls */}
-                        <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
-                          <Button
-                            variant="outline"
-                            onClick={prev}
-                            disabled={selectedDeck.flashcards.length <= 1}
-                            className="w-full sm:w-auto flex items-center gap-2"
-                          >
-                            <ChevronLeft className="h-4 w-4" />
-                            Previous
-                          </Button>
-
-                          <Button
-                            onClick={() => setFlipped(!flipped)}
-                            className="w-full sm:w-auto bg-gradient-to-r from-primary to-secondary hover:opacity-90"
-                          >
-                            {flipped ? 'Show Question' : 'Show Answer'}
-                          </Button>
-
-                          <Button
-                            variant="outline"
-                            onClick={next}
-                            disabled={selectedDeck.flashcards.length <= 1}
-                            className="w-full sm:w-auto flex items-center gap-2"
-                          >
-                            Next
-                            <ChevronRight className="h-4 w-4" />
-                          </Button>
-                        </div>
-
-                        {/* Progress indicators */}
-                        <div className="flex justify-center mt-6">
-                          <div className="flex gap-2">
-                            {selectedDeck.flashcards.map((_, i) => (
-                              <div
-                                key={i}
-                                className={`w-3 h-3 rounded-full transition-all ${
-                                  i === index
-                                    ? 'bg-primary w-6'
-                                    : i < index
-                                      ? 'bg-primary/50'
-                                      : 'bg-muted'
-                                }`}
-                              />
-                            ))}
-                          </div>
-                        </div>
-                      </>
-                    )}
-                  </div>
-                </div>
-              </div>
-            )}
           </div>
         </main>
       </div>
+
+      {/* Focused Learning View (Modal) */}
+      {selectedDeck && (
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-in fade-in duration-200">
+          <div className="bg-white/90 dark:bg-slate-900/90 backdrop-blur-2xl border border-white/20 rounded-3xl shadow-2xl max-w-4xl w-full max-h-[90vh] overflow-hidden flex flex-col animate-in zoom-in-95 duration-300">
+            {/* Modal Header */}
+            <div className="p-6 border-b border-gray-100 dark:border-gray-800 flex items-center justify-between bg-white/50 dark:bg-slate-800/50">
+              <div>
+                <h2 className="text-2xl font-bold text-gray-800 dark:text-white">{selectedDeck.title}</h2>
+                <div className="flex items-center gap-2 mt-1">
+                  <span className="text-sm font-medium text-primary">Card {index + 1}</span>
+                  <span className="text-sm text-muted-foreground">of {selectedDeck.flashcards.length}</span>
+                </div>
+              </div>
+              <Button 
+                variant="ghost" 
+                onClick={() => setSelectedDeck(null)} 
+                className="h-10 w-10 p-0 rounded-full hover:bg-red-50 hover:text-red-500 transition-colors"
+              >
+                <X className="h-5 w-5" />
+              </Button>
+            </div>
+
+            {/* Modal Content */}
+            <div className="flex-1 p-8 overflow-y-auto bg-gradient-to-b from-gray-50/50 to-white/50">
+              {selectedDeck.flashcards.length === 0 ? (
+                <div className="text-center py-20">
+                  <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                    <FileText className="h-8 w-8 text-gray-400" />
+                  </div>
+                  <p className="text-lg text-gray-600 font-medium">This deck is empty</p>
+                  <p className="text-muted-foreground mb-6">Add some cards to start studying!</p>
+                  {(userRole === 'admin' || selectedDeck.user_id === user?.id || (userRole === 'teacher' && selectedDeck.user_id === user?.id)) && (
+                    <Button onClick={() => handleEditDeck(selectedDeck)} className="rounded-xl">
+                      <Plus className="h-4 w-4 mr-2" />
+                      Add Cards
+                    </Button>
+                  )}
+                </div>
+              ) : (
+                <div className="flex flex-col items-center">
+                  {/* Flashcard 3D Flip Container */}
+                  <div className="w-full max-w-2xl aspect-[3/2] perspective-1000 mb-8 group">
+                    <div
+                      className={`relative w-full h-full transition-all duration-700 transform-style-3d cursor-pointer ${
+                        flipped ? 'rotate-y-180' : ''
+                      }`}
+                      onClick={() => setFlipped(!flipped)}
+                    >
+                      {/* Front Face */}
+                      <div className="absolute inset-0 backface-hidden">
+                        <div className="h-full w-full bg-white dark:bg-slate-800 rounded-3xl shadow-xl border border-gray-100 dark:border-gray-700 p-8 flex flex-col items-center justify-center text-center hover:shadow-2xl hover:shadow-primary/5 transition-shadow">
+                          <div className="w-12 h-12 bg-primary/10 rounded-full flex items-center justify-center mb-6">
+                            <span className="text-primary font-bold text-lg">Q</span>
+                          </div>
+                          <p className="text-2xl md:text-3xl font-medium text-gray-800 dark:text-gray-100 leading-relaxed">
+                            {selectedDeck.flashcards[index]?.front}
+                          </p>
+                          <p className="mt-auto text-sm text-muted-foreground font-medium uppercase tracking-widest opacity-60">Click to flip</p>
+                        </div>
+                      </div>
+
+                      {/* Back Face */}
+                      <div className="absolute inset-0 backface-hidden rotate-y-180">
+                        <div className="h-full w-full bg-gradient-to-br from-primary/5 to-purple-500/5 dark:from-slate-800 dark:to-slate-800 rounded-3xl shadow-xl border-2 border-primary/10 p-8 flex flex-col items-center justify-center text-center">
+                          <div className="w-12 h-12 bg-green-100 text-green-600 rounded-full flex items-center justify-center mb-6">
+                            <CheckCircle className="h-6 w-6" />
+                          </div>
+                          <p className="text-2xl md:text-3xl font-medium text-gray-800 dark:text-gray-100 leading-relaxed">
+                            {selectedDeck.flashcards[index]?.back}
+                          </p>
+                          {selectedDeck.flashcards[index]?.hint && (
+                            <div className="mt-6 px-4 py-2 bg-yellow-50 text-yellow-700 rounded-lg text-sm border border-yellow-100">
+                              💡 Hint: {selectedDeck.flashcards[index]?.hint}
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Controls */}
+                  <div className="flex items-center gap-4 mb-8">
+                    <Button
+                      variant="outline"
+                      size="lg"
+                      onClick={prev}
+                      disabled={selectedDeck.flashcards.length <= 1}
+                      className="rounded-xl h-12 px-6 border-gray-200 hover:bg-white hover:shadow-md transition-all"
+                    >
+                      <ChevronLeft className="h-5 w-5 mr-2" />
+                      Prev
+                    </Button>
+
+                    <Button
+                      size="lg"
+                      onClick={() => setFlipped(!flipped)}
+                      className="rounded-xl h-12 px-8 bg-primary hover:bg-primary/90 shadow-lg shadow-primary/25 hover:-translate-y-0.5 transition-all"
+                    >
+                      <RotateCcw className="h-4 w-4 mr-2" />
+                      Flip Card
+                    </Button>
+
+                    <Button
+                      variant="outline"
+                      size="lg"
+                      onClick={next}
+                      disabled={selectedDeck.flashcards.length <= 1}
+                      className="rounded-xl h-12 px-6 border-gray-200 hover:bg-white hover:shadow-md transition-all"
+                    >
+                      Next
+                      <ChevronRight className="h-5 w-5 ml-2" />
+                    </Button>
+                  </div>
+
+                  {/* Progress Bar */}
+                  <div className="w-full max-w-md">
+                    <div className="flex justify-between text-xs text-muted-foreground mb-2">
+                      <span>Progress</span>
+                      <span>{Math.round(((index + 1) / selectedDeck.flashcards.length) * 100)}%</span>
+                    </div>
+                    <div className="h-2 bg-gray-100 rounded-full overflow-hidden">
+                      <div 
+                        className="h-full bg-primary transition-all duration-300 ease-out"
+                        style={{ width: `${((index + 1) / selectedDeck.flashcards.length) * 100}%` }}
+                      />
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Delete Confirmation Dialog */}
       <ConfirmationDialog

@@ -1,6 +1,8 @@
 ﻿import { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
+import { Sidebar } from '@/components/Sidebar';
+import { Header } from '@/components/Header';
 import { BookOpen, CreditCard, Users, LogOut, MessageSquare, Settings, Home, Calendar, FileText, Search, ChevronDown, User, Plus, Edit, Trash, Clock, Tag, CheckCircle, XCircle, GraduationCap, ChevronLeft, ChevronRight, Sparkles } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
@@ -44,18 +46,6 @@ const Quizzes = () => {
   const [editingQuiz, setEditingQuiz] = useState<Quiz | null>(null);
   const [questionDrafts, setQuestionDrafts] = useState<QuizQuestion[]>([]);
   const originalQuestionIdsRef = useRef<string[]>([]);
-  const [profile, setProfile] = useState<any>(null);
-  const [isProfileMenuOpen, setIsProfileMenuOpen] = useState(false);
-  const profileMenuRef = useRef<HTMLDivElement>(null);
-
-  const navigationItems = [
-    { id: 'dashboard', title: 'Dashboard', icon: Home },
-    { id: 'flashcards', title: 'Flashcards', icon: CreditCard },
-    { id: 'quizzes', title: 'Quizzes', icon: GraduationCap },
-    { id: 'classes', title: 'Classes', icon: Users },
-    { id: 'forum', title: 'Forum', icon: MessageSquare },
-    { id: 'settings', title: 'Settings', icon: Settings },
-  ];
 
   // Attempt states per quiz
   type AttemptState = { idx: number; selected: string | null; score: number; startTs: number | null; answersMap: Record<number, string> };
@@ -85,19 +75,6 @@ const Quizzes = () => {
     const fetchRole = async () => {
       if (!user) return;
       try {
-        // Get user profile
-        const { data: profileData, error: profileError } = await supabase
-          .from('profiles')
-          .select('*')
-          .eq('id', user.id)
-          .single();
-        
-        if (profileError) {
-          console.error('Error fetching profile:', profileError);
-        } else {
-          setProfile(profileData);
-        }
-
         // Get user roles
         const { data: rolesData, error: rolesError } = await supabase
           .from('user_roles')
@@ -129,20 +106,6 @@ const Quizzes = () => {
     fetchRole();
   }, [user]);
 
-  // Close profile menu when clicking outside
-  useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      if (profileMenuRef.current && !profileMenuRef.current.contains(event.target as Node)) {
-        setIsProfileMenuOpen(false);
-      }
-    };
-
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => {
-      document.removeEventListener('mousedown', handleClickOutside);
-    };
-  }, []);
-
   /**
    * Loads quizzes according to role with soft-delete filtering.
    */
@@ -167,15 +130,18 @@ const Quizzes = () => {
 
         const { data, error } = await query;
         if (error) throw error;
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const quizzesData: Quiz[] = (data || []).map((q: any) => ({
           ...q,
           quiz_questions: Array.isArray(q.quiz_questions) 
             ? q.quiz_questions
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
                 .map((qq: any) => ({
                   ...qq,
                   question: qq.question_text || qq.question,
                   type: qq.question_type || qq.type || 'multiple_choice',
                 }))
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
                 .sort((a: any, b: any) => (a.order_index ?? 0) - (b.order_index ?? 0)) 
             : [],
         }));
@@ -319,7 +285,7 @@ const Quizzes = () => {
   /**
    * Updates a field of a question at index.
    */
-  const updateQuestion = (index: number, field: keyof QuizQuestion, value: any) => {
+  const updateQuestion = (index: number, field: keyof QuizQuestion, value: string | number | string[] | boolean | undefined) => {
     const next = [...questionDrafts];
     next[index] = { ...next[index], [field]: value };
     setQuestionDrafts(next);
@@ -348,7 +314,7 @@ const Quizzes = () => {
         category: editingQuiz.category,
       };
 
-      let savedQuiz: any;
+      let savedQuiz: Quiz;
       if (editingQuiz.id) {
         const { data, error } = await supabase
           .from('quizzes')
@@ -357,7 +323,7 @@ const Quizzes = () => {
           .select()
           .single();
         if (error) throw error;
-        savedQuiz = data;
+        savedQuiz = data as unknown as Quiz;
       } else {
         const { data, error } = await supabase
           .from('quizzes')
@@ -365,7 +331,7 @@ const Quizzes = () => {
           .select()
           .single();
         if (error) throw error;
-        savedQuiz = data;
+        savedQuiz = data as unknown as Quiz;
       }
 
       const draftsWithOrder = questionDrafts.map((q, i) => ({ ...q, order_index: i }));
@@ -388,8 +354,8 @@ const Quizzes = () => {
         const updatePayload = toUpdate.map((q) => ({
           id: q.id,
           quiz_id: savedQuiz.id,
-          question_text: q.question,
-          question_type: q.type,
+          question: q.question,
+          type: q.type,
           options: q.options,
           correct_answer: q.correct_answer,
           correct_answers: q.correct_answers, // Support for checkbox questions
@@ -403,12 +369,12 @@ const Quizzes = () => {
         if (upsertError) throw upsertError;
       }
 
-      let insertedQuestions: any[] = [];
+      let insertedQuestions: QuizQuestion[] = [];
       if (toInsert.length > 0) {
         const insertPayload = toInsert.map((q) => ({
           quiz_id: savedQuiz.id,
-          question_text: q.question,
-          question_type: q.type,
+          question: q.question,
+          type: q.type,
           options: q.options,
           correct_answer: q.correct_answer,
           correct_answers: q.correct_answers, // Support for checkbox questions
@@ -421,7 +387,12 @@ const Quizzes = () => {
           .insert(insertPayload)
           .select();
         if (insertError) throw insertError;
-        insertedQuestions = insertData || [];
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        insertedQuestions = (insertData || []).map((q: any) => ({
+          ...q,
+          question: q.question,
+          type: q.type,
+        })) as QuizQuestion[];
       }
 
       toast.success('Quiz saved');
@@ -520,123 +491,12 @@ const Quizzes = () => {
   }
 
   return (
-    <div className="min-h-screen flex">
-      {/* Glassmorphism Sidebar */}
-      <div className="w-64 min-h-screen p-6 bg-background/80 backdrop-blur-xl border-r border-border sticky top-0">
-        <div className="mb-8">
-          <div className="flex items-center gap-2 mb-6">
-            <BookOpen className="h-8 w-8 text-primary" />
-            <span className="text-2xl font-bold bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent">EduLearn</span>
-          </div>
-        </div>
-        
-        <nav className="space-y-2">
-          {navigationItems.map((item) => {
-            const Icon = item.icon;
-            return (
-              <button
-                key={item.id}
-                onClick={() => {
-                  if (item.id === 'dashboard') {
-                    navigate('/dashboard');
-                  } else if (item.id === 'flashcards') {
-                    navigate('/flashcards');
-                  } else if (item.id === 'quizzes') {
-                    navigate('/quizzes');
-                  } else if (item.id === 'classes') {
-                    navigate('/classes');
-                  } else if (item.id === 'forum') {
-                    navigate('/forum');
-                  } else if (item.id === 'settings') {
-                    navigate('/dashboard');
-                  }
-                }}
-                className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-300 ${
-                  item.id === 'quizzes'
-                    ? 'bg-gradient-to-r from-primary/20 to-secondary/20 text-primary shadow-sm'
-                    : 'text-foreground hover:bg-accent'
-                }`}
-              >
-                <Icon className="h-5 w-5" />
-                <span>{item.title}</span>
-              </button>
-            );
-          })}
-        </nav>
-        
-        <div className="mt-auto pt-8">
-          <Button
-            variant="outline"
-            className="w-full justify-start gap-3 border-border hover:bg-accent"
-            onClick={signOut}
-          >
-            <LogOut className="h-5 w-5" />
-            <span>Sign Out</span>
-          </Button>
-        </div>
-      </div>
+    <div className="min-h-screen flex bg-gradient-to-br from-slate-50 via-purple-50 to-slate-100 dark:from-slate-950 dark:via-slate-900 dark:to-slate-950 overflow-hidden">
+      <Sidebar />
 
       {/* Main Content */}
-      <div className="flex-1 flex flex-col">
-        {/* Header */}
-        <header className="bg-background/80 backdrop-blur-xl border-b border-border p-4">
-          <div className="flex items-center justify-between">
-            {/* Search Bar */}
-            <form onSubmit={handleSearch} className="flex-1 max-w-md">
-              <div className="relative">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
-                <input
-                  type="text"
-                  placeholder="Search courses, resources, or topics..."
-                  className="w-full pl-10 pr-4 py-2 rounded-lg bg-card border border-border focus:outline-none focus:ring-2 focus:ring-primary/30"
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                />
-              </div>
-            </form>
-
-            {/* User Profile */}
-            <div className="relative" ref={profileMenuRef}>
-              <button
-                onClick={() => setIsProfileMenuOpen(!isProfileMenuOpen)}
-                className="flex items-center gap-2 focus:outline-none"
-              >
-                <div className="w-10 h-10 rounded-full bg-gradient-to-br from-primary to-secondary flex items-center justify-center text-white font-semibold">
-                  {profile?.full_name?.charAt(0) || user?.email?.charAt(0) || 'U'}
-                </div>
-                <ChevronDown className="h-4 w-4 text-muted-foreground" />
-              </button>
-
-              {isProfileMenuOpen && (
-                <div className="absolute right-0 mt-2 w-64 bg-card rounded-xl shadow-lg py-2 z-10 border border-border">
-                  <div className="px-4 py-3 border-b border-border">
-                    <p className="font-medium text-foreground truncate">
-                      {profile?.full_name || user?.email}
-                    </p>
-                    <p className="text-sm text-muted-foreground capitalize">
-                      {userRole}
-                    </p>
-                  </div>
-                  <div className="px-4 py-2">
-                    <p className="text-xs text-muted-foreground truncate">
-                      {user?.email}
-                    </p>
-                  </div>
-                  <div className="px-4 py-2">
-                    <Button
-                      variant="outline"
-                      className="w-full justify-start gap-2 border-border hover:bg-accent"
-                      onClick={signOut}
-                    >
-                      <LogOut className="h-4 w-4" />
-                      <span>Sign Out</span>
-                    </Button>
-                  </div>
-                </div>
-              )}
-            </div>
-          </div>
-        </header>
+      <div className="flex-1 flex flex-col min-h-screen relative">
+        <Header />
 
         {/* Content Area */}
         <main className="flex-1 p-6 overflow-auto bg-gradient-to-br from-background to-muted">

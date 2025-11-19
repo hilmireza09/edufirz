@@ -3,10 +3,13 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Sidebar } from '@/components/Sidebar';
+import { Header } from '@/components/Header';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { BookOpen, CreditCard, Users, LogOut, MessageSquare, Settings, Home, Search, Plus, ChevronRight, GraduationCap, User, Loader2, School, ChevronDown } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
+import { Database } from '@/integrations/supabase/types';
 import { toast } from 'sonner';
 
 type ClassItem = {
@@ -22,14 +25,12 @@ type ClassItem = {
 const Classes = () => {
   const { user, signOut } = useAuth();
   const navigate = useNavigate();
-  const [profile, setProfile] = useState<any>(null);
+  const [profile, setProfile] = useState<Database['public']['Tables']['profiles']['Row'] | null>(null);
   const [userRole, setUserRole] = useState<string>('student');
-  const [isProfileMenuOpen, setIsProfileMenuOpen] = useState(false);
-  const [searchQuery, setSearchQuery] = useState('');
-  const profileMenuRef = useRef<HTMLDivElement>(null);
   
   const [classes, setClasses] = useState<ClassItem[]>([]);
   const [loading, setLoading] = useState(true);
+  const [searchQuery, setSearchQuery] = useState('');
   
   // Join Class State
   const [isJoinDialogOpen, setIsJoinDialogOpen] = useState(false);
@@ -41,29 +42,6 @@ const Classes = () => {
   const [newClassName, setNewClassName] = useState('');
   const [newClassDescription, setNewClassDescription] = useState('');
   const [creating, setCreating] = useState(false);
-
-  const navigationItems = [
-    { id: 'dashboard', title: 'Dashboard', icon: Home },
-    { id: 'flashcards', title: 'Flashcards', icon: CreditCard },
-    { id: 'quizzes', title: 'Quizzes', icon: BookOpen },
-    { id: 'classes', title: 'Classes', icon: Users },
-    { id: 'forum', title: 'Forum', icon: MessageSquare },
-    { id: 'settings', title: 'Settings', icon: Settings },
-  ];
-
-  // Close profile menu when clicking outside
-  useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      if (profileMenuRef.current && !profileMenuRef.current.contains(event.target as Node)) {
-        setIsProfileMenuOpen(false);
-      }
-    };
-
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => {
-      document.removeEventListener('mousedown', handleClickOutside);
-    };
-  }, []);
 
   // Fetch user profile and role
   useEffect(() => {
@@ -109,6 +87,7 @@ const Classes = () => {
 
         if (error) throw error;
 
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const formattedClasses: ClassItem[] = data.map((c: any) => ({
           id: c.id,
           name: c.name,
@@ -139,6 +118,7 @@ const Classes = () => {
     
     setJoining(true);
     try {
+      // @ts-expect-error - RPC function not yet in types
       const { data, error } = await supabase.rpc('join_class_by_code', { code: joinCode.trim() });
       
       if (error) throw error;
@@ -148,9 +128,9 @@ const Classes = () => {
       setJoinCode('');
       // Refresh classes
       window.location.reload(); // Simple reload to refresh data
-    } catch (error: any) {
+    } catch (error) {
       console.error('Error joining class:', error);
-      toast.error(error.message || 'Failed to join class. Please check the code.');
+      toast.error(error instanceof Error ? error.message : 'Failed to join class. Please check the code.');
     } finally {
       setJoining(false);
     }
@@ -196,7 +176,7 @@ const Classes = () => {
         student_count: 0
       };
       setClasses([newClass, ...classes]);
-    } catch (error: any) {
+    } catch (error) {
       console.error('Error creating class:', error);
       toast.error('Failed to create class');
     } finally {
@@ -210,122 +190,14 @@ const Classes = () => {
   );
 
   return (
-    <div className="min-h-screen flex">
-      {/* Glassmorphism Sidebar */}
-      <div className="w-64 min-h-screen p-6 bg-background/80 backdrop-blur-xl border-r border-border sticky top-0 hidden md:block">
-        <div className="mb-8">
-          <div className="flex items-center gap-2 mb-6">
-            <BookOpen className="h-8 w-8 text-primary" />
-            <span className="text-2xl font-bold bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent">EduLearn</span>
-          </div>
-        </div>
-
-        <nav className="space-y-2">
-          {navigationItems.map((item) => {
-            const Icon = item.icon;
-            return (
-              <button
-                key={item.id}
-                onClick={() => {
-                  if (item.id === 'dashboard') {
-                    navigate('/dashboard');
-                  } else if (item.id === 'flashcards') {
-                    navigate('/flashcards');
-                  } else if (item.id === 'quizzes') {
-                    navigate('/quizzes');
-                  } else if (item.id === 'classes') {
-                    navigate('/classes');
-                  } else if (item.id === 'forum') {
-                    navigate('/forum');
-                  } else if (item.id === 'settings') {
-                    navigate('/dashboard');
-                  }
-                }}
-                className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-300 ${
-                  item.id === 'classes'
-                    ? 'bg-gradient-to-r from-primary/20 to-secondary/20 text-primary shadow-sm'
-                    : 'text-foreground hover:bg-accent'
-                }`}
-              >
-                <Icon className="h-5 w-5" />
-                <span>{item.title}</span>
-              </button>
-            );
-          })}
-        </nav>
-        
-        <div className="mt-auto pt-8">
-          <Button
-            variant="outline"
-            className="w-full justify-start gap-3 border-border hover:bg-accent"
-            onClick={signOut}
-          >
-            <LogOut className="h-5 w-5" />
-            <span>Sign Out</span>
-          </Button>
-        </div>
-      </div>
+    <div className="min-h-screen flex bg-gradient-to-br from-slate-50 via-purple-50 to-slate-100 dark:from-slate-950 dark:via-slate-900 dark:to-slate-950 overflow-hidden">
+      <Sidebar />
 
       {/* Main Content */}
-      <div className="flex-1 flex flex-col min-h-screen bg-gradient-to-br from-background to-muted">
-        {/* Header */}
-        <header className="bg-background/80 backdrop-blur-xl border-b border-border p-4 sticky top-0 z-10">
-          <div className="flex items-center justify-between gap-4">
-            <div className="md:hidden">
-              <BookOpen className="h-8 w-8 text-primary" />
-            </div>
+      <div className="flex-1 flex flex-col min-h-screen relative">
+        <Header />
 
-            {/* Search Bar */}
-            <div className="flex-1 max-w-md relative">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
-              <input
-                type="text"
-                placeholder="Search classes..."
-                className="w-full pl-10 pr-4 py-2 rounded-lg bg-card border border-border focus:outline-none focus:ring-2 focus:ring-primary/30"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-              />
-            </div>
-
-            {/* User Profile */}
-            <div className="relative" ref={profileMenuRef}>
-              <button
-                onClick={() => setIsProfileMenuOpen(!isProfileMenuOpen)}
-                className="flex items-center gap-2 focus:outline-none"
-              >
-                <div className="w-10 h-10 rounded-full bg-gradient-to-br from-primary to-secondary flex items-center justify-center text-white font-semibold">
-                  {profile?.full_name?.charAt(0) || user?.email?.charAt(0) || 'U'}
-                </div>
-                <ChevronDown className="h-4 w-4 text-muted-foreground hidden md:block" />
-              </button>
-
-              {isProfileMenuOpen && (
-                <div className="absolute right-0 mt-2 w-64 bg-card rounded-xl shadow-lg py-2 z-10 border border-border">
-                  <div className="px-4 py-3 border-b border-border">
-                    <p className="font-medium text-foreground truncate">
-                      {profile?.full_name || user?.email}
-                    </p>
-                    <p className="text-sm text-muted-foreground capitalize">
-                      {userRole}
-                    </p>
-                  </div>
-                  <div className="px-4 py-2">
-                    <Button
-                      variant="outline"
-                      className="w-full justify-start gap-2 border-border hover:bg-accent"
-                      onClick={signOut}
-                    >
-                      <LogOut className="h-4 w-4" />
-                      <span>Sign Out</span>
-                    </Button>
-                  </div>
-                </div>
-              )}
-            </div>
-          </div>
-        </header>
-
-        <main className="flex-1 p-6">
+        <main className="flex-1 p-6 overflow-auto bg-gradient-to-br from-background to-muted">
           <div className="max-w-7xl mx-auto space-y-8">
             <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
               <div>
@@ -351,6 +223,17 @@ const Classes = () => {
                   </Button>
                 )}
               </div>
+            </div>
+
+            {/* Search Bar */}
+            <div className="relative max-w-md">
+               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
+               <Input
+                 placeholder="Search classes..."
+                 className="pl-10 bg-white/50 border-white/20 focus:bg-white/80 transition-all"
+                 value={searchQuery}
+                 onChange={(e) => setSearchQuery(e.target.value)}
+               />
             </div>
 
             {loading ? (
