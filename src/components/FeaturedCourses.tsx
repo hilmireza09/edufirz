@@ -69,8 +69,8 @@ const FeaturedCourses = () => {
           {courses.map((course, index) => (
             <Card
               key={course.id}
-              className="glass-card border-0 overflow-hidden hover-lift group animate-fade-in-up backdrop-blur-lg bg-white/50"
-              style={{ animationDelay: `${index * 0.1}s` }}
+              className="glass-card border-0 overflow-hidden hover-lift group animate-entrance-card backdrop-blur-lg bg-white/50"
+              style={{ animationDelay: `${index * 0.15}s` }}
             >
               <div className="relative overflow-hidden">
                 <img
