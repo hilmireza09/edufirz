@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -25,12 +25,17 @@ type ClassItem = {
 const Classes = () => {
   const { user, signOut } = useAuth();
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
   const [profile, setProfile] = useState<Database['public']['Tables']['profiles']['Row'] | null>(null);
   const [userRole, setUserRole] = useState<string>('student');
   
   const [classes, setClasses] = useState<ClassItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
+  
+  // Pagination - 9 classes per page (3x3 grid)
+  const classesPerPage = 9;
+  const currentPage = parseInt(searchParams.get('page') || '1', 10);
   
   // Join Class State
   const [isJoinDialogOpen, setIsJoinDialogOpen] = useState(false);
@@ -189,6 +194,28 @@ const Classes = () => {
     (c.teacher_name && c.teacher_name.toLowerCase().includes(searchQuery.toLowerCase()))
   );
 
+  // Pagination calculations
+  const totalPages = Math.ceil(filteredClasses.length / classesPerPage);
+  const startIndex = (currentPage - 1) * classesPerPage;
+  const paginatedClasses = filteredClasses.slice(startIndex, startIndex + classesPerPage);
+
+  // Update URL when page changes
+  const handlePageChange = (newPage: number) => {
+    setSearchParams({ page: newPage.toString() });
+  };
+
+  // Reset to page 1 when search query changes
+  const prevSearchQuery = useRef(searchQuery);
+  
+  useEffect(() => {
+    if (prevSearchQuery.current !== searchQuery) {
+      if (currentPage > 1) {
+        setSearchParams({ page: '1' });
+      }
+      prevSearchQuery.current = searchQuery;
+    }
+  }, [searchQuery, currentPage, setSearchParams]);
+
   return (
     <div className="h-screen w-full flex bg-gradient-to-br from-slate-50 via-purple-50 to-slate-100 dark:from-slate-950 dark:via-slate-900 dark:to-slate-950 overflow-hidden">
       <Sidebar />
@@ -256,43 +283,86 @@ const Classes = () => {
                 )}
               </div>
             ) : (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {filteredClasses.map((cls) => (
-                  <Card 
-                    key={cls.id} 
-                    className="group hover:shadow-lg transition-all duration-300 border-border/50 bg-card/40 backdrop-blur-sm overflow-hidden cursor-pointer"
-                    onClick={() => navigate(`/classes/${cls.id}`)}
-                  >
-                    <div className="h-2 bg-gradient-to-r from-primary to-secondary" />
-                    <CardHeader>
-                      <CardTitle className="flex justify-between items-start">
-                        <span className="truncate text-xl">{cls.name}</span>
-                      </CardTitle>
-                      <CardDescription className="line-clamp-2">
-                        {cls.description || 'No description'}
-                      </CardDescription>
-                    </CardHeader>
-                    <CardContent>
-                      <div className="flex items-center gap-2 text-sm text-muted-foreground mb-2">
-                        <User className="h-4 w-4" />
-                        <span>{cls.teacher_name}</span>
-                      </div>
-                      <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                        <Users className="h-4 w-4" />
-                        <span>{cls.student_count} Students</span>
-                      </div>
-                    </CardContent>
-                    <CardFooter className="bg-muted/20 p-4 flex justify-between items-center">
-                      <span className="text-xs text-muted-foreground font-mono bg-muted px-2 py-1 rounded">
-                        Code: {cls.join_code}
-                      </span>
-                      <Button variant="ghost" size="sm" className="group-hover:translate-x-1 transition-transform text-primary">
-                        View Class <ChevronRight className="ml-1 h-4 w-4" />
-                      </Button>
-                    </CardFooter>
-                  </Card>
-                ))}
-              </div>
+              <>
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                  {paginatedClasses.map((cls) => (
+                    <Card 
+                      key={cls.id} 
+                      className="group hover:shadow-lg transition-all duration-300 border-border/50 bg-card/40 backdrop-blur-sm overflow-hidden cursor-pointer"
+                      onClick={() => navigate(`/classes/${cls.id}`)}
+                    >
+                      <div className="h-2 bg-gradient-to-r from-primary to-secondary" />
+                      <CardHeader>
+                        <CardTitle className="flex justify-between items-start">
+                          <span className="truncate text-xl">{cls.name}</span>
+                        </CardTitle>
+                        <CardDescription className="line-clamp-2">
+                          {cls.description || 'No description'}
+                        </CardDescription>
+                      </CardHeader>
+                      <CardContent>
+                        <div className="flex items-center gap-2 text-sm text-muted-foreground mb-2">
+                          <User className="h-4 w-4" />
+                          <span>{cls.teacher_name}</span>
+                        </div>
+                        <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                          <Users className="h-4 w-4" />
+                          <span>{cls.student_count} Students</span>
+                        </div>
+                      </CardContent>
+                      <CardFooter className="bg-muted/20 p-4 flex justify-between items-center">
+                        <span className="text-xs text-muted-foreground font-mono bg-muted px-2 py-1 rounded">
+                          Code: {cls.join_code}
+                        </span>
+                        <Button variant="ghost" size="sm" className="group-hover:translate-x-1 transition-transform text-primary">
+                          View Class <ChevronRight className="ml-1 h-4 w-4" />
+                        </Button>
+                      </CardFooter>
+                    </Card>
+                  ))}
+                </div>
+
+                {/* Pagination Controls */}
+                {totalPages > 1 && (
+                  <div className="flex justify-center items-center gap-3 mt-8">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => handlePageChange(Math.max(1, currentPage - 1))}
+                      disabled={currentPage === 1}
+                      className="glass-card border-white/20 hover:bg-white/50 dark:hover:bg-slate-800/50 backdrop-blur-sm rounded-xl"
+                    >
+                      <ChevronRight className="h-4 w-4 rotate-180" />
+                      Previous
+                    </Button>
+
+                    <div className="flex gap-2">
+                      {Array.from({ length: totalPages }, (_, i) => i + 1).map(page => (
+                        <Button
+                          key={page}
+                          variant={page === currentPage ? "default" : "ghost"}
+                          size="sm"
+                          onClick={() => handlePageChange(page)}
+                          className={`w-10 h-10 rounded-xl p-0 ${page === currentPage ? 'bg-gradient-to-r from-primary to-purple-600 text-white shadow-lg shadow-primary/25' : 'glass-card hover:bg-white/50 dark:hover:bg-slate-800/50 backdrop-blur-sm border-white/20'}`}
+                        >
+                          {page}
+                        </Button>
+                      ))}
+                    </div>
+
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => handlePageChange(Math.min(totalPages, currentPage + 1))}
+                      disabled={currentPage === totalPages}
+                      className="glass-card border-white/20 hover:bg-white/50 dark:hover:bg-slate-800/50 backdrop-blur-sm rounded-xl"
+                    >
+                      Next
+                      <ChevronRight className="h-4 w-4" />
+                    </Button>
+                  </div>
+                )}
+              </>
             )}
           </div>
         </main>

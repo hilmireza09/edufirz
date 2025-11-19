@@ -1,5 +1,5 @@
 ﻿import { useEffect, useMemo, useRef, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Sidebar } from '@/components/Sidebar';
 import { Header } from '@/components/Header';
@@ -38,6 +38,7 @@ type Mode = 'list' | 'edit' | 'attempt';
 const Quizzes = () => {
   const { user, signOut } = useAuth();
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
   const [userRole, setUserRole] = useState<string>('student');
   const [loadingRole, setLoadingRole] = useState(true);
   const [mode, setMode] = useState<Mode>('list');
@@ -61,7 +62,7 @@ const Quizzes = () => {
   const [availableCategories, setAvailableCategories] = useState<string[]>([]);
 
   // Pagination
-  const [currentPage, setCurrentPage] = useState(1);
+  const currentPage = parseInt(searchParams.get('page') || '1', 10);
   const [quizzesPerPage] = useState(9);
 
   // Delete confirmation dialog
@@ -620,11 +621,11 @@ const Quizzes = () => {
                     {Math.ceil(filteredQuizzes.length / quizzesPerPage) > 1 && (
                       <div className="flex items-center justify-center mt-8 gap-2">
                         <Button 
-                          onClick={() => setCurrentPage((p) => Math.max(1, p - 1))} 
+                          onClick={() => setSearchParams({ page: Math.max(1, currentPage - 1).toString() })} 
                           disabled={currentPage === 1}
                           variant="outline"
                           size="sm"
-                          className="flex items-center gap-2"
+                          className="glass-card border-white/20 hover:bg-white/50 dark:hover:bg-slate-800/50 backdrop-blur-sm rounded-xl flex items-center gap-2"
                         >
                           <ChevronLeft className="h-4 w-4" />
                           Previous
@@ -633,21 +634,21 @@ const Quizzes = () => {
                           {Array.from({ length: Math.ceil(filteredQuizzes.length / quizzesPerPage) }, (_, i) => i + 1).map(page => (
                             <Button
                               key={page}
-                              onClick={() => setCurrentPage(page)}
-                              variant={currentPage === page ? "default" : "outline"}
+                              onClick={() => setSearchParams({ page: page.toString() })}
+                              variant={currentPage === page ? "default" : "ghost"}
                               size="sm"
-                              className={`w-8 h-8 p-0 ${currentPage === page ? 'bg-primary text-primary-foreground' : ''}`}
+                              className={`w-10 h-10 rounded-xl p-0 ${currentPage === page ? 'bg-gradient-to-r from-primary to-purple-600 text-white shadow-lg shadow-primary/25' : 'glass-card hover:bg-white/50 dark:hover:bg-slate-800/50 backdrop-blur-sm border-white/20'}`}
                             >
                               {page}
                             </Button>
                           ))}
                         </div>
                         <Button 
-                          onClick={() => setCurrentPage((p) => Math.min(Math.ceil(filteredQuizzes.length / quizzesPerPage), p + 1))} 
+                          onClick={() => setSearchParams({ page: Math.min(Math.ceil(filteredQuizzes.length / quizzesPerPage), currentPage + 1).toString() })} 
                           disabled={currentPage === Math.ceil(filteredQuizzes.length / quizzesPerPage)}
                           variant="outline"
                           size="sm"
-                          className="flex items-center gap-2"
+                          className="glass-card border-white/20 hover:bg-white/50 dark:hover:bg-slate-800/50 backdrop-blur-sm rounded-xl flex items-center gap-2"
                         >
                           Next
                           <ChevronRight className="h-4 w-4" />

@@ -1,5 +1,5 @@
-import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useState, useEffect, useRef } from 'react';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -20,7 +20,7 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from '@/components/ui/popover';
-import { MessageSquare, ThumbsUp, Search, Plus, Filter, Clock, Check, ChevronsUpDown } from 'lucide-react';
+import { MessageSquare, ThumbsUp, Search, Plus, Filter, Clock, Check, ChevronsUpDown, ChevronLeft, ChevronRight } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import { cn } from '@/lib/utils';
 import { CreatePostModal } from './CreatePostModal';
@@ -43,12 +43,17 @@ type Post = {
 
 export default function ForumPostList() {
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
   const [posts, setPosts] = useState<Post[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedFilter, setSelectedFilter] = useState('All');
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [open, setOpen] = useState(false);
+
+  // Pagination - 10 posts per page
+  const postsPerPage = 10;
+  const currentPage = parseInt(searchParams.get('page') || '1', 10);
 
   useEffect(() => {
     fetchPosts();
@@ -105,6 +110,30 @@ export default function ForumPostList() {
     // For tags
     return matchesSearch && post.tags?.includes(selectedFilter);
   });
+
+  // Pagination calculations
+  const totalPages = Math.ceil(filteredPosts.length / postsPerPage);
+  const startIndex = (currentPage - 1) * postsPerPage;
+  const paginatedPosts = filteredPosts.slice(startIndex, startIndex + postsPerPage);
+
+  // Update URL when page changes
+  const handlePageChange = (newPage: number) => {
+    setSearchParams({ page: newPage.toString() });
+  };
+
+  // Reset to page 1 when search or filter changes
+  const prevSearchQuery = useRef(searchQuery);
+  const prevSelectedFilter = useRef(selectedFilter);
+  
+  useEffect(() => {
+    if (prevSearchQuery.current !== searchQuery || prevSelectedFilter.current !== selectedFilter) {
+      if (currentPage > 1) {
+        setSearchParams({ page: '1' });
+      }
+      prevSearchQuery.current = searchQuery;
+      prevSelectedFilter.current = selectedFilter;
+    }
+  }, [searchQuery, selectedFilter, currentPage, setSearchParams]);
 
   return (
     <div className="space-y-6 animate-in fade-in duration-500">
@@ -249,71 +278,126 @@ export default function ForumPostList() {
             No discussions found. Be the first to start one!
           </div>
         ) : (
-          filteredPosts.map((post) => (
-            <Card 
-              key={post.id}
-              onClick={() => navigate(`/forum/${post.id}`)}
-              className="group cursor-pointer border-white/20 bg-white/40 backdrop-blur-sm hover:bg-white/60 transition-all duration-300 hover:shadow-[0_0_30px_-5px_rgba(124,58,237,0.15)] hover:-translate-y-1"
-            >
-              <CardHeader className="pb-2">
-                <div className="flex justify-between items-start">
-                  <div className="space-y-1">
-                    <div className="flex items-center gap-2">
-                      <Badge variant="outline" className="bg-primary/5 text-primary border-primary/20">
-                        {post.category || 'General'}
-                      </Badge>
-                      {post.is_solved && (
-                        <Badge variant="secondary" className="bg-green-500/10 text-green-600 border-green-500/20">
-                          Solved
+          <>
+            {paginatedPosts.map((post) => (
+              <Card 
+                key={post.id}
+                onClick={() => navigate(`/forum/${post.id}`)}
+                className="group cursor-pointer border-white/20 bg-white/40 backdrop-blur-sm hover:bg-white/60 transition-all duration-300 hover:shadow-[0_0_30px_-5px_rgba(124,58,237,0.15)] hover:-translate-y-1"
+              >
+                <CardHeader className="pb-2">
+                  <div className="flex justify-between items-start">
+                    <div className="space-y-1">
+                      <div className="flex items-center gap-2">
+                        <Badge variant="outline" className="bg-primary/5 text-primary border-primary/20">
+                          {post.category || 'General'}
                         </Badge>
-                      )}
-                      <span className="text-xs text-muted-foreground flex items-center gap-1">
-                        <Clock className="h-3 w-3" />
-                        {formatDistanceToNow(new Date(post.created_at), { addSuffix: true })}
-                      </span>
+                        {post.is_solved && (
+                          <Badge variant="secondary" className="bg-green-500/10 text-green-600 border-green-500/20">
+                            Solved
+                          </Badge>
+                        )}
+                        <span className="text-xs text-muted-foreground flex items-center gap-1">
+                          <Clock className="h-3 w-3" />
+                          {formatDistanceToNow(new Date(post.created_at), { addSuffix: true })}
+                        </span>
+                      </div>
+                      <CardTitle className="text-xl group-hover:text-primary transition-colors">
+                        {post.title}
+                      </CardTitle>
                     </div>
-                    <CardTitle className="text-xl group-hover:text-primary transition-colors">
-                      {post.title}
-                    </CardTitle>
                   </div>
+                </CardHeader>
+                <CardContent>
+                  <p className="text-muted-foreground line-clamp-2 text-sm">
+                    {post.content}
+                  </p>
+                  {post.tags && post.tags.length > 0 && (
+                    <div className="flex gap-2 mt-3">
+                      {post.tags.map(tag => (
+                        <span key={tag} className="text-xs text-muted-foreground bg-black/5 px-2 py-1 rounded-full">
+                          #{tag}
+                        </span>
+                      ))}
+                    </div>
+                  )}
+                </CardContent>
+                <CardFooter className="pt-0 flex justify-between items-center text-sm text-muted-foreground">
+                  <div className="flex items-center gap-2">
+                    <Avatar className="h-6 w-6">
+                      <AvatarFallback className="text-[10px] bg-primary/10 text-primary">
+                        {post.author?.full_name?.substring(0, 2).toUpperCase() || 'U'}
+                      </AvatarFallback>
+                    </Avatar>
+                    <span>{post.author?.full_name || 'Unknown User'}</span>
+                  </div>
+                  <div className="flex items-center gap-4">
+                    <div className="flex items-center gap-1">
+                      <ThumbsUp className="h-4 w-4" />
+                      <span>{post.votes || 0}</span>
+                    </div>
+                    <div className="flex items-center gap-1">
+                      <MessageSquare className="h-4 w-4" />
+                      <span>{post.reply_count || 0}</span>
+                    </div>
+                  </div>
+                </CardFooter>
+              </Card>
+            ))}
+
+            {/* Pagination Controls */}
+            {totalPages > 1 && (
+              <div className="flex justify-center items-center gap-3 mt-6">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => handlePageChange(Math.max(1, currentPage - 1))}
+                  disabled={currentPage === 1}
+                  className="glass-card border-white/20 hover:bg-white/50 dark:hover:bg-slate-800/50 backdrop-blur-sm rounded-xl"
+                >
+                  <ChevronLeft className="h-4 w-4" />
+                  Previous
+                </Button>
+
+                <div className="flex gap-2">
+                  {Array.from({ length: Math.min(totalPages, 7) }, (_, i) => {
+                    let page;
+                    if (totalPages <= 7) {
+                      page = i + 1;
+                    } else if (currentPage <= 4) {
+                      page = i + 1;
+                    } else if (currentPage >= totalPages - 3) {
+                      page = totalPages - 6 + i;
+                    } else {
+                      page = currentPage - 3 + i;
+                    }
+                    return (
+                      <Button
+                        key={page}
+                        variant={page === currentPage ? "default" : "ghost"}
+                        size="sm"
+                        onClick={() => handlePageChange(page)}
+                        className={`w-10 h-10 rounded-xl p-0 ${page === currentPage ? 'bg-gradient-to-r from-primary to-purple-600 text-white shadow-lg shadow-primary/25' : 'glass-card hover:bg-white/50 dark:hover:bg-slate-800/50 backdrop-blur-sm border-white/20'}`}
+                      >
+                        {page}
+                      </Button>
+                    );
+                  })}
                 </div>
-              </CardHeader>
-              <CardContent>
-                <p className="text-muted-foreground line-clamp-2 text-sm">
-                  {post.content}
-                </p>
-                {post.tags && post.tags.length > 0 && (
-                  <div className="flex gap-2 mt-3">
-                    {post.tags.map(tag => (
-                      <span key={tag} className="text-xs text-muted-foreground bg-black/5 px-2 py-1 rounded-full">
-                        #{tag}
-                      </span>
-                    ))}
-                  </div>
-                )}
-              </CardContent>
-              <CardFooter className="pt-0 flex justify-between items-center text-sm text-muted-foreground">
-                <div className="flex items-center gap-2">
-                  <Avatar className="h-6 w-6">
-                    <AvatarFallback className="text-[10px] bg-primary/10 text-primary">
-                      {post.author?.full_name?.substring(0, 2).toUpperCase() || 'U'}
-                    </AvatarFallback>
-                  </Avatar>
-                  <span>{post.author?.full_name || 'Unknown User'}</span>
-                </div>
-                <div className="flex items-center gap-4">
-                  <div className="flex items-center gap-1">
-                    <ThumbsUp className="h-4 w-4" />
-                    <span>{post.votes || 0}</span>
-                  </div>
-                  <div className="flex items-center gap-1">
-                    <MessageSquare className="h-4 w-4" />
-                    <span>{post.reply_count || 0}</span>
-                  </div>
-                </div>
-              </CardFooter>
-            </Card>
-          ))
+
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => handlePageChange(Math.min(totalPages, currentPage + 1))}
+                  disabled={currentPage === totalPages}
+                  className="glass-card border-white/20 hover:bg-white/50 dark:hover:bg-slate-800/50 backdrop-blur-sm rounded-xl"
+                >
+                  Next
+                  <ChevronRight className="h-4 w-4" />
+                </Button>
+              </div>
+            )}
+          </>
         )}
       </div>
 

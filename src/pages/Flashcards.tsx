@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo, useRef } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -40,6 +40,7 @@ type Profile = {
 const Flashcards = () => {
   const { user, signOut } = useAuth();
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
   const [decks, setDecks] = useState<Deck[]>([]);
   const [selectedDeck, setSelectedDeck] = useState<Deck | null>(null);
   const [index, setIndex] = useState(0);
@@ -55,7 +56,7 @@ const Flashcards = () => {
   // New state for search and pagination
   const [flashcardsSearchQuery, setFlashcardsSearchQuery] = useState('');
   const [selectedTag, setSelectedTag] = useState('');
-  const [currentPage, setCurrentPage] = useState(1);
+  const currentPage = parseInt(searchParams.get('page') || '1', 10);
   const [searchQuery, setSearchQuery] = useState('');
   const decksPerPage = 9;
 
@@ -216,10 +217,24 @@ const Flashcards = () => {
     console.log('Searching for:', searchQuery);
   };
 
+  // Update URL when page changes
+  const handlePageChange = (newPage: number) => {
+    setSearchParams({ page: newPage.toString() });
+  };
+
   // Reset to first page when filters change
+  const prevSearchQuery = useRef(flashcardsSearchQuery);
+  const prevSelectedTag = useRef(selectedTag);
+  
   useEffect(() => {
-    setCurrentPage(1);
-  }, [flashcardsSearchQuery, selectedTag]);
+    if (prevSearchQuery.current !== flashcardsSearchQuery || prevSelectedTag.current !== selectedTag) {
+      if (currentPage > 1) {
+        setSearchParams({ page: '1' });
+      }
+      prevSearchQuery.current = flashcardsSearchQuery;
+      prevSelectedTag.current = selectedTag;
+    }
+  }, [flashcardsSearchQuery, selectedTag, currentPage, setSearchParams]);
 
   const handleEditDeck = (deck: Deck) => {
     setEditingDeck(deck);
@@ -510,7 +525,7 @@ const Flashcards = () => {
                     <div className="bg-white/60 backdrop-blur-xl border border-white/40 rounded-2xl p-2 flex items-center gap-2 shadow-lg">
                       <Button
                         variant="ghost"
-                        onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+                        onClick={() => handlePageChange(Math.max(1, currentPage - 1))}
                         disabled={currentPage === 1}
                         className="rounded-xl hover:bg-white/80"
                       >
@@ -523,7 +538,7 @@ const Flashcards = () => {
                           <Button
                             key={page}
                             variant={page === currentPage ? "default" : "ghost"}
-                            onClick={() => setCurrentPage(page)}
+                            onClick={() => handlePageChange(page)}
                             className={`w-9 h-9 rounded-xl p-0 ${page === currentPage ? 'bg-primary text-white shadow-md' : 'hover:bg-white/80'}`}
                           >
                             {page}
@@ -533,7 +548,7 @@ const Flashcards = () => {
 
                       <Button
                         variant="ghost"
-                        onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
+                        onClick={() => handlePageChange(Math.min(totalPages, currentPage + 1))}
                         disabled={currentPage === totalPages}
                         className="rounded-xl hover:bg-white/80"
                       >
