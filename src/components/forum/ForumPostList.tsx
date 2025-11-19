@@ -6,8 +6,23 @@ import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { MessageSquare, ThumbsUp, Search, Plus, Filter, Clock } from 'lucide-react';
+import { 
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+  CommandSeparator,
+} from '@/components/ui/command';
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from '@/components/ui/popover';
+import { MessageSquare, ThumbsUp, Search, Plus, Filter, Clock, Check, ChevronsUpDown } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
+import { cn } from '@/lib/utils';
 import { CreatePostModal } from './CreatePostModal';
 
 type Post = {
@@ -31,7 +46,9 @@ export default function ForumPostList() {
   const [posts, setPosts] = useState<Post[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
+  const [selectedFilter, setSelectedFilter] = useState('All');
   const [isCreateOpen, setIsCreateOpen] = useState(false);
+  const [open, setOpen] = useState(false);
 
   useEffect(() => {
     fetchPosts();
@@ -68,25 +85,152 @@ export default function ForumPostList() {
     }
   };
 
-  const filteredPosts = posts.filter(post => 
-    post.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    post.content.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    post.tags?.some(tag => tag.toLowerCase().includes(searchQuery.toLowerCase()))
-  );
+  // Extract unique tags
+  const allTags = Array.from(new Set(posts.flatMap(post => post.tags || []))).sort();
+
+  const filteredPosts = posts.filter(post => {
+    const matchesSearch = post.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      post.content.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      post.tags?.some(tag => tag.toLowerCase().includes(searchQuery.toLowerCase()));
+    
+    if (selectedFilter === 'All') return matchesSearch;
+    if (selectedFilter === 'Solved') return matchesSearch && post.is_solved;
+    if (selectedFilter === 'Unsolved') return matchesSearch && !post.is_solved;
+    
+    // For categories
+    if (['General', 'Help', 'Study Tips'].includes(selectedFilter)) {
+      return matchesSearch && post.category === selectedFilter;
+    }
+
+    // For tags
+    return matchesSearch && post.tags?.includes(selectedFilter);
+  });
 
   return (
     <div className="space-y-6 animate-in fade-in duration-500">
       {/* Header & Actions */}
       <div className="flex flex-col md:flex-row gap-4 items-center justify-between">
-        <div className="relative w-full md:w-96">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-          <Input
-            placeholder="Search discussions..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="pl-10 bg-white/50 border-white/20 focus:bg-white/80 transition-all"
-          />
+        <div className="flex gap-2 w-full md:w-auto flex-1 max-w-xl">
+          <div className="relative flex-1">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Input
+              placeholder="Search discussions..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="pl-10 bg-white/50 border-white/20 focus:bg-white/80 transition-all"
+            />
+          </div>
+          
+          <Popover open={open} onOpenChange={setOpen}>
+            <PopoverTrigger asChild>
+              <Button
+                variant="outline"
+                role="combobox"
+                aria-expanded={open}
+                className="bg-white/50 border-white/20 hover:bg-white/80 gap-2 min-w-[140px] justify-between backdrop-blur-sm"
+              >
+                <div className="flex items-center gap-2 truncate">
+                  <Filter className="h-4 w-4 text-muted-foreground shrink-0" />
+                  <span className="text-muted-foreground truncate">{selectedFilter}</span>
+                </div>
+                <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent align="end" className="w-[200px] p-0 bg-white/90 backdrop-blur-xl border-white/20">
+              <Command>
+                <CommandInput placeholder="Search filters..." />
+                <CommandList>
+                  <CommandEmpty>No filter found.</CommandEmpty>
+                  <CommandGroup heading="Status">
+                    <CommandItem
+                      onSelect={() => {
+                        setSelectedFilter('All');
+                        setOpen(false);
+                      }}
+                    >
+                      <Check
+                        className={cn(
+                          "mr-2 h-4 w-4",
+                          selectedFilter === 'All' ? "opacity-100" : "opacity-0"
+                        )}
+                      />
+                      All Posts
+                    </CommandItem>
+                    <CommandItem
+                      onSelect={() => {
+                        setSelectedFilter('Solved');
+                        setOpen(false);
+                      }}
+                    >
+                      <Check
+                        className={cn(
+                          "mr-2 h-4 w-4",
+                          selectedFilter === 'Solved' ? "opacity-100" : "opacity-0"
+                        )}
+                      />
+                      Solved
+                    </CommandItem>
+                    <CommandItem
+                      onSelect={() => {
+                        setSelectedFilter('Unsolved');
+                        setOpen(false);
+                      }}
+                    >
+                      <Check
+                        className={cn(
+                          "mr-2 h-4 w-4",
+                          selectedFilter === 'Unsolved' ? "opacity-100" : "opacity-0"
+                        )}
+                      />
+                      Unsolved
+                    </CommandItem>
+                  </CommandGroup>
+                  <CommandSeparator />
+                  <CommandGroup heading="Categories">
+                    {['General', 'Help', 'Study Tips'].map((category) => (
+                      <CommandItem
+                        key={category}
+                        onSelect={() => {
+                          setSelectedFilter(category);
+                          setOpen(false);
+                        }}
+                      >
+                        <Check
+                          className={cn(
+                            "mr-2 h-4 w-4",
+                            selectedFilter === category ? "opacity-100" : "opacity-0"
+                          )}
+                        />
+                        {category}
+                      </CommandItem>
+                    ))}
+                  </CommandGroup>
+                  <CommandSeparator />
+                  <CommandGroup heading="Tags">
+                    {allTags.map((tag) => (
+                      <CommandItem
+                        key={tag}
+                        onSelect={() => {
+                          setSelectedFilter(tag);
+                          setOpen(false);
+                        }}
+                      >
+                        <Check
+                          className={cn(
+                            "mr-2 h-4 w-4",
+                            selectedFilter === tag ? "opacity-100" : "opacity-0"
+                          )}
+                        />
+                        #{tag}
+                      </CommandItem>
+                    ))}
+                  </CommandGroup>
+                </CommandList>
+              </Command>
+            </PopoverContent>
+          </Popover>
         </div>
+
         <Button 
           onClick={() => setIsCreateOpen(true)}
           className="w-full md:w-auto bg-gradient-to-r from-primary to-purple-600 hover:shadow-lg hover:shadow-primary/20 transition-all"
