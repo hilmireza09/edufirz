@@ -9,6 +9,7 @@ import Login from "./pages/Login";
 import Signup from "./pages/Signup";
 import Dashboard from "./pages/Dashboard";
 import Flashcards from "./pages/Flashcards";
+import CreateDeck from "./pages/CreateDeck";
 import Quizzes from "./pages/Quizzes";
 import Classes from "./pages/Classes";
 import ClassDetails from "./pages/ClassDetails";
@@ -31,6 +32,7 @@ const App = () => (
             <Route path="/signup" element={<Signup />} />
             <Route path="/dashboard" element={<Dashboard />} />
             <Route path="/flashcards" element={<Flashcards />} />
+            <Route path="/flashcards/new" element={<CreateDeck />} />
             <Route path="/quizzes" element={<Quizzes />} />
             <Route path="/classes" element={<Classes />} />
             <Route path="/classes/:id/*" element={<ClassDetails />} />

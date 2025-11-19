@@ -3,7 +3,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent } from '@/components/ui/card';
-import { Plus, Save, X } from 'lucide-react';
+import { Plus, Save, X, CreditCard } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 
@@ -144,7 +144,14 @@ const FlashcardEditor = ({ deck, onSave, onCancel }: FlashcardEditorProps) => {
         if (upsertError) throw upsertError;
       }
 
-      let insertedCards: any[] = [];
+      interface InsertedCard {
+        id: string;
+        front: string;
+        back: string;
+        hint: string;
+      }
+      
+      let insertedCards: InsertedCard[] = [];
       if (toInsert.length > 0) {
         const insertPayload = toInsert.map((c) => ({
           deck_id: savedDeck.id,
@@ -174,158 +181,213 @@ const FlashcardEditor = ({ deck, onSave, onCancel }: FlashcardEditorProps) => {
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-8">
       <div className="flex justify-between items-center">
-        <h2 className="text-2xl font-bold text-foreground">
+        <h2 className="text-2xl md:text-3xl font-bold bg-gradient-to-r from-primary to-purple-600 bg-clip-text text-transparent">
           {deck.id ? 'Edit Deck' : 'Create New Deck'}
         </h2>
-        <div className="flex gap-2">
-          <Button variant="outline" onClick={onCancel}>
+        <div className="flex gap-3">
+          <Button 
+            variant="outline" 
+            onClick={onCancel}
+            className="glass-card border-white/20 hover:bg-white/50 dark:hover:bg-slate-800/50 backdrop-blur-sm h-11 px-6 rounded-xl transition-all"
+          >
             Cancel
           </Button>
-          <Button onClick={handleSave} className="bg-gradient-to-r from-primary to-secondary hover:opacity-90">
+          <Button 
+            onClick={handleSave} 
+            className="bg-gradient-to-r from-primary to-purple-600 hover:opacity-90 text-white shadow-lg shadow-primary/25 h-11 px-6 rounded-xl transition-all hover:-translate-y-0.5"
+          >
             <Save className="h-4 w-4 mr-2" />
             Save Deck
           </Button>
         </div>
       </div>
 
-      <Card className="bg-card/80 backdrop-blur-sm border border-border">
-        <CardContent className="p-6">
-          <div className="space-y-4">
-            <div>
-              <label className="text-sm font-medium text-foreground mb-1 block">Deck Title</label>
-              <Input
-                value={title}
-                onChange={(e) => setTitle(e.target.value)}
-                placeholder="Enter deck title"
-              />
-            </div>
+      {/* Deck Metadata Section */}
+      <div className="glass-card backdrop-blur-xl bg-white/60 dark:bg-slate-800/60 border-white/20 shadow-lg rounded-2xl p-6 md:p-8 space-y-6 animate-in fade-in-up duration-500">
+        <h3 className="text-xl font-semibold text-foreground flex items-center gap-2">
+          <div className="p-2 bg-primary/10 rounded-lg">
+            <Save className="h-5 w-5 text-primary" />
+          </div>
+          Deck Information
+        </h3>
+        
+        <div className="space-y-5">
+          <div className="space-y-2">
+            <label className="text-sm font-semibold text-foreground">Deck Title *</label>
+            <Input
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+              placeholder="Enter deck title"
+              className="h-12 bg-white/50 dark:bg-slate-700/50 border-white/20 focus:border-primary/50 focus:ring-2 focus:ring-primary/20 rounded-xl transition-all hover:bg-white/70 dark:hover:bg-slate-700/70"
+            />
+          </div>
 
-            <div>
-              <label className="text-sm font-medium text-foreground mb-1 block">Description</label>
-              <Textarea
-                value={description}
-                onChange={(e) => setDescription(e.target.value)}
-                placeholder="Enter deck description"
-                rows={3}
-              />
-            </div>
+          <div className="space-y-2">
+            <label className="text-sm font-semibold text-foreground">Description</label>
+            <Textarea
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              placeholder="Enter deck description"
+              rows={3}
+              className="bg-white/50 dark:bg-slate-700/50 border-white/20 focus:border-primary/50 focus:ring-2 focus:ring-primary/20 rounded-xl resize-none transition-all hover:bg-white/70 dark:hover:bg-slate-700/70"
+            />
+          </div>
 
-            <div className="flex items-center space-x-2">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+            <div className="flex items-center space-x-3 p-4 glass-card backdrop-blur-sm bg-white/40 dark:bg-slate-700/40 border-white/20 rounded-xl">
               <input
                 type="checkbox"
                 id="public"
                 checked={isPublic}
                 onChange={(e) => setIsPublic(e.target.checked)}
-                className="h-4 w-4 rounded border-border text-primary focus:ring-primary"
+                className="h-5 w-5 rounded-lg border-2 border-primary/30 text-primary focus:ring-2 focus:ring-primary/20 transition-all cursor-pointer"
               />
-              <label htmlFor="public" className="text-sm font-medium text-foreground">
+              <label htmlFor="public" className="text-sm font-medium text-foreground cursor-pointer">
                 Make this deck public
               </label>
             </div>
-            <div>
-              <label className="text-sm font-medium text-foreground mb-1 block">Tags (comma separated)</label>
+            
+            <div className="space-y-2">
+              <label className="text-sm font-semibold text-foreground">Tags (comma separated)</label>
               <Input
                 value={tags.join(', ')}
                 onChange={(e) => setTags(e.target.value.split(',').map((t) => t.trim()).filter(Boolean))}
                 placeholder="e.g., math, science, history"
+                className="h-12 bg-white/50 dark:bg-slate-700/50 border-white/20 focus:border-primary/50 focus:ring-2 focus:ring-primary/20 rounded-xl transition-all hover:bg-white/70 dark:hover:bg-slate-700/70"
               />
             </div>
           </div>
-        </CardContent>
-      </Card>
+        </div>
+      </div>
 
-      <div className="space-y-4">
-        <h3 className="text-xl font-semibold text-foreground">Flashcards</h3>
+      {/* Flashcards Section */}
+      <div className="space-y-6">
+        <div className="flex items-center justify-between">
+          <h3 className="text-xl md:text-2xl font-bold text-foreground flex items-center gap-2">
+            <div className="p-2 bg-purple-500/10 rounded-lg">
+              <CreditCard className="h-5 w-5 text-purple-600" />
+            </div>
+            Flashcards
+            <span className="text-base font-normal text-muted-foreground">({cards.length} cards)</span>
+          </h3>
+        </div>
         
-        {/* Add new card form */}
-        <Card className="bg-card/80 backdrop-blur-sm border border-border">
-          <CardContent className="p-4">
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <div>
-                <label className="text-sm font-medium text-foreground mb-1 block">Front</label>
-                <Textarea
-                  value={newCard.front}
-                  onChange={(e) => setNewCard({ ...newCard, front: e.target.value })}
-                  placeholder="Question or term"
-                  rows={3}
-                />
-              </div>
-              <div>
-                <label className="text-sm font-medium text-foreground mb-1 block">Back</label>
-                <Textarea
-                  value={newCard.back}
-                  onChange={(e) => setNewCard({ ...newCard, back: e.target.value })}
-                  placeholder="Answer or definition"
-                  rows={3}
-                />
-              </div>
-              <div>
-                <label className="text-sm font-medium text-foreground mb-1 block">Hint (Optional)</label>
-                <Textarea
-                  value={newCard.hint}
-                  onChange={(e) => setNewCard({ ...newCard, hint: e.target.value })}
-                  placeholder="Additional hint"
-                  rows={3}
-                />
-              </div>
+        {/* Add New Card Form */}
+        <div className="glass-card backdrop-blur-xl bg-gradient-to-br from-purple-50/80 to-blue-50/80 dark:from-purple-900/20 dark:to-blue-900/20 border-white/20 shadow-lg rounded-2xl p-6 md:p-8 animate-in fade-in-up duration-500" style={{ animationDelay: '100ms' }}>
+          <h4 className="text-lg font-semibold text-foreground mb-4 flex items-center gap-2">
+            <Plus className="h-5 w-5 text-primary" />
+            Add New Card
+          </h4>
+          
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="space-y-2">
+              <label className="text-sm font-semibold text-foreground">Front *</label>
+              <Textarea
+                value={newCard.front}
+                onChange={(e) => setNewCard({ ...newCard, front: e.target.value })}
+                placeholder="Question or term"
+                rows={4}
+                className="bg-white/60 dark:bg-slate-800/60 border-white/20 focus:border-primary/50 focus:ring-2 focus:ring-primary/20 rounded-xl resize-none transition-all hover:bg-white/80 dark:hover:bg-slate-800/80"
+              />
             </div>
-            <div className="mt-4 flex justify-end">
-              <Button onClick={addCard} className="flex items-center gap-2">
-                <Plus className="h-4 w-4" />
-                Add Card
-              </Button>
+            <div className="space-y-2">
+              <label className="text-sm font-semibold text-foreground">Back *</label>
+              <Textarea
+                value={newCard.back}
+                onChange={(e) => setNewCard({ ...newCard, back: e.target.value })}
+                placeholder="Answer or definition"
+                rows={4}
+                className="bg-white/60 dark:bg-slate-800/60 border-white/20 focus:border-primary/50 focus:ring-2 focus:ring-primary/20 rounded-xl resize-none transition-all hover:bg-white/80 dark:hover:bg-slate-800/80"
+              />
             </div>
-          </CardContent>
-        </Card>
+            <div className="space-y-2">
+              <label className="text-sm font-semibold text-foreground">Hint (Optional)</label>
+              <Textarea
+                value={newCard.hint}
+                onChange={(e) => setNewCard({ ...newCard, hint: e.target.value })}
+                placeholder="Additional hint"
+                rows={4}
+                className="bg-white/60 dark:bg-slate-800/60 border-white/20 focus:border-primary/50 focus:ring-2 focus:ring-primary/20 rounded-xl resize-none transition-all hover:bg-white/80 dark:hover:bg-slate-800/80"
+              />
+            </div>
+          </div>
+          <div className="mt-6 flex justify-end">
+            <Button 
+              onClick={addCard} 
+              disabled={!newCard.front.trim() || !newCard.back.trim()}
+              className="bg-gradient-to-r from-primary to-purple-600 hover:opacity-90 text-white shadow-lg shadow-primary/25 h-11 px-6 rounded-xl transition-all hover:-translate-y-0.5 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              <Plus className="h-4 w-4 mr-2" />
+              Add Card
+            </Button>
+          </div>
+        </div>
 
-        {/* Existing cards list */}
-        <div className="space-y-3">
-          {cards.map((card, index) => (
-            <Card key={index} className="bg-card/80 backdrop-blur-sm border border-border">
-              <CardContent className="p-4">
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  <div>
-                    <label className="text-sm font-medium text-foreground mb-1 block">Front</label>
-                    <Textarea
-                      value={card.front}
-                      onChange={(e) => updateCard(index, 'front', e.target.value)}
-                      rows={3}
-                    />
-                  </div>
-                  <div>
-                    <label className="text-sm font-medium text-foreground mb-1 block">Back</label>
-                    <Textarea
-                      value={card.back}
-                      onChange={(e) => updateCard(index, 'back', e.target.value)}
-                      rows={3}
-                    />
-                  </div>
-                  <div>
-                    <label className="text-sm font-medium text-foreground mb-1 block">Hint</label>
-                    <Textarea
-                      value={card.hint}
-                      onChange={(e) => updateCard(index, 'hint', e.target.value)}
-                      rows={3}
-                    />
-                  </div>
-                </div>
-                <div className="mt-3 flex justify-end">
+        {/* Existing Cards List */}
+        {cards.length > 0 ? (
+          <div className="space-y-4">
+            {cards.map((card, index) => (
+              <div 
+                key={index} 
+                className="glass-card backdrop-blur-xl bg-white/60 dark:bg-slate-800/60 border-white/20 shadow-lg rounded-2xl p-6 hover:shadow-xl hover:shadow-primary/10 transition-all duration-300 animate-in fade-in-up"
+                style={{ animationDelay: `${(index + 2) * 50}ms` }}
+              >
+                <div className="flex items-center justify-between mb-4">
+                  <h5 className="text-sm font-semibold text-muted-foreground">Card #{index + 1}</h5>
                   <Button
                     variant="outline"
                     size="sm"
                     onClick={() => removeCard(index)}
-                    className="flex items-center gap-2"
+                    className="glass-card border-red-200/50 text-red-600 hover:bg-red-50/50 dark:hover:bg-red-900/20 backdrop-blur-sm rounded-lg transition-all h-9 px-4"
                   >
-                    <X className="h-4 w-4" />
+                    <X className="h-4 w-4 mr-1" />
                     Remove
                   </Button>
                 </div>
-              </CardContent>
-            </Card>
-          ))}
-        </div>
+                
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div className="space-y-2">
+                    <label className="text-sm font-semibold text-foreground">Front</label>
+                    <Textarea
+                      value={card.front}
+                      onChange={(e) => updateCard(index, 'front', e.target.value)}
+                      rows={4}
+                      className="bg-white/60 dark:bg-slate-700/60 border-white/20 focus:border-primary/50 focus:ring-2 focus:ring-primary/20 rounded-xl resize-none transition-all hover:bg-white/80 dark:hover:bg-slate-700/80"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-sm font-semibold text-foreground">Back</label>
+                    <Textarea
+                      value={card.back}
+                      onChange={(e) => updateCard(index, 'back', e.target.value)}
+                      rows={4}
+                      className="bg-white/60 dark:bg-slate-700/60 border-white/20 focus:border-primary/50 focus:ring-2 focus:ring-primary/20 rounded-xl resize-none transition-all hover:bg-white/80 dark:hover:bg-slate-700/80"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-sm font-semibold text-foreground">Hint</label>
+                    <Textarea
+                      value={card.hint}
+                      onChange={(e) => updateCard(index, 'hint', e.target.value)}
+                      rows={4}
+                      className="bg-white/60 dark:bg-slate-700/60 border-white/20 focus:border-primary/50 focus:ring-2 focus:ring-primary/20 rounded-xl resize-none transition-all hover:bg-white/80 dark:hover:bg-slate-700/80"
+                    />
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <div className="glass-card backdrop-blur-xl bg-white/40 dark:bg-slate-800/40 border-white/20 border-dashed rounded-2xl p-12 text-center animate-in fade-in-up duration-500" style={{ animationDelay: '200ms' }}>
+            <div className="inline-flex p-4 bg-purple-100/50 dark:bg-purple-900/20 rounded-2xl mb-4">
+              <CreditCard className="h-12 w-12 text-purple-500" />
+            </div>
+            <h4 className="text-lg font-semibold text-foreground mb-2">No flashcards yet</h4>
+            <p className="text-muted-foreground">Start adding cards using the form above to build your deck</p>
+          </div>
+        )}
       </div>
     </div>
   );

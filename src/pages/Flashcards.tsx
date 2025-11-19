@@ -207,20 +207,7 @@ const Flashcards = () => {
   };
 
   const handleCreateDeck = () => {
-    if (!user) return;
-
-    const newDeck: Deck = {
-      id: '',
-      title: 'New Deck',
-      description: '',
-      is_public: false,
-      user_id: user.id,
-      tags: [],
-      flashcards: [],
-    };
-
-    setEditingDeck(newDeck);
-    setSelectedDeck(null);
+    navigate('/flashcards/new');
   };
 
   const handleSearch = (e: React.FormEvent) => {
