@@ -9,6 +9,7 @@ import { BookOpen, CreditCard, Users, LogOut, MessageSquare, Settings, Home, Cal
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import FlashcardEditor from '@/components/FlashcardEditor';
+import { ConfirmationDialog } from '@/components/ui/confirmation-dialog';
 
 type Card = {
   id: string;
@@ -54,6 +55,10 @@ const Flashcards = () => {
   const [currentPage, setCurrentPage] = useState(1);
   const [searchQuery, setSearchQuery] = useState('');
   const decksPerPage = 9;
+
+  // Delete confirmation dialog
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [deckToDelete, setDeckToDelete] = useState<{ id: string; title: string } | null>(null);
 
   const navigationItems = [
     { id: 'dashboard', title: 'Dashboard', icon: Home },
@@ -230,7 +235,7 @@ const Flashcards = () => {
     setSelectedDeck(null);
   };
 
-  const handleDeleteDeck = async (deckId: string) => {
+  const handleDeleteDeck = (deckId: string) => {
     if (!user) return;
     
     // Check permissions
@@ -247,22 +252,31 @@ const Flashcards = () => {
       return;
     }
     
+    setDeckToDelete({ id: deckId, title: deck.title });
+    setDeleteDialogOpen(true);
+  };
+
+  const confirmDeleteDeck = async () => {
+    if (!deckToDelete) return;
+    
     try {
       const { error } = await supabase
         .from('decks')
         .update({ deleted_at: new Date().toISOString() })
-        .eq('id', deckId);
+        .eq('id', deckToDelete.id);
 
       if (error) throw error;
       
-      setDecks(decks.filter(d => d.id !== deckId));
-      if (selectedDeck?.id === deckId) {
+      setDecks(decks.filter(d => d.id !== deckToDelete.id));
+      if (selectedDeck?.id === deckToDelete.id) {
         setSelectedDeck(decks.length > 1 ? decks[0] : null);
       }
       toast.success('Deck deleted successfully');
     } catch (error) {
       console.error('Error deleting deck:', error);
       toast.error('Failed to delete deck');
+    } finally {
+      setDeckToDelete(null);
     }
   };
 
@@ -764,6 +778,21 @@ const Flashcards = () => {
           </div>
         </main>
       </div>
+
+      {/* Delete Confirmation Dialog */}
+      <ConfirmationDialog
+        isOpen={deleteDialogOpen}
+        onClose={() => {
+          setDeleteDialogOpen(false);
+          setDeckToDelete(null);
+        }}
+        onConfirm={confirmDeleteDeck}
+        title="Delete Flashcard Deck"
+        message="Are you sure you want to delete this flashcard deck? All cards in this deck will be permanently removed."
+        itemName={deckToDelete?.title}
+        confirmText="Delete Deck"
+        cancelText="Cancel"
+      />
     </div>
   );
 };

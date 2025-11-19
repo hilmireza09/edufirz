@@ -9,6 +9,7 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Card as UICard, CardContent } from '@/components/ui/card';
 import { QuestionEditor, QuizQuestion as QuestionEditorType } from '@/components/QuestionEditor';
+import { ConfirmationDialog } from '@/components/ui/confirmation-dialog';
 
 type QuizQuestion = QuestionEditorType & {
   id?: string;
@@ -72,6 +73,10 @@ const Quizzes = () => {
   // Pagination
   const [currentPage, setCurrentPage] = useState(1);
   const [quizzesPerPage] = useState(6);
+
+  // Delete confirmation dialog
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [quizToDelete, setQuizToDelete] = useState<{ id: string; title: string } | null>(null);
 
   /**
    * Fetches the current user's role for RBAC UI.
@@ -248,9 +253,9 @@ const Quizzes = () => {
   };
 
   /**
-   * Soft-deletes a quiz the user owns (or admin).
+   * Opens delete confirmation dialog for a quiz.
    */
-  const handleDeleteQuiz = async (quizId: string) => {
+  const handleDeleteQuiz = (quizId: string) => {
     if (!user) return;
     const quiz = quizzes.find((q) => q.id === quizId);
     if (!quiz) return;
@@ -259,17 +264,28 @@ const Quizzes = () => {
       toast.error('You do not have permission to delete this quiz');
       return;
     }
+    setQuizToDelete({ id: quizId, title: quiz.title });
+    setDeleteDialogOpen(true);
+  };
+
+  /**
+   * Confirms and executes the quiz deletion.
+   */
+  const confirmDeleteQuiz = async () => {
+    if (!quizToDelete) return;
     try {
       const { error } = await supabase
         .from('quizzes')
         .update({ deleted_at: new Date().toISOString() })
-        .eq('id', quizId);
+        .eq('id', quizToDelete.id);
       if (error) throw error;
-      setQuizzes(quizzes.filter((q) => q.id !== quizId));
-      toast.success('Quiz deleted');
+      setQuizzes(quizzes.filter((q) => q.id !== quizToDelete.id));
+      toast.success('Quiz deleted successfully');
     } catch (err) {
       console.error('Error deleting quiz:', err);
       toast.error('Failed to delete quiz');
+    } finally {
+      setQuizToDelete(null);
     }
   };
 
@@ -704,7 +720,15 @@ const Quizzes = () => {
                                   <Button size="icon" variant="ghost" className="h-8 w-8" onClick={(e) => { e.stopPropagation(); handleEditQuiz(quiz); }}>
                                     <Edit className="h-4 w-4" />
                                   </Button>
-                                  <Button size="icon" variant="ghost" className="h-8 w-8 text-destructive hover:text-destructive hover:bg-destructive/10" onClick={(e) => { e.stopPropagation(); handleDeleteQuiz(quiz.id as string); }}>
+                                  <Button 
+                                    size="icon" 
+                                    variant="ghost" 
+                                    className="h-8 w-8 text-destructive hover:text-destructive hover:bg-destructive/10" 
+                                    onClick={(e) => { 
+                                      e.stopPropagation(); 
+                                      handleDeleteQuiz(quiz.id as string); 
+                                    }}
+                                  >
                                     <Trash className="h-4 w-4" />
                                   </Button>
                                 </>
@@ -1029,6 +1053,21 @@ const Quizzes = () => {
           </div>
         </main>
       </div>
+
+      {/* Delete Confirmation Dialog */}
+      <ConfirmationDialog
+        isOpen={deleteDialogOpen}
+        onClose={() => {
+          setDeleteDialogOpen(false);
+          setQuizToDelete(null);
+        }}
+        onConfirm={confirmDeleteQuiz}
+        title="Delete Quiz"
+        message="Are you sure you want to delete this quiz? All questions and student progress will be permanently removed."
+        itemName={quizToDelete?.title}
+        confirmText="Delete Quiz"
+        cancelText="Cancel"
+      />
     </div>
   );
 };
