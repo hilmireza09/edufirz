@@ -1,152 +1,38 @@
-import { useState, useRef, useEffect } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
+import { useState, useEffect, useRef } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { BookOpen, CreditCard, GraduationCap, Users, LogOut, MessageSquare, Settings, Home, Calendar, FileText, Search, ChevronDown, User, Plus, ChevronLeft, ChevronRight, Edit, Trash, Tag, RotateCcw } from 'lucide-react';
+import { 
+  BookOpen, CreditCard, GraduationCap, Users, LogOut, MessageSquare, 
+  Settings, Home, Search, ChevronDown, TrendingUp, Activity, Clock, Star, Plus
+} from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
-import FlashcardEditor from '@/components/FlashcardEditor';
-import Quizzes from '@/pages/Quizzes';
-
-type Card = {
-  id: string;
-  front: string;
-  back: string;
-  hint: string | null;
-};
-
-type Deck = {
-  id: string;
-  title: string;
-  description: string | null;
-  is_public: boolean;
-  user_id: string;
-  tags: string[] | null;
-  flashcards: Card[];
-};
+import {
+  XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, AreaChart, Area
+} from 'recharts';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { formatDistanceToNow } from 'date-fns';
 
 const Dashboard = () => {
-  const { user, signOut, loading } = useAuth();
+  const { user, signOut } = useAuth();
   const navigate = useNavigate();
   const [profile, setProfile] = useState<any>(null);
-  const [userRole, setUserRole] = useState<string>('student');
-  const [activeSection, setActiveSection] = useState('dashboard');
   const [isProfileMenuOpen, setIsProfileMenuOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const profileMenuRef = useRef<HTMLDivElement>(null);
-  
-  // Flashcard states
-  const [decks, setDecks] = useState<Deck[]>([]);
-  const [selectedDeck, setSelectedDeck] = useState<Deck | null>(null);
-  const [deckSearchQuery, setDeckSearchQuery] = useState('');
-  const [tagFilter, setTagFilter] = useState('');
-  const [availableTags, setAvailableTags] = useState<string[]>([]);
-  const [editingDeck, setEditingDeck] = useState<Deck | null>(null);
-  const [currentPage, setCurrentPage] = useState(1);
-  const decksPerPage = 9;
-  const [studyIndex, setStudyIndex] = useState(0);
-  const [studyFlipped, setStudyFlipped] = useState(false);
 
-  // Close profile menu when clicking outside
-  useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      if (profileMenuRef.current && !profileMenuRef.current.contains(event.target as Node)) {
-        setIsProfileMenuOpen(false);
-      }
-    };
-
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => {
-      document.removeEventListener('mousedown', handleClickOutside);
-    };
-  }, []);
-
-  // Fetch user profile and role
-  useEffect(() => {
-    const fetchProfile = async () => {
-      if (!user) return;
-      
-      try {
-        const { data, error } = await supabase
-          .from('profiles')
-          .select('*')
-          .eq('id', user.id)
-          .single();
-        
-        if (error) throw error;
-        
-        setProfile(data);
-        setUserRole(data.role || 'student');
-      } catch (error) {
-        console.error('Error fetching profile:', error);
-      }
-    };
-
-    fetchProfile();
-  }, [user]);
-
-  // Fetch decks when flashcards section is active
-  useEffect(() => {
-    const fetchDecks = async () => {
-      if (!user || activeSection !== 'flashcards') return;
-      
-      try {
-        let query = supabase
-          .from('decks')
-          .select(`
-            id, 
-            title, 
-            description, 
-            is_public, 
-            user_id,
-            tags,
-            flashcards (
-              id, 
-              front, 
-              back, 
-              hint
-            )
-          `)
-          .is('deleted_at', null);
-
-        // Role-based deck access
-        if (userRole === 'student') {
-          // Students see their own decks + public decks
-          query = query.or(`user_id.eq.${user.id},is_public.eq.true`);
-        } else if (userRole === 'teacher') {
-          // Teachers see their own decks + public decks
-          query = query.or(`user_id.eq.${user.id},is_public.eq.true`);
-        }
-        // Admins see all decks (handled by RLS)
-
-        const { data, error } = await query.order('created_at', { ascending: false });
-
-        if (error) throw error;
-        
-        const decksData = data.map(deck => ({
-          ...deck,
-          flashcards: Array.isArray(deck.flashcards) ? deck.flashcards : []
-        }));
-
-        setDecks(decksData);
-        
-        // Extract all unique tags
-        const tags = new Set<string>();
-        decksData.forEach(deck => {
-          if (deck.tags && Array.isArray(deck.tags)) {
-            deck.tags.forEach(tag => tags.add(tag));
-          }
-        });
-        setAvailableTags(Array.from(tags));
-      } catch (error) {
-        console.error('Error fetching decks:', error);
-        toast.error('Failed to load flashcards');
-      }
-    };
-
-    fetchDecks();
-  }, [user, userRole, activeSection]);
+  // Stats State
+  const [stats, setStats] = useState({
+    flashcardsCreated: 0,
+    quizzesAttempted: 0,
+    averageScore: 0,
+    classesJoined: 0
+  });
+  const [recentActivity, setRecentActivity] = useState<any[]>([]);
+  const [chartData, setChartData] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
 
   const navigationItems = [
     { id: 'dashboard', title: 'Dashboard', icon: Home },
@@ -157,297 +43,119 @@ const Dashboard = () => {
     { id: 'settings', title: 'Settings', icon: Settings },
   ];
 
-  const quickAccessItems = [
-    { title: 'Assignments', icon: FileText, path: '/assignments' },
-    { title: 'Schedule', icon: Calendar, path: '/schedule' },
-    { title: 'Resources', icon: BookOpen, path: '/resources' },
-    { title: 'Grades', icon: GraduationCap, path: '/grades' },
-  ];
-
-  const handleSearch = (e: React.FormEvent) => {
-    e.preventDefault();
-    // Search functionality would be implemented here
-    console.log('Searching for:', searchQuery);
-  };
-
-  /**
-   * Selects a deck for study mode and resets study state.
-   */
-  const handleDeckSelect = (deck: Deck) => {
-    setSelectedDeck(deck);
-    setStudyIndex(0);
-    setStudyFlipped(false);
-  };
-
-  const handleCreateDeck = () => {
-    if (!user) return;
-    
-    const newDeck: any = {
-      title: 'New Deck',
-      description: '',
-      is_public: false,
-      user_id: user.id,
-      tags: [],
-      flashcards: [],
-    };
-    
-    setEditingDeck(newDeck);
-  };
-
-  const handleEditDeck = (deck: Deck) => {
-    setEditingDeck(deck);
-  };
-
-  const handleSaveDeck = (updatedDeck: Deck) => {
-    const updatedDecks = decks.map((d) => (d.id === updatedDeck.id ? { ...updatedDeck } : d));
-    if (!decks.some((d) => d.id === updatedDeck.id)) {
-      updatedDecks.unshift(updatedDeck);
-    }
-    setDecks(updatedDecks);
-    setEditingDeck(null);
-  };
-
-  const handleDeleteDeck = async (deckId: string) => {
-    if (!user) return;
-    
-    // Check permissions
-    const deck = decks.find(d => d.id === deckId);
-    if (!deck) return;
-    
-    const canDelete = 
-      userRole === 'admin' || 
-      deck.user_id === user.id || 
-      (userRole === 'teacher' && deck.user_id === user.id);
-    
-    if (!canDelete) {
-      toast.error('You do not have permission to delete this deck');
-      return;
-    }
-    
-    try {
-      const { error } = await supabase
-        .from('decks')
-        .update({ deleted_at: new Date().toISOString() })
-        .eq('id', deckId);
-
-      if (error) throw error;
-      
-      setDecks(decks.filter(d => d.id !== deckId));
-      if (selectedDeck?.id === deckId) {
-        setSelectedDeck(null);
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (profileMenuRef.current && !profileMenuRef.current.contains(event.target as Node)) {
+        setIsProfileMenuOpen(false);
       }
-      toast.success('Deck deleted successfully');
-    } catch (error) {
-      console.error('Error deleting deck:', error);
-      toast.error('Failed to delete deck');
-    }
-  };
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
 
-  // Filter decks based on search and tag
-  const filteredDecks = decks.filter(deck => {
-    const matchesSearch = deck.title.toLowerCase().includes(deckSearchQuery.toLowerCase()) ||
-      deck.description?.toLowerCase().includes(deckSearchQuery.toLowerCase());
-    
-    const matchesTag = tagFilter === '' || 
-      (deck.tags && Array.isArray(deck.tags) && deck.tags.includes(tagFilter));
-    
-    return matchesSearch && matchesTag;
-  });
+  useEffect(() => {
+    const fetchData = async () => {
+      if (!user) return;
+      setLoading(true);
+      try {
+        // Fetch Profile
+        const { data: profileData } = await supabase
+          .from('profiles')
+          .select('*')
+          .eq('id', user.id)
+          .single();
+        setProfile(profileData);
 
-  // Pagination logic for decks
-  const indexOfLastDeck = currentPage * decksPerPage;
-  const indexOfFirstDeck = indexOfLastDeck - decksPerPage;
-  const currentDecks = filteredDecks.slice(indexOfFirstDeck, indexOfLastDeck);
-  const totalPages = Math.ceil(filteredDecks.length / decksPerPage);
+        // Fetch Flashcards Count (via Decks)
+        const { data: decks } = await supabase
+          .from('decks')
+          .select('flashcard_count')
+          .eq('user_id', user.id);
+        const totalFlashcards = decks?.reduce((acc, deck) => acc + (deck.flashcard_count || 0), 0) || 0;
 
-  const paginate = (pageNumber: number) => setCurrentPage(pageNumber);
+        // Fetch Quiz Attempts
+        const { data: attempts } = await supabase
+          .from('quiz_attempts')
+          .select('score, max_score, created_at, quizzes(title)')
+          .eq('user_id', user.id)
+          .order('created_at', { ascending: false });
+        
+        const totalAttempts = attempts?.length || 0;
+        const avgScore = totalAttempts > 0 
+          ? (attempts?.reduce((acc, curr) => acc + ((curr.score || 0) / (curr.max_score || 1)) * 100, 0) || 0) / totalAttempts 
+          : 0;
 
-  const renderContent = () => {
-    switch (activeSection) {
-      case 'dashboard':
-        return (
-          <div className="text-center py-12">
-            <div className="inline-block p-4 rounded-full bg-gradient-to-br from-primary/10 to-secondary/10 mb-6">
-              <BookOpen className="h-12 w-12 text-primary" />
-            </div>
-            <h2 className="text-2xl font-bold text-foreground mb-2">Welcome back, {profile?.full_name?.split(' ')[0] || 'Student'}!</h2>
-            <p className="text-muted-foreground mb-8 max-w-md mx-auto">
-              Explore your learning journey with our intuitive tools and resources.
-            </p>
-            
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 max-w-2xl mx-auto">
-              {quickAccessItems.map((item, index) => (
-                <div 
-                  key={item.title}
-                  className="bg-card/80 backdrop-blur-sm p-6 rounded-2xl hover-lift animate-fade-in-up border border-border shadow-sm cursor-pointer"
-                  style={{ animationDelay: `${index * 0.1}s` }}
-                  onClick={() => navigate(item.path)}
-                >
-                  <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-primary/20 to-secondary/20 flex items-center justify-center mb-4 mx-auto">
-                    <item.icon className="h-6 w-6 text-primary" />
-                  </div>
-                  <h3 className="font-semibold text-foreground mb-2">{item.title}</h3>
-                  <p className="text-sm text-muted-foreground">Access your {item.title.toLowerCase()}</p>
-                </div>
-              ))}
-            </div>
-          </div>
-        );
-      case 'classes':
-        return (
-          <div className="text-center py-12">
-            <div className="inline-block p-4 rounded-full bg-gradient-to-br from-primary/10 to-secondary/10 mb-6">
-              <Users className="h-12 w-12 text-primary" />
-            </div>
-            <h2 className="text-2xl font-bold text-foreground mb-2">Classes</h2>
-            <p className="text-muted-foreground mb-8 max-w-md mx-auto">
-              Join and manage your classes and coursework.
-            </p>
-            <Button onClick={() => navigate('/classes')} className="bg-gradient-to-r from-primary to-secondary hover:opacity-90">
-              View Classes
-            </Button>
-          </div>
-        );
-      case 'forum':
-        return (
-          <div className="text-center py-12">
-            <div className="inline-block p-4 rounded-full bg-gradient-to-br from-secondary/10 to-accent/10 mb-6">
-              <MessageSquare className="h-12 w-12 text-secondary" />
-            </div>
-            <h2 className="text-2xl font-bold text-foreground mb-2">Forum</h2>
-            <p className="text-muted-foreground mb-8 max-w-md mx-auto">
-              Collaborate with peers and teachers in our community forum.
-            </p>
-            <Button onClick={() => navigate('/forum')} className="bg-gradient-to-r from-primary to-secondary hover:opacity-90">
-              Join Discussion
-            </Button>
-          </div>
-        );
-      case 'settings':
-        return (
-          <div className="py-6">
-            <h2 className="text-2xl font-bold text-foreground mb-6">Settings</h2>
-            
-            <div className="bg-card/80 backdrop-blur-sm rounded-2xl border border-border shadow-sm p-6">
-              <div className="flex items-center justify-between mb-6">
-                <div className="flex items-center gap-4">
-                  <div className="w-16 h-16 rounded-full bg-gradient-to-br from-primary to-secondary flex items-center justify-center">
-                    <User className="h-8 w-8 text-white" />
-                  </div>
-                  <div>
-                    <h3 className="font-semibold text-foreground">{profile?.full_name || 'User'}</h3>
-                    <p className="text-muted-foreground">{user?.email}</p>
-                    <div className="mt-1 inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-primary/10 text-primary">
-                      {userRole}
-                    </div>
-                  </div>
-                </div>
-              </div>
-              
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div>
-                  <h4 className="font-medium text-foreground mb-3">Profile Information</h4>
-                  <div className="space-y-3">
-                    <div>
-                      <label className="text-sm text-muted-foreground">Full Name</label>
-                      <p className="font-medium">{profile?.full_name || 'Not set'}</p>
-                    </div>
-                    <div>
-                      <label className="text-sm text-muted-foreground">Email</label>
-                      <p className="font-medium">{user?.email}</p>
-                    </div>
-                    <div>
-                      <label className="text-sm text-muted-foreground">Role</label>
-                      <div className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-primary/10 text-primary mt-1">
-                        {userRole}
-                      </div>
-                    </div>
-                  </div>
-                </div>
-                
-                <div>
-                  <h4 className="font-medium text-foreground mb-3">Preferences</h4>
-                  <div className="space-y-3">
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <p className="font-medium">Email Notifications</p>
-                        <p className="text-sm text-muted-foreground">Receive email updates</p>
-                      </div>
-                      <div className="relative inline-block w-10 mr-2 align-middle select-none">
-                        <input 
-                          type="checkbox" 
-                          defaultChecked={profile?.email_notifications}
-                          className="sr-only"
-                        />
-                        <div className="block w-10 h-6 rounded-full bg-muted"></div>
-                        <div className="absolute left-1 top-1 bg-white w-4 h-4 rounded-full transition-transform transform checked:translate-x-4"></div>
-                      </div>
-                    </div>
-                    
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <p className="font-medium">Push Notifications</p>
-                        <p className="text-sm text-muted-foreground">Mobile notifications</p>
-                      </div>
-                      <div className="relative inline-block w-10 mr-2 align-middle select-none">
-                        <input 
-                          type="checkbox" 
-                          defaultChecked={profile?.push_notifications}
-                          className="sr-only"
-                        />
-                        <div className="block w-10 h-6 rounded-full bg-muted"></div>
-                        <div className="absolute left-1 top-1 bg-white w-4 h-4 rounded-full transition-transform transform checked:translate-x-4"></div>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-        );
-      default:
-        return (
-          <div className="text-center py-12">
-            <h2 className="text-2xl font-bold text-foreground mb-2">Welcome</h2>
-            <p className="text-muted-foreground">Select a section from the sidebar to get started</p>
-          </div>
-        );
-    }
+        // Fetch Classes Joined
+        const { count: classesCount } = await supabase
+          .from('class_students')
+          .select('*', { count: 'exact', head: true })
+          .eq('student_id', user.id);
+
+        setStats({
+          flashcardsCreated: totalFlashcards,
+          quizzesAttempted: totalAttempts,
+          averageScore: Math.round(avgScore),
+          classesJoined: classesCount || 0
+        });
+
+        // Prepare Chart Data (Last 7 attempts)
+        const chartData = attempts?.slice(0, 7).reverse().map(attempt => ({
+          name: new Date(attempt.created_at!).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
+          score: Math.round(((attempt.score || 0) / (attempt.max_score || 1)) * 100)
+        })) || [];
+        setChartData(chartData);
+
+        // Recent Activity (Mix of quiz attempts and maybe deck creation if we had timestamps, for now just quizzes)
+        const activity = attempts?.slice(0, 5).map(attempt => ({
+          id: attempt.created_at,
+          type: 'quiz',
+          title: `Completed ${attempt.quizzes?.title || 'a quiz'}`,
+          time: attempt.created_at,
+          score: Math.round(((attempt.score || 0) / (attempt.max_score || 1)) * 100)
+        })) || [];
+        setRecentActivity(activity);
+
+      } catch (error) {
+        console.error('Error fetching dashboard data:', error);
+        toast.error('Failed to load dashboard data');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchData();
+  }, [user]);
+
+  const handleNavigation = (id: string) => {
+    if (id === 'dashboard') navigate('/dashboard');
+    else if (id === 'flashcards') navigate('/flashcards');
+    else if (id === 'quizzes') navigate('/quizzes');
+    else if (id === 'classes') navigate('/classes');
+    else if (id === 'forum') navigate('/forum');
+    else if (id === 'settings') navigate('/dashboard'); // Placeholder
   };
 
   return (
-    <div className="min-h-screen flex">
-      {/* Glassmorphism Sidebar */}
-      <div className="w-64 min-h-screen p-6 bg-background/80 backdrop-blur-xl border-r border-border sticky top-0">
+    <div className="min-h-screen flex bg-gradient-to-br from-background to-muted">
+      {/* Sidebar */}
+      <div className="w-64 min-h-screen p-6 bg-background/80 backdrop-blur-xl border-r border-border sticky top-0 hidden md:block">
         <div className="mb-8">
           <div className="flex items-center gap-2 mb-6">
             <BookOpen className="h-8 w-8 text-primary" />
             <span className="text-2xl font-bold bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent">EduLearn</span>
           </div>
         </div>
-        
+
         <nav className="space-y-2">
           {navigationItems.map((item) => {
             const Icon = item.icon;
+            const isActive = item.id === 'dashboard';
             return (
               <button
                 key={item.id}
-                onClick={() => {
-                  if (item.id === 'flashcards') {
-                    navigate('/flashcards');
-                  } else if (item.id === 'quizzes') {
-                    navigate('/quizzes');
-                  } else {
-                    setActiveSection(item.id);
-                    if (item.id === 'flashcards') {
-                      setSelectedDeck(null);
-                      setEditingDeck(null);
-                      setCurrentPage(1);
-                    }
-                  }
-                }}
+                onClick={() => handleNavigation(item.id)}
                 className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-300 ${
-                  activeSection === item.id
+                  isActive
                     ? 'bg-gradient-to-r from-primary/20 to-secondary/20 text-primary shadow-sm'
                     : 'text-foreground hover:bg-accent'
                 }`}
@@ -471,77 +179,228 @@ const Dashboard = () => {
         </div>
       </div>
 
-      {/* Main Content Area */}
-      <div className="flex-1 flex flex-col">
+      {/* Main Content */}
+      <div className="flex-1 flex flex-col min-h-screen">
         {/* Header */}
-        <header className="bg-background/80 backdrop-blur-xl border-b border-border p-4">
-          <div className="flex items-center justify-between">
-            {/* Search Bar */}
-            <form onSubmit={handleSearch} className="flex-1 max-w-md">
-              <div className="relative">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
-                <input
-                  type="text"
-                  placeholder="Search courses, resources, or topics..."
-                  className="w-full pl-10 pr-4 py-2 rounded-lg bg-card border border-border focus:outline-none focus:ring-2 focus:ring-primary/30"
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                />
-              </div>
-            </form>
+        <header className="bg-background/80 backdrop-blur-xl border-b border-border p-4 sticky top-0 z-10">
+          <div className="flex items-center justify-between gap-4">
+            <div className="md:hidden">
+              <BookOpen className="h-8 w-8 text-primary" />
+            </div>
 
-            {/* User Profile */}
+            <div className="flex-1 max-w-xl relative hidden md:block">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Input 
+                placeholder="Search your dashboard..." 
+                className="pl-10 bg-white/50 border-white/20 focus:bg-white/80 transition-all"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+              />
+            </div>
+
             <div className="relative" ref={profileMenuRef}>
               <button
                 onClick={() => setIsProfileMenuOpen(!isProfileMenuOpen)}
                 className="flex items-center gap-2 focus:outline-none"
               >
-                <div className="w-10 h-10 rounded-full bg-gradient-to-br from-primary to-secondary flex items-center justify-center text-white font-semibold">
+                <div className="w-10 h-10 rounded-full bg-gradient-to-br from-primary to-secondary flex items-center justify-center text-white font-semibold shadow-lg shadow-primary/20">
                   {profile?.full_name?.charAt(0) || user?.email?.charAt(0) || 'U'}
                 </div>
-                <ChevronDown className="h-4 w-4 text-muted-foreground" />
+                <ChevronDown className="h-4 w-4 text-muted-foreground hidden md:block" />
               </button>
 
               {isProfileMenuOpen && (
-                <div className="absolute right-0 mt-2 w-64 bg-card rounded-xl shadow-lg py-2 z-10 border border-border">
-                  <div className="px-4 py-3 border-b border-border">
-                    <p className="font-medium text-foreground truncate">
-                      {profile?.full_name || user?.email}
-                    </p>
-                    <p className="text-sm text-muted-foreground capitalize">
-                      {userRole}
-                    </p>
+                <div className="absolute right-0 mt-2 w-48 bg-card rounded-xl shadow-lg border border-border py-1 animate-in fade-in zoom-in-95 duration-200">
+                  <div className="px-4 py-2 border-b border-border">
+                    <p className="text-sm font-medium">{profile?.full_name || 'User'}</p>
+                    <p className="text-xs text-muted-foreground truncate">{user?.email}</p>
                   </div>
-                  <div className="px-4 py-2">
-                    <p className="text-xs text-muted-foreground truncate">
-                      {user?.email}
-                    </p>
-                  </div>
-                  <div className="px-4 py-2">
-                    <Button
-                      variant="outline"
-                      className="w-full justify-start gap-2 border-border hover:bg-accent"
-                      onClick={signOut}
-                    >
-                      <LogOut className="h-4 w-4" />
-                      <span>Sign Out</span>
-                    </Button>
-                  </div>
+                  <button
+                    onClick={signOut}
+                    className="w-full text-left px-4 py-2 text-sm text-red-500 hover:bg-red-50 transition-colors"
+                  >
+                    Sign Out
+                  </button>
                 </div>
               )}
             </div>
           </div>
         </header>
 
-        {/* Content Area */}
-        <main className="flex-1 p-6 overflow-auto bg-gradient-to-br from-background to-muted">
-          <div className="rounded-2xl h-full">
-            {renderContent()}
+        {/* Dashboard Content */}
+        <main className="flex-1 p-4 md:p-8 max-w-7xl mx-auto w-full space-y-8 animate-in fade-in duration-500">
+          {/* Welcome Section */}
+          <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+            <div>
+              <h1 className="text-3xl font-bold text-gray-800">
+                Welcome back, {profile?.full_name?.split(' ')[0] || 'Student'}! 👋
+              </h1>
+              <p className="text-muted-foreground mt-1">Here's what's happening with your learning journey.</p>
+            </div>
+            <div className="flex gap-2">
+              <Button onClick={() => navigate('/flashcards')} className="bg-white text-primary hover:bg-gray-50 border border-primary/20 shadow-sm">
+                <Plus className="mr-2 h-4 w-4" /> Create Flashcards
+              </Button>
+              <Button onClick={() => navigate('/quizzes')} className="bg-primary hover:bg-primary/90 shadow-lg shadow-primary/20">
+                <Activity className="mr-2 h-4 w-4" /> Start Quiz
+              </Button>
+            </div>
+          </div>
+
+          {/* Stats Grid */}
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+            <StatCard 
+              title="Flashcards Created" 
+              value={stats.flashcardsCreated} 
+              icon={CreditCard} 
+              color="text-blue-600" 
+              bg="bg-blue-100"
+              trend="+12% this week"
+            />
+            <StatCard 
+              title="Quizzes Attempted" 
+              value={stats.quizzesAttempted} 
+              icon={GraduationCap} 
+              color="text-purple-600" 
+              bg="bg-purple-100"
+              trend="Keep it up!"
+            />
+            <StatCard 
+              title="Average Score" 
+              value={`${stats.averageScore}%`} 
+              icon={Star} 
+              color="text-yellow-600" 
+              bg="bg-yellow-100"
+              trend={stats.averageScore > 80 ? "Excellent!" : "Room to improve"}
+            />
+            <StatCard 
+              title="Classes Joined" 
+              value={stats.classesJoined} 
+              icon={Users} 
+              color="text-green-600" 
+              bg="bg-green-100"
+              trend="Active learner"
+            />
+          </div>
+
+          {/* Charts & Activity Section */}
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+            {/* Performance Chart */}
+            <Card className="lg:col-span-2 border-white/20 bg-white/60 backdrop-blur-xl shadow-xl">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <TrendingUp className="h-5 w-5 text-primary" />
+                  Performance Overview
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="h-[300px] w-full">
+                  {chartData.length > 0 ? (
+                    <ResponsiveContainer width="100%" height="100%">
+                      <AreaChart data={chartData}>
+                        <defs>
+                          <linearGradient id="colorScore" x1="0" y1="0" x2="0" y2="1">
+                            <stop offset="5%" stopColor="#8b5cf6" stopOpacity={0.3}/>
+                            <stop offset="95%" stopColor="#8b5cf6" stopOpacity={0}/>
+                          </linearGradient>
+                        </defs>
+                        <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e5e7eb" />
+                        <XAxis 
+                          dataKey="name" 
+                          axisLine={false} 
+                          tickLine={false} 
+                          tick={{ fill: '#6b7280', fontSize: 12 }} 
+                          dy={10}
+                        />
+                        <YAxis 
+                          axisLine={false} 
+                          tickLine={false} 
+                          tick={{ fill: '#6b7280', fontSize: 12 }} 
+                        />
+                        <Tooltip 
+                          contentStyle={{ backgroundColor: 'rgba(255, 255, 255, 0.9)', borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)' }}
+                        />
+                        <Area 
+                          type="monotone" 
+                          dataKey="score" 
+                          stroke="#8b5cf6" 
+                          strokeWidth={3} 
+                          fillOpacity={1} 
+                          fill="url(#colorScore)" 
+                        />
+                      </AreaChart>
+                    </ResponsiveContainer>
+                  ) : (
+                    <div className="h-full flex flex-col items-center justify-center text-muted-foreground">
+                      <Activity className="h-12 w-12 mb-4 opacity-20" />
+                      <p>No quiz data available yet.</p>
+                      <Button variant="link" onClick={() => navigate('/quizzes')} className="mt-2 text-primary">
+                        Take your first quiz
+                      </Button>
+                    </div>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Recent Activity */}
+            <Card className="border-white/20 bg-white/60 backdrop-blur-xl shadow-xl">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Clock className="h-5 w-5 text-primary" />
+                  Recent Activity
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-6">
+                  {recentActivity.length > 0 ? (
+                    recentActivity.map((activity, index) => (
+                      <div key={index} className="flex items-start gap-4 group">
+                        <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center shrink-0 group-hover:bg-primary/20 transition-colors">
+                          <GraduationCap className="h-4 w-4 text-primary" />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-medium text-gray-900 truncate">{activity.title}</p>
+                          <p className="text-xs text-muted-foreground">
+                            {formatDistanceToNow(new Date(activity.time), { addSuffix: true })}
+                          </p>
+                        </div>
+                        <div className="text-sm font-semibold text-primary">
+                          {activity.score}%
+                        </div>
+                      </div>
+                    ))
+                  ) : (
+                    <div className="text-center py-8 text-muted-foreground">
+                      <p>No recent activity.</p>
+                      <p className="text-sm mt-1">Start learning to see your progress!</p>
+                    </div>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
           </div>
         </main>
       </div>
     </div>
   );
 };
+
+const StatCard = ({ title, value, icon: Icon, color, bg, trend }: any) => (
+  <div className="bg-white/60 backdrop-blur-xl border border-white/20 p-6 rounded-2xl shadow-lg hover:shadow-xl transition-all duration-300 hover:-translate-y-1 group">
+    <div className="flex justify-between items-start mb-4">
+      <div className={`${bg} p-3 rounded-xl group-hover:scale-110 transition-transform duration-300`}>
+        <Icon className={`h-6 w-6 ${color}`} />
+      </div>
+      {trend && (
+        <span className="text-xs font-medium px-2 py-1 rounded-full bg-white/50 text-gray-600 border border-white/20">
+          {trend}
+        </span>
+      )}
+    </div>
+    <h3 className="text-muted-foreground text-sm font-medium mb-1">{title}</h3>
+    <p className="text-3xl font-bold text-gray-800">{value}</p>
+  </div>
+);
 
 export default Dashboard;
