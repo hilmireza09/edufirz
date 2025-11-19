@@ -5,6 +5,19 @@ EXCEPTION
   WHEN duplicate_object THEN null;
 END $$;
 
+-- Create profiles table
+CREATE TABLE IF NOT EXISTS public.profiles (
+  id UUID REFERENCES auth.users(id) ON DELETE CASCADE PRIMARY KEY,
+  email TEXT,
+  full_name TEXT,
+  role app_role DEFAULT 'student',
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- Enable RLS on profiles
+ALTER TABLE public.profiles ENABLE ROW LEVEL SECURITY;
+
 -- Create secure user_roles table
 CREATE TABLE IF NOT EXISTS public.user_roles (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -22,13 +35,18 @@ DROP POLICY IF EXISTS "Only admins can insert roles" ON public.user_roles;
 DROP POLICY IF EXISTS "Only admins can delete roles" ON public.user_roles;
 DROP POLICY IF EXISTS "Users can view own roles" ON public.user_roles;
 
--- Only admins can modify roles
+-- Users can view their own roles (no admin check to avoid recursion)
+CREATE POLICY "Users can view own roles"
+  ON public.user_roles FOR SELECT
+  USING (user_id = auth.uid());
+
+-- Only admins can modify roles (checked via direct query to avoid recursion)
 CREATE POLICY "Only admins can insert roles"
   ON public.user_roles FOR INSERT
   WITH CHECK (
     EXISTS (
-      SELECT 1 FROM public.user_roles
-      WHERE user_id = auth.uid() AND role = 'admin'
+      SELECT 1 FROM public.user_roles ur
+      WHERE ur.user_id = auth.uid() AND ur.role = 'admin'
     )
   );
 
@@ -36,20 +54,12 @@ CREATE POLICY "Only admins can delete roles"
   ON public.user_roles FOR DELETE
   USING (
     EXISTS (
-      SELECT 1 FROM public.user_roles
-      WHERE user_id = auth.uid() AND role = 'admin'
+      SELECT 1 FROM public.user_roles ur
+      WHERE ur.user_id = auth.uid() AND ur.role = 'admin'
     )
   );
 
--- Users can view their own roles
-CREATE POLICY "Users can view own roles"
-  ON public.user_roles FOR SELECT
-  USING (user_id = auth.uid() OR EXISTS (
-    SELECT 1 FROM public.user_roles
-    WHERE user_id = auth.uid() AND role = 'admin'
-  ));
-
--- Create secure role checking function
+-- Create secure role checking function (defined after policies to avoid recursion)
 CREATE OR REPLACE FUNCTION public.has_role(_user_id UUID, _role app_role)
 RETURNS BOOLEAN
 LANGUAGE SQL
@@ -62,6 +72,27 @@ AS $$
     WHERE user_id = _user_id AND role = _role
   )
 $$;
+
+-- Drop existing policies if they exist for profiles
+DROP POLICY IF EXISTS "Users can view own profile" ON public.profiles;
+DROP POLICY IF EXISTS "Users can update own profile" ON public.profiles;
+DROP POLICY IF EXISTS "Admins can view all profiles" ON public.profiles;
+
+-- Users can view their own profile
+CREATE POLICY "Users can view own profile"
+  ON public.profiles FOR SELECT
+  USING (id = auth.uid() OR public.has_role(auth.uid(), 'admin'));
+
+-- Users can update their own profile
+CREATE POLICY "Users can update own profile"
+  ON public.profiles FOR UPDATE
+  USING (id = auth.uid())
+  WITH CHECK (id = auth.uid());
+
+-- Admins can view all profiles
+CREATE POLICY "Admins can view all profiles"
+  ON public.profiles FOR SELECT
+  USING (public.has_role(auth.uid(), 'admin'));
 
 -- Migrate existing roles from profiles to user_roles
 INSERT INTO public.user_roles (user_id, role)

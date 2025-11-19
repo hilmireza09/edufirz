@@ -79,14 +79,45 @@ const Quizzes = () => {
   useEffect(() => {
     const fetchRole = async () => {
       if (!user) return;
-      const { data, error } = await supabase
-        .from('profiles')
-        .select('*')
-        .eq('id', user.id)
-        .single();
-      if (!error && data) {
-        setUserRole(data.role || 'student');
-        setProfile(data);
+      try {
+        // Get user profile
+        const { data: profileData, error: profileError } = await supabase
+          .from('profiles')
+          .select('*')
+          .eq('id', user.id)
+          .single();
+        
+        if (profileError) {
+          console.error('Error fetching profile:', profileError);
+        } else {
+          setProfile(profileData);
+        }
+
+        // Get user roles
+        const { data: rolesData, error: rolesError } = await supabase
+          .from('user_roles')
+          .select('role')
+          .eq('user_id', user.id);
+
+        if (rolesError) {
+          console.error('Error fetching roles:', rolesError);
+          setUserRole('student'); // Default to student if no roles found
+        } else {
+          // Check if user has admin or teacher role
+          const hasAdmin = rolesData?.some(r => r.role === 'admin');
+          const hasTeacher = rolesData?.some(r => r.role === 'teacher');
+          
+          if (hasAdmin) {
+            setUserRole('admin');
+          } else if (hasTeacher) {
+            setUserRole('teacher');
+          } else {
+            setUserRole('student');
+          }
+        }
+      } catch (err) {
+        console.error('Error in fetchRole:', err);
+        setUserRole('student');
       }
       setLoadingRole(false);
     };
@@ -118,7 +149,7 @@ const Quizzes = () => {
           .from('quizzes')
           .select(`
             id, title, description, status, is_public, difficulty, due_date, attempts_allowed, time_limit, category, creator_id,
-            quiz_questions ( id, question, options, correct_answer, explanation, points, order_index, type )
+            quiz_questions ( id, question_text, options, correct_answer, explanation, points, order_index, question_type )
           `)
           .is('deleted_at', null)
           .order('created_at', { ascending: false });
@@ -178,6 +209,8 @@ const Quizzes = () => {
     setQuestionDrafts([]);
     originalQuestionIdsRef.current = [];
     setMode('edit');
+    // Update URL for navigation
+    navigate('/quizzes?mode=create');
   };
 
   const handleSearch = (e: React.FormEvent) => {
@@ -202,6 +235,8 @@ const Quizzes = () => {
       .map((d) => d.id)
       .filter((id): id is string => Boolean(id));
     setMode('edit');
+    // Update URL for navigation
+    navigate(`/quizzes?mode=edit&id=${quiz.id}`);
   };
 
   /**
@@ -239,7 +274,7 @@ const Quizzes = () => {
       {
         question: '',
         options: ['', '', '', ''],
-        correct_answer: '',
+        correct_answer: '', // Works for all question types
         correct_answers: [],
         explanation: '',
         points: 1,
@@ -272,12 +307,17 @@ const Quizzes = () => {
   const handleSaveQuiz = async () => {
     if (!editingQuiz || !user) return;
     try {
+      // Ensure difficulty has a valid value (never null or empty)
+      const validDifficulty = editingQuiz.difficulty && ['easy', 'medium', 'hard'].includes(editingQuiz.difficulty) 
+        ? editingQuiz.difficulty 
+        : 'easy';
+
       const quizData = {
         title: editingQuiz.title,
         description: editingQuiz.description,
         status: editingQuiz.status,
         is_public: editingQuiz.is_public,
-        difficulty: editingQuiz.difficulty,
+        difficulty: validDifficulty,
         due_date: editingQuiz.due_date,
         attempts_allowed: editingQuiz.attempts_allowed,
         time_limit: editingQuiz.time_limit,
@@ -324,14 +364,14 @@ const Quizzes = () => {
         const updatePayload = toUpdate.map((q) => ({
           id: q.id,
           quiz_id: savedQuiz.id,
-          question: q.question,
+          question_text: q.question,
+          question_type: q.type,
           options: q.options,
           correct_answer: q.correct_answer,
           correct_answers: q.correct_answers, // Support for checkbox questions
           explanation: q.explanation,
           points: q.points,
           order_index: q.order_index,
-          type: q.type,
         }));
         const { error: upsertError } = await supabase
           .from('quiz_questions')
@@ -343,14 +383,14 @@ const Quizzes = () => {
       if (toInsert.length > 0) {
         const insertPayload = toInsert.map((q) => ({
           quiz_id: savedQuiz.id,
-          question: q.question,
+          question_text: q.question,
+          question_type: q.type,
           options: q.options,
           correct_answer: q.correct_answer,
           correct_answers: q.correct_answers, // Support for checkbox questions
           explanation: q.explanation,
           points: q.points,
           order_index: q.order_index,
-          type: q.type,
         }));
         const { data: insertData, error: insertError } = await supabase
           .from('quiz_questions')
@@ -375,9 +415,16 @@ const Quizzes = () => {
       setQuestionDrafts([]);
       originalQuestionIdsRef.current = [];
       setMode('list');
-    } catch (err) {
-      console.error('Error saving quiz:', err);
-      toast.error('Failed to save quiz');
+      // Navigate back to list view
+      navigate('/quizzes');
+    } catch (error) {
+      console.error('Error saving quiz:', error);
+      const err = error as { code?: string; message?: string };
+      if (err.code === '23514' || err.message?.includes('quizzes_difficulty_check')) {
+        toast.error('Database Error: Please run the migration to fix the difficulty constraint.');
+      } else {
+        toast.error('Failed to save quiz');
+      }
     }
   };
 
@@ -595,14 +642,14 @@ const Quizzes = () => {
                       />
                     </div>
                     <div>
-                      <select className="w-full px-3 py-2 rounded-md bg-background border border-border" value={statusFilter} onChange={(e) => setStatusFilter(e.target.value as any)}>
+                      <select className="w-full px-3 py-2 rounded-md bg-background border border-border" value={statusFilter} onChange={(e) => setStatusFilter(e.target.value as "all" | "draft" | "published")}>
                         <option value="all">All Status</option>
                         <option value="draft">Draft</option>
                         <option value="published">Published</option>
                       </select>
                     </div>
                     <div>
-                      <select className="w-full px-3 py-2 rounded-md bg-background border border-border" value={difficultyFilter} onChange={(e) => setDifficultyFilter(e.target.value as any)}>
+                      <select className="w-full px-3 py-2 rounded-md bg-background border border-border" value={difficultyFilter} onChange={(e) => setDifficultyFilter(e.target.value as "all" | "easy" | "medium" | "hard")}>
                         <option value="all">All Difficulty</option>
                         <option value="easy">Easy</option>
                         <option value="medium">Medium</option>
@@ -736,7 +783,11 @@ const Quizzes = () => {
                     <div className="flex gap-3">
                       <Button 
                         variant="outline" 
-                        onClick={() => { setEditingQuiz(null); setMode('list'); }}
+                        onClick={() => { 
+                          setEditingQuiz(null); 
+                          setMode('list'); 
+                          navigate('/quizzes');
+                        }}
                         className="border-border hover:bg-accent"
                       >
                         Cancel

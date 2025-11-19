@@ -157,8 +157,20 @@ export const QuestionEditor = ({ question, index, onUpdate, onRemove }: Question
                       onUpdate(index, 'correct_answers', undefined);
                       setSelectedOptions(new Set());
                     }
+                    // Set appropriate options based on question type
                     if (type === 'true_false') {
                       onUpdate(index, 'options', ['True', 'False']);
+                      onUpdate(index, 'correct_answer', '');
+                    } else if (type === 'essay' || type === 'fill_in_blank') {
+                      // Essay and Fill-in-blank don't need options
+                      onUpdate(index, 'options', null);
+                      onUpdate(index, 'correct_answer', '');
+                    } else if (type === 'multiple_choice' || type === 'checkbox') {
+                      // Ensure options array exists for multiple choice and checkbox
+                      if (!question.options || question.options.length === 0) {
+                        onUpdate(index, 'options', ['', '', '', '']);
+                      }
+                      onUpdate(index, 'correct_answer', '');
                     }
                   }}
                   className={`p-3 rounded-xl border-2 transition-all duration-200 flex flex-col items-center gap-2 ${
