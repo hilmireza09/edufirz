@@ -4,8 +4,9 @@ import { useAuth } from '@/hooks/useAuth';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { BookOpen, Mail, Lock, User, ArrowLeft } from 'lucide-react';
+import { Mail, Lock, User, ArrowLeft } from 'lucide-react';
 import { z } from 'zod';
+import { Logo } from '@/components/Logo';
 
 const signupSchema = z.object({
   fullName: z.string().min(2, 'Name must be at least 2 characters').max(100),
@@ -72,10 +73,9 @@ const Signup = () => {
         <div className="glass-card p-8 rounded-2xl animate-fade-in">
           {/* Logo */}
           <div className="flex justify-center mb-8">
-            <div className="flex items-center gap-2">
-              <BookOpen className="h-8 w-8 text-primary" />
-              <span className="text-2xl font-bold gradient-text">EduLearn</span>
-            </div>
+            <Link to="/">
+              <Logo width={180} height={50} />
+            </Link>
           </div>
 
           {/* Title */}

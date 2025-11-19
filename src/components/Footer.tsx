@@ -1,7 +1,8 @@
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { BookOpen, Mail, Facebook, Twitter, Instagram, Linkedin } from "lucide-react";
+import { Mail, Facebook, Twitter, Instagram, Linkedin } from "lucide-react";
 import { Link } from "react-router-dom";
+import { Logo } from "@/components/Logo";
 
 const Footer = () => {
   return (
@@ -10,12 +11,9 @@ const Footer = () => {
         <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-12 mb-12">
           {/* Brand */}
           <div className="space-y-4">
-            <div className="flex items-center gap-2">
-              <div className="p-2 rounded-lg bg-gradient-to-br from-white to-purple-100">
-                <BookOpen className="w-6 h-6 text-purple-900" />
-              </div>
-              <span className="text-xl font-bold text-white">LearnHub</span>
-            </div>
+            <Link to="/" className="inline-block">
+              <Logo variant="light" width={140} height={40} />
+            </Link>
             <p className="text-purple-100">
               Empowering learners worldwide with quality education accessible anytime, anywhere.
             </p>

@@ -1,7 +1,8 @@
-import { useNavigate, useLocation } from 'react-router-dom';
+import { useNavigate, useLocation, Link } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import { Button } from '@/components/ui/button';
 import { BookOpen, CreditCard, Users, LogOut, MessageSquare, Settings, Home, GraduationCap } from 'lucide-react';
+import { Logo } from '@/components/Logo';
 
 export const Sidebar = () => {
   const navigate = useNavigate();
@@ -20,12 +21,9 @@ export const Sidebar = () => {
   return (
     <div className="w-64 h-full p-6 bg-white/70 dark:bg-slate-900/70 backdrop-blur-2xl border-r border-white/20 dark:border-slate-800/50 hidden md:flex md:flex-col z-30 shadow-xl">
       <div className="mb-8">
-        <div className="flex items-center gap-2 mb-6">
-          <div className="p-2 bg-primary/10 rounded-xl">
-            <BookOpen className="h-6 w-6 text-primary" />
-          </div>
-          <span className="text-2xl font-bold bg-gradient-to-r from-primary to-purple-600 bg-clip-text text-transparent">EduLearn</span>
-        </div>
+        <Link to="/dashboard" className="flex items-center gap-2 mb-6 px-2">
+          <Logo width={160} height={45} />
+        </Link>
       </div>
       
       <nav className="space-y-2">

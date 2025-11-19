@@ -104,12 +104,14 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     try {
       const { error } = await supabase.auth.signOut();
       if (error) throw error;
-      
+    } catch (error: any) {
+      console.error("Error signing out:", error);
+      // If global sign out fails (e.g. CORS or network error), force local sign out
+      // This ensures the token is removed from local storage so the user is actually logged out
+      await supabase.auth.signOut({ scope: 'local' });
+    } finally {
       toast.success('Signed out successfully');
       navigate('/');
-    } catch (error: any) {
-      toast.error(error.message || 'Failed to sign out');
-      throw error;
     }
   };
 
