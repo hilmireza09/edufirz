@@ -62,7 +62,7 @@ const Quizzes = () => {
 
   // Pagination
   const [currentPage, setCurrentPage] = useState(1);
-  const [quizzesPerPage] = useState(6);
+  const [quizzesPerPage] = useState(9);
 
   // Delete confirmation dialog
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
