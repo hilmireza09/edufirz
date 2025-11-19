@@ -11,6 +11,7 @@ import Dashboard from "./pages/Dashboard";
 import Flashcards from "./pages/Flashcards";
 import Quizzes from "./pages/Quizzes";
 import Classes from "./pages/Classes";
+import ClassDetails from "./pages/ClassDetails";
 import Forum from "./pages/Forum";
 import NotFound from "./pages/NotFound";
 
@@ -31,6 +32,7 @@ const App = () => (
             <Route path="/flashcards" element={<Flashcards />} />
             <Route path="/quizzes" element={<Quizzes />} />
             <Route path="/classes" element={<Classes />} />
+            <Route path="/classes/:id" element={<ClassDetails />} />
             <Route path="/forum" element={<Forum />} />
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
             <Route path="*" element={<NotFound />} />
