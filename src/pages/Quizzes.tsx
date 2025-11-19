@@ -354,8 +354,8 @@ const Quizzes = () => {
         const updatePayload = toUpdate.map((q) => ({
           id: q.id,
           quiz_id: savedQuiz.id,
-          question: q.question,
-          type: q.type,
+          question_text: q.question,
+          question_type: q.type,
           options: q.options,
           correct_answer: q.correct_answer,
           correct_answers: q.correct_answers, // Support for checkbox questions
@@ -373,8 +373,8 @@ const Quizzes = () => {
       if (toInsert.length > 0) {
         const insertPayload = toInsert.map((q) => ({
           quiz_id: savedQuiz.id,
-          question: q.question,
-          type: q.type,
+          question_text: q.question,
+          question_type: q.type,
           options: q.options,
           correct_answer: q.correct_answer,
           correct_answers: q.correct_answers, // Support for checkbox questions
@@ -390,8 +390,8 @@ const Quizzes = () => {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         insertedQuestions = (insertData || []).map((q: any) => ({
           ...q,
-          question: q.question,
-          type: q.type,
+          question: q.question_text,
+          type: q.question_type,
         })) as QuizQuestion[];
       }
 

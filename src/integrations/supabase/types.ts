@@ -771,9 +771,9 @@ export type Database = {
           options: string[] | null
           order_index: number | null
           points: number | null
-          question: string
+          question_text: string
           quiz_id: string
-          type: string
+          question_type: string
           updated_at: string | null
         }
         Insert: {
@@ -785,9 +785,9 @@ export type Database = {
           options?: string[] | null
           order_index?: number | null
           points?: number | null
-          question: string
+          question_text: string
           quiz_id: string
-          type: string
+          question_type: string
           updated_at?: string | null
         }
         Update: {
@@ -799,9 +799,9 @@ export type Database = {
           options?: string[] | null
           order_index?: number | null
           points?: number | null
-          question?: string
+          question_text?: string
           quiz_id?: string
-          type?: string
+          question_type?: string
           updated_at?: string | null
         }
         Relationships: [
