@@ -207,35 +207,37 @@ export default function ForumPostDetail() {
   if (!post) return <div className="p-8 text-center">Discussion not found</div>;
 
   return (
-    <div className="max-w-4xl mx-auto space-y-6 animate-in fade-in duration-500 pb-20">
-      <Button variant="ghost" onClick={() => navigate('/forum')} className="mb-4">
+    <div className="max-w-4xl mx-auto space-y-6 animate-in fade-in duration-500 pb-12">
+      <Button variant="ghost" onClick={() => navigate('/forum')} className="mb-4 hover:bg-white/50">
         <ArrowLeft className="mr-2 h-4 w-4" /> Back to Discussions
       </Button>
 
       {/* Main Post */}
-      <Card className="border-primary/20 bg-white/60 backdrop-blur-xl shadow-xl overflow-hidden">
-        <div className="h-2 bg-gradient-to-r from-primary to-purple-600" />
+      <Card className="border-primary/10 bg-white/80 backdrop-blur-xl shadow-sm overflow-hidden transition-all duration-300 hover:shadow-md">
+        <div className="h-1 bg-gradient-to-r from-primary/50 to-purple-600/50" />
         <CardHeader className="pb-4">
           <div className="flex justify-between items-start">
-            <div className="space-y-2">
+            <div className="space-y-3">
               <div className="flex items-center gap-2">
-                <Badge variant="outline" className="bg-primary/5 text-primary border-primary/20">
+                <Badge variant="outline" className="bg-primary/5 text-primary border-primary/20 px-3 py-1">
                   {post.category}
                 </Badge>
                 {post.is_solved && (
-                  <Badge variant="secondary" className="bg-green-500/10 text-green-600 border-green-500/20 flex items-center gap-1">
+                  <Badge variant="secondary" className="bg-green-500/10 text-green-600 border-green-500/20 flex items-center gap-1 px-3 py-1">
                     <CheckCircle className="h-3 w-3" /> Solved
                   </Badge>
                 )}
               </div>
-              <CardTitle className="text-2xl md:text-3xl font-bold text-gray-800">
+              <CardTitle className="text-2xl md:text-3xl font-bold text-gray-800 leading-tight">
                 {post.title}
               </CardTitle>
-              <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                <Avatar className="h-6 w-6">
-                  <AvatarFallback>{post.author?.full_name?.[0]}</AvatarFallback>
-                </Avatar>
-                <span className="font-medium text-gray-700">{post.author?.full_name}</span>
+              <div className="flex items-center gap-3 text-sm text-muted-foreground">
+                <div className="flex items-center gap-2 bg-secondary/30 px-2 py-1 rounded-full">
+                  <Avatar className="h-5 w-5">
+                    <AvatarFallback className="text-[10px]">{post.author?.full_name?.[0]}</AvatarFallback>
+                  </Avatar>
+                  <span className="font-medium text-gray-700">{post.author?.full_name}</span>
+                </div>
                 <span>•</span>
                 <span>{formatDistanceToNow(new Date(post.created_at), { addSuffix: true })}</span>
               </div>
@@ -244,11 +246,11 @@ export default function ForumPostDetail() {
             {/* Post Actions */}
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <Button variant="ghost" size="icon">
+                <Button variant="ghost" size="icon" className="hover:bg-secondary/50">
                   <MoreVertical className="h-4 w-4" />
                 </Button>
               </DropdownMenuTrigger>
-              <DropdownMenuContent align="end">
+              <DropdownMenuContent align="end" className="w-40">
                 <DropdownMenuItem><Share2 className="mr-2 h-4 w-4" /> Share</DropdownMenuItem>
                 <DropdownMenuItem className="text-red-600"><Flag className="mr-2 h-4 w-4" /> Report</DropdownMenuItem>
               </DropdownMenuContent>
@@ -261,28 +263,28 @@ export default function ForumPostDetail() {
           </div>
           
           {post.tags && (
-            <div className="flex gap-2">
+            <div className="flex gap-2 flex-wrap">
               {post.tags.map(tag => (
-                <span key={tag} className="text-xs text-muted-foreground bg-black/5 px-2 py-1 rounded-full">
+                <span key={tag} className="text-xs text-muted-foreground bg-secondary/50 px-2.5 py-1 rounded-md border border-secondary">
                   #{tag}
                 </span>
               ))}
             </div>
           )}
 
-          <Separator />
+          <Separator className="bg-border/50" />
 
           <div className="flex items-center gap-4">
             <Button 
               variant={userVote === 'up' ? "default" : "outline"} 
               size="sm" 
               onClick={handleVote}
-              className={userVote === 'up' ? "bg-primary text-white" : ""}
+              className={`transition-all duration-300 ${userVote === 'up' ? "bg-primary text-white shadow-lg shadow-primary/25" : "hover:bg-secondary/50"}`}
             >
-              <ThumbsUp className={`mr-2 h-4 w-4 ${userVote === 'up' ? 'fill-current' : ''}`} />
+              <ThumbsUp className={`mr-2 h-4 w-4 ${userVote === 'up' ? 'fill-current animate-bounce' : ''}`} />
               {post.votes || 0} Upvotes
             </Button>
-            <div className="flex items-center gap-2 text-muted-foreground text-sm">
+            <div className="flex items-center gap-2 text-muted-foreground text-sm px-3 py-1.5 rounded-md bg-secondary/30">
               <MessageSquare className="h-4 w-4" />
               {replies.length} Replies
             </div>
@@ -292,46 +294,48 @@ export default function ForumPostDetail() {
 
       {/* Replies Section */}
       <div className="space-y-4 mt-8">
-        <h3 className="text-lg font-semibold text-gray-700 px-1">Replies</h3>
+        <h3 className="text-lg font-semibold text-gray-700 px-1 flex items-center gap-2">
+          Replies <span className="text-sm font-normal text-muted-foreground">({replies.length})</span>
+        </h3>
         
-        {replies.map((reply) => (
+        {replies.map((reply, index) => (
           <Card 
             key={reply.id} 
-            className={`border-white/20 backdrop-blur-sm transition-all ${
+            className={`border-white/20 backdrop-blur-sm transition-all duration-500 animate-in slide-in-from-bottom-4 fade-in fill-mode-backwards ${
               reply.is_solution 
                 ? 'bg-green-50/80 border-green-200 shadow-[0_0_20px_-5px_rgba(34,197,94,0.2)]' 
                 : 'bg-white/40 hover:bg-white/60'
             }`}
+            style={{ animationDelay: `${index * 100}ms` }}
           >
             <CardContent className="p-6">
               <div className="flex justify-between items-start mb-4">
                 <div className="flex items-center gap-3">
-                  <Avatar className="h-8 w-8">
+                  <Avatar className="h-8 w-8 ring-2 ring-white">
                     <AvatarFallback>{reply.author?.full_name?.[0]}</AvatarFallback>
                   </Avatar>
                   <div>
-                    <div className="font-medium text-sm">{reply.author?.full_name}</div>
+                    <div className="font-medium text-sm text-gray-900">{reply.author?.full_name}</div>
                     <div className="text-xs text-muted-foreground">
                       {formatDistanceToNow(new Date(reply.created_at), { addSuffix: true })}
                     </div>
                   </div>
                 </div>
                 {reply.is_solution && (
-                  <Badge className="bg-green-100 text-green-700 hover:bg-green-200 border-green-200">
+                  <Badge className="bg-green-100 text-green-700 hover:bg-green-200 border-green-200 shadow-sm">
                     <CheckCircle className="mr-1 h-3 w-3" /> Solution
                   </Badge>
                 )}
               </div>
               
-              <div className="text-gray-700 whitespace-pre-wrap mb-4 pl-11">
+              <div className="text-gray-700 whitespace-pre-wrap mb-4 pl-11 leading-relaxed">
                 {reply.content}
               </div>
 
               <div className="flex items-center justify-between pl-11">
                 <div className="flex items-center gap-2">
-                  {/* Reply voting could be implemented here similar to post voting */}
-                  <Button variant="ghost" size="sm" className="h-8 text-muted-foreground">
-                    <ThumbsUp className="mr-1 h-3 w-3" /> {reply.votes || 0}
+                  <Button variant="ghost" size="sm" className="h-8 text-muted-foreground hover:text-primary hover:bg-primary/5">
+                    <ThumbsUp className="mr-1 h-3 w-3" /> {reply.votes || 0} Helpful
                   </Button>
                 </div>
                 
@@ -340,7 +344,7 @@ export default function ForumPostDetail() {
                   <Button 
                     variant="outline" 
                     size="sm" 
-                    className="text-green-600 border-green-200 hover:bg-green-50"
+                    className="text-green-600 border-green-200 hover:bg-green-50 transition-colors"
                     onClick={() => handleMarkSolution(reply.id)}
                   >
                     <CheckCircle className="mr-2 h-3 w-3" /> Mark as Solution
@@ -352,29 +356,39 @@ export default function ForumPostDetail() {
         ))}
       </div>
 
-      {/* Reply Input */}
-      <Card className="fixed bottom-0 left-0 right-0 md:left-64 border-t bg-white/80 backdrop-blur-xl shadow-[0_-5px_20px_-5px_rgba(0,0,0,0.1)] z-10">
-        <CardContent className="p-4 max-w-4xl mx-auto flex gap-4">
-          <Avatar className="h-10 w-10 hidden sm:block">
-            <AvatarFallback>{user?.email?.[0].toUpperCase()}</AvatarFallback>
-          </Avatar>
-          <div className="flex-1 flex gap-2">
-            <Textarea 
-              placeholder="Write a reply..." 
-              value={newReply}
-              onChange={(e) => setNewReply(e.target.value)}
-              className="min-h-[44px] max-h-[120px] bg-white/50 resize-none py-3"
-            />
-            <Button 
-              onClick={handleSubmitReply} 
-              disabled={submitting || !newReply.trim()}
-              className="h-auto px-6 bg-primary hover:bg-primary/90"
-            >
-              Reply
-            </Button>
-          </div>
-        </CardContent>
-      </Card>
+      {/* Reply Input Area - Moved from fixed bottom to inline */}
+      <div className="mt-8 mb-12 animate-in slide-in-from-bottom-8 duration-700 delay-200 fill-mode-backwards">
+        <Card className="border-primary/10 shadow-lg bg-white/80 backdrop-blur-xl overflow-hidden group focus-within:ring-2 focus-within:ring-primary/20 transition-all">
+          <CardContent className="p-6">
+            <h3 className="text-sm font-semibold text-muted-foreground mb-4 flex items-center gap-2">
+              <Avatar className="h-6 w-6">
+                <AvatarFallback className="bg-primary/10 text-primary text-xs">
+                  {user?.email?.[0].toUpperCase()}
+                </AvatarFallback>
+              </Avatar>
+              Write a reply
+            </h3>
+            <div className="relative">
+              <Textarea 
+                placeholder="What are your thoughts? (Markdown supported)" 
+                value={newReply}
+                onChange={(e) => setNewReply(e.target.value)}
+                className="min-h-[120px] bg-white/50 resize-y border-primary/10 focus:border-primary/30 focus:ring-0 transition-all duration-300"
+              />
+              <div className="absolute bottom-3 right-3 flex gap-2">
+                <Button 
+                  onClick={handleSubmitReply} 
+                  disabled={submitting || !newReply.trim()}
+                  size="sm"
+                  className="bg-primary hover:bg-primary/90 transition-all duration-300 shadow-lg shadow-primary/20 hover:shadow-primary/30"
+                >
+                  {submitting ? 'Posting...' : 'Post Reply'}
+                </Button>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
     </div>
   );
 }
