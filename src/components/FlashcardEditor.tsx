@@ -3,9 +3,26 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent } from '@/components/ui/card';
-import { Plus, Save, X, CreditCard } from 'lucide-react';
+import { Plus, Save, X, CreditCard, Tag } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
+
+// Predefined tags
+const AVAILABLE_TAGS = [
+  'Mathematics',
+  'Biology',
+  'Chemistry',
+  'Physics',
+  'History',
+  'Geography',
+  'Government',
+  'Social',
+  'Economics',
+  'Arts',
+  'Technology',
+  'English',
+  'Others'
+];
 
 type Card = {
   id?: string;
@@ -38,6 +55,15 @@ const FlashcardEditor = ({ deck, onSave, onCancel }: FlashcardEditorProps) => {
   const [newCard, setNewCard] = useState({ front: '', back: '', hint: '' });
   const [tags, setTags] = useState<string[]>(deck.tags || []);
   const originalCardIdsRef = useRef<string[]>([]);
+
+  // Toggle tag selection
+  const toggleTag = (tag: string) => {
+    setTags(prev => 
+      prev.includes(tag) 
+        ? prev.filter(t => t !== tag)
+        : [...prev, tag]
+    );
+  };
 
   useEffect(() => {
     originalCardIdsRef.current = (deck.flashcards || [])
@@ -248,16 +274,44 @@ const FlashcardEditor = ({ deck, onSave, onCancel }: FlashcardEditorProps) => {
                 Make this deck public
               </label>
             </div>
-            
-            <div className="space-y-2">
-              <label className="text-sm font-semibold text-foreground">Tags (comma separated)</label>
-              <Input
-                value={tags.join(', ')}
-                onChange={(e) => setTags(e.target.value.split(',').map((t) => t.trim()).filter(Boolean))}
-                placeholder="e.g., math, science, history"
-                className="h-12 bg-white/50 dark:bg-slate-700/50 border-white/20 focus:border-primary/50 focus:ring-2 focus:ring-primary/20 rounded-xl transition-all hover:bg-white/70 dark:hover:bg-slate-700/70"
-              />
+          </div>
+
+          {/* Tags Section - Replaced with selection chips */}
+          <div className="space-y-3">
+            <label className="text-sm font-semibold text-foreground flex items-center gap-2">
+              <Tag className="h-4 w-4 text-primary" />
+              Select Tags
+              <span className="text-xs font-normal text-muted-foreground">
+                ({tags.length} selected)
+              </span>
+            </label>
+            <div className="flex flex-wrap gap-2 p-4 glass-card backdrop-blur-sm bg-white/40 dark:bg-slate-700/40 border-white/20 rounded-xl">
+              {AVAILABLE_TAGS.map((tag) => {
+                const isSelected = tags.includes(tag);
+                return (
+                  <button
+                    key={tag}
+                    type="button"
+                    onClick={() => toggleTag(tag)}
+                    className={`
+                      px-4 py-2 rounded-full text-sm font-medium transition-all duration-300 
+                      ${isSelected 
+                        ? 'bg-gradient-to-r from-primary to-purple-600 text-white shadow-lg shadow-primary/30 scale-105' 
+                        : 'glass-card bg-white/50 dark:bg-slate-700/50 border border-white/20 text-foreground hover:bg-white/70 dark:hover:bg-slate-700/70 hover:shadow-[0_0_15px_rgba(124,58,237,0.3)] hover:border-primary/30'
+                      }
+                      active:scale-95
+                    `}
+                  >
+                    {tag}
+                  </button>
+                );
+              })}
             </div>
+            {tags.length === 0 && (
+              <p className="text-xs text-muted-foreground pl-1">
+                Click on tags above to categorize your deck
+              </p>
+            )}
           </div>
         </div>
       </div>
