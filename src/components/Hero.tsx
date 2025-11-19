@@ -91,7 +91,7 @@ const Hero = () => {
               </div>
             </div>
             <div className="absolute -bottom-6 -left-6 glass-card rounded-2xl p-4 animate-float" style={{ animationDelay: "1s" }}>
-              <div className="text-2xl font-bold gradient-text">100% Online</div>
+              <div className="text-2xl font-bold gradient-text">100% Free</div>
             </div>
           </div>
         </div>
