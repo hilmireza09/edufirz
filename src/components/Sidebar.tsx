@@ -18,7 +18,7 @@ export const Sidebar = () => {
   ];
 
   return (
-    <div className="w-64 min-h-screen p-6 bg-white/70 dark:bg-slate-900/70 backdrop-blur-2xl border-r border-white/20 dark:border-slate-800/50 sticky top-0 hidden md:block z-30 shadow-xl">
+    <div className="w-64 h-full p-6 bg-white/70 dark:bg-slate-900/70 backdrop-blur-2xl border-r border-white/20 dark:border-slate-800/50 hidden md:flex md:flex-col z-30 shadow-xl">
       <div className="mb-8">
         <div className="flex items-center gap-2 mb-6">
           <div className="p-2 bg-primary/10 rounded-xl">
