@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
-import { BookOpen, CreditCard, Users, LogOut, MessageSquare, Settings, Home, Calendar, FileText, Search, ChevronDown, User, Plus, ChevronLeft, ChevronRight, Edit, Trash, Tag, RotateCcw, CheckCircle, XCircle, X } from 'lucide-react';
+import { BookOpen, CreditCard, Users, LogOut, MessageSquare, Settings, Home, Calendar, FileText, Search, ChevronDown, User, Plus, ChevronLeft, ChevronRight, Edit, Trash, Tag, RotateCcw, CheckCircle, XCircle, X, Lightbulb } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import FlashcardEditor from '@/components/FlashcardEditor';
@@ -44,6 +44,7 @@ const Flashcards = () => {
   const [selectedDeck, setSelectedDeck] = useState<Deck | null>(null);
   const [index, setIndex] = useState(0);
   const [flipped, setFlipped] = useState(false);
+  const [showHint, setShowHint] = useState(false);
   const [userRole, setUserRole] = useState<string>('student');
   const [loading, setLoading] = useState(true);
   const [editingDeck, setEditingDeck] = useState<Deck | null>(null);
@@ -202,6 +203,7 @@ const Flashcards = () => {
     setSelectedDeck(deck);
     setIndex(0);
     setFlipped(false);
+    setShowHint(false);
   };
 
   const handleCreateDeck = () => {
@@ -301,18 +303,21 @@ const Flashcards = () => {
   const next = () => {
     if (!selectedDeck) return;
     setFlipped(false);
+    setShowHint(false);
     setIndex((i) => (i + 1) % selectedDeck.flashcards.length);
   };
 
   const prev = () => {
     if (!selectedDeck) return;
     setFlipped(false);
+    setShowHint(false);
     setIndex((i) => (i - 1 + selectedDeck.flashcards.length) % selectedDeck.flashcards.length);
   };
 
   const reset = () => {
     setIndex(0);
     setFlipped(false);
+    setShowHint(false);
   };
 
   if (loading) {
@@ -614,6 +619,17 @@ const Flashcards = () => {
                           <p className="text-2xl md:text-3xl font-medium text-gray-800 dark:text-gray-100 leading-relaxed">
                             {selectedDeck.flashcards[index]?.front}
                           </p>
+                          
+                          {/* Hint Display */}
+                          {showHint && selectedDeck.flashcards[index]?.hint && (
+                            <div className="mt-6 animate-in fade-in slide-in-from-bottom-2 duration-500">
+                              <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-purple-50 text-purple-700 border border-purple-100 shadow-sm">
+                                <Lightbulb className="h-4 w-4 fill-purple-700" />
+                                <span className="text-sm font-medium">{selectedDeck.flashcards[index]?.hint}</span>
+                              </div>
+                            </div>
+                          )}
+
                           <p className="mt-auto text-sm text-muted-foreground font-medium uppercase tracking-widest opacity-60">Click to flip</p>
                         </div>
                       </div>
@@ -627,11 +643,6 @@ const Flashcards = () => {
                           <p className="text-2xl md:text-3xl font-medium text-gray-800 dark:text-gray-100 leading-relaxed">
                             {selectedDeck.flashcards[index]?.back}
                           </p>
-                          {selectedDeck.flashcards[index]?.hint && (
-                            <div className="mt-6 px-4 py-2 bg-yellow-50 text-yellow-700 rounded-lg text-sm border border-yellow-100">
-                              💡 Hint: {selectedDeck.flashcards[index]?.hint}
-                            </div>
-                          )}
                         </div>
                       </div>
                     </div>
@@ -652,11 +663,21 @@ const Flashcards = () => {
 
                     <Button
                       size="lg"
-                      onClick={() => setFlipped(!flipped)}
-                      className="rounded-xl h-12 px-8 bg-primary hover:bg-primary/90 shadow-lg shadow-primary/25 hover:-translate-y-0.5 transition-all"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        if (selectedDeck.flashcards[index]?.hint) {
+                          setShowHint(true);
+                        }
+                      }}
+                      disabled={showHint || !selectedDeck.flashcards[index]?.hint}
+                      className={`rounded-xl h-12 px-8 transition-all duration-300 ${
+                        showHint || !selectedDeck.flashcards[index]?.hint
+                          ? 'bg-gray-100 text-gray-400 border border-gray-200 shadow-none' 
+                          : 'bg-white text-purple-600 border border-purple-100 hover:bg-purple-50 hover:border-purple-200 shadow-lg shadow-purple-500/10 hover:shadow-purple-500/20'
+                      }`}
                     >
-                      <RotateCcw className="h-4 w-4 mr-2" />
-                      Flip Card
+                      <Lightbulb className={`h-4 w-4 mr-2 ${showHint ? 'fill-gray-400' : 'fill-purple-600'}`} />
+                      {showHint ? 'Hint Shown' : 'Show Hint'}
                     </Button>
 
                     <Button
