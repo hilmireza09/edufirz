@@ -4,7 +4,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { BookOpen, Mail, Lock } from 'lucide-react';
+import { BookOpen, Mail, Lock, ArrowLeft } from 'lucide-react';
 import { z } from 'zod';
 
 const loginSchema = z.object({
@@ -26,6 +26,14 @@ const Login = () => {
       navigate('/dashboard');
     }
   }, [user, navigate]);
+
+  const handleBack = () => {
+    if (window.history.length > 1) {
+      navigate(-1);
+    } else {
+      navigate('/');
+    }
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -55,8 +63,17 @@ const Login = () => {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center px-4 py-12">
-      <div className="w-full max-w-md">
+    <div className="min-h-screen flex items-center justify-center px-4 py-12 relative overflow-hidden">
+      {/* Back Button */}
+      <Button
+        onClick={handleBack}
+        variant="ghost"
+        className="absolute top-4 left-4 md:top-8 md:left-8 glass-card hover:bg-white/40 dark:hover:bg-slate-800/60 text-foreground rounded-full h-12 w-12 flex items-center justify-center transition-all duration-300 hover:shadow-[0_0_15px_rgba(124,58,237,0.3)] group z-50 border-white/20"
+      >
+        <ArrowLeft className="h-5 w-5 group-hover:-translate-x-1 transition-transform" />
+      </Button>
+
+      <div className="w-full max-w-md relative z-10">
         <div className="glass-card p-8 rounded-2xl animate-fade-in">
           {/* Logo */}
           <div className="flex justify-center mb-8">
