@@ -109,7 +109,7 @@ export const QuestionEditor = ({ question, index, onUpdate, onRemove }: Question
     updateCheckboxAnswers(newSelected, question.options || []);
   };
 
-  const config = questionTypeConfig[question.type];
+  const config = questionTypeConfig[question.type] || questionTypeConfig.multiple_choice;
   const Icon = config.icon;
 
   return (

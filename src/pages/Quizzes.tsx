@@ -164,7 +164,15 @@ const Quizzes = () => {
         if (error) throw error;
         const quizzesData: Quiz[] = (data || []).map((q: any) => ({
           ...q,
-          quiz_questions: Array.isArray(q.quiz_questions) ? q.quiz_questions.sort((a: any, b: any) => (a.order_index ?? 0) - (b.order_index ?? 0)) : [],
+          quiz_questions: Array.isArray(q.quiz_questions) 
+            ? q.quiz_questions
+                .map((qq: any) => ({
+                  ...qq,
+                  question: qq.question_text || qq.question,
+                  type: qq.question_type || qq.type || 'multiple_choice',
+                }))
+                .sort((a: any, b: any) => (a.order_index ?? 0) - (b.order_index ?? 0)) 
+            : [],
         }));
         setQuizzes(quizzesData);
         const catSet = new Set<string>();
