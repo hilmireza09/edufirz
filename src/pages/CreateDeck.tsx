@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import { Sidebar } from '@/components/Sidebar';
@@ -6,6 +6,7 @@ import { Header } from '@/components/Header';
 import FlashcardEditor from '@/components/FlashcardEditor';
 import { ArrowLeft, Sparkles } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { supabase } from '@/integrations/supabase/client';
 
 type Card = {
   id?: string;
@@ -27,6 +28,25 @@ type Deck = {
 const CreateDeck = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
+  const [userRole, setUserRole] = useState<string>('student');
+
+  useEffect(() => {
+    const fetchUserRole = async () => {
+      if (!user) return;
+      
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('role')
+        .eq('id', user.id)
+        .single();
+      
+      if (!error && data) {
+        setUserRole(data.role || 'student');
+      }
+    };
+
+    fetchUserRole();
+  }, [user]);
 
   const [newDeck] = useState<Deck>({
     id: '',
@@ -97,6 +117,7 @@ const CreateDeck = () => {
                 deck={newDeck}
                 onSave={handleSave}
                 onCancel={handleCancel}
+                userRole={userRole}
               />
             </div>
           </div>

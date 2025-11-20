@@ -45,9 +45,10 @@ interface FlashcardEditorProps {
   deck: Deck;
   onSave: (updatedDeck: Deck) => void;
   onCancel: () => void;
+  userRole?: string;
 }
 
-const FlashcardEditor = ({ deck, onSave, onCancel }: FlashcardEditorProps) => {
+const FlashcardEditor = ({ deck, onSave, onCancel, userRole = 'student' }: FlashcardEditorProps) => {
   const [title, setTitle] = useState(deck.title);
   const [description, setDescription] = useState(deck.description);
   const [isPublic, setIsPublic] = useState(deck.is_public);
@@ -56,14 +57,21 @@ const FlashcardEditor = ({ deck, onSave, onCancel }: FlashcardEditorProps) => {
   const [tags, setTags] = useState<string[]>(deck.tags || []);
   const originalCardIdsRef = useRef<string[]>([]);
 
-  // Toggle tag selection
+  // Toggle tag selection (Single selection mode)
   const toggleTag = (tag: string) => {
     setTags(prev => 
       prev.includes(tag) 
-        ? prev.filter(t => t !== tag)
-        : [...prev, tag]
+        ? [] // Deselect if already selected
+        : [tag] // Select only this tag (replace previous)
     );
   };
+
+  // Enforce private decks for students
+  useEffect(() => {
+    if (userRole === 'student') {
+      setIsPublic(false);
+    }
+  }, [userRole]);
 
   useEffect(() => {
     originalCardIdsRef.current = (deck.flashcards || [])
@@ -262,16 +270,17 @@ const FlashcardEditor = ({ deck, onSave, onCancel }: FlashcardEditorProps) => {
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-            <div className="flex items-center space-x-3 p-4 glass-card backdrop-blur-sm bg-white/40 dark:bg-slate-700/40 border-white/20 rounded-xl">
+            <div className={`flex items-center space-x-3 p-4 glass-card backdrop-blur-sm bg-white/40 dark:bg-slate-700/40 border-white/20 rounded-xl ${userRole === 'student' ? 'opacity-50 cursor-not-allowed' : ''}`}>
               <input
                 type="checkbox"
                 id="public"
                 checked={isPublic}
-                onChange={(e) => setIsPublic(e.target.checked)}
-                className="h-5 w-5 rounded-lg border-2 border-primary/30 text-primary focus:ring-2 focus:ring-primary/20 transition-all cursor-pointer"
+                onChange={(e) => userRole !== 'student' && setIsPublic(e.target.checked)}
+                disabled={userRole === 'student'}
+                className="h-5 w-5 rounded-lg border-2 border-primary/30 text-primary focus:ring-2 focus:ring-primary/20 transition-all cursor-pointer disabled:cursor-not-allowed"
               />
-              <label htmlFor="public" className="text-sm font-medium text-foreground cursor-pointer">
-                Make this deck public
+              <label htmlFor="public" className={`text-sm font-medium text-foreground ${userRole === 'student' ? 'cursor-not-allowed' : 'cursor-pointer'}`}>
+                Make this deck public {userRole === 'student' && '(Teachers only)'}
               </label>
             </div>
           </div>
@@ -280,9 +289,9 @@ const FlashcardEditor = ({ deck, onSave, onCancel }: FlashcardEditorProps) => {
           <div className="space-y-3">
             <label className="text-sm font-semibold text-foreground flex items-center gap-2">
               <Tag className="h-4 w-4 text-primary" />
-              Select Tags
+              Select Tag
               <span className="text-xs font-normal text-muted-foreground">
-                ({tags.length} selected)
+                (Choose one)
               </span>
             </label>
             <div className="flex flex-wrap gap-2 p-4 glass-card backdrop-blur-sm bg-white/40 dark:bg-slate-700/40 border-white/20 rounded-xl">

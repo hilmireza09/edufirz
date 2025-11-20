@@ -341,6 +341,7 @@ const Flashcards = () => {
             deck={editingDeck} 
             onSave={handleSaveDeck}
             onCancel={() => setEditingDeck(null)}
+            userRole={userRole}
           />
         </div>
       </div>
