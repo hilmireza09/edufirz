@@ -80,22 +80,8 @@ const QuizTake = () => {
       // 3. Check for an active (incomplete) attempt
       const activeAttempt = attempts.find(a => !a.completed_at);
 
-      console.log('[QuizTake] Attempt status:', {
-        totalAttempts: attempts.length,
-        completedAttempts: completedAttempts.length,
-        hasActiveAttempt: !!activeAttempt,
-        limit: quiz.attempts_allowed,
-        attempts: attempts.map(a => ({
-          id: a.id,
-          attempt_number: a.attempt_number,
-          completed: !!a.completed_at,
-          score: a.score
-        }))
-      });
-
       if (activeAttempt) {
         // Resume existing active attempt
-        console.log('[QuizTake] Resuming active attempt:', activeAttempt.id);
         setAttempt(activeAttempt);
         setAnswers(activeAttempt.answers || {});
         setMaxAttemptsReached(false);
@@ -106,7 +92,6 @@ const QuizTake = () => {
         
         if (limit !== null && completedCount >= limit) {
           // Max attempts reached
-          console.log('[QuizTake] Max attempts reached');
           setMaxAttemptsReached(true);
           if (attempts.length > 0) {
             // Show the most recent attempt in read-only mode
@@ -115,7 +100,6 @@ const QuizTake = () => {
           }
         } else {
           // Can start a new attempt
-          console.log('[QuizTake] Creating new attempt #', completedCount + 1);
           const { data: newAttempt, error: createError } = await supabase
             .from('quiz_attempts')
             .insert({
@@ -133,13 +117,6 @@ const QuizTake = () => {
             console.error('Error creating attempt:', createError);
             throw createError;
           }
-          console.log('[QuizTake] New attempt created:', newAttempt.id);
-          console.log('[QuizTake] New attempt details:', {
-            id: newAttempt.id,
-            completed_at: newAttempt.completed_at,
-            attempt_number: newAttempt.attempt_number,
-            answers: newAttempt.answers
-          });
           setAttempt(newAttempt);
           setAnswers({});
           setMaxAttemptsReached(false);
@@ -295,17 +272,6 @@ const QuizTake = () => {
 
   const isCompleted = !!attempt?.completed_at;
   const canAnswer = !isCompleted;
-
-  console.log('[QuizTake] Render state:', {
-    hasAttempt: !!attempt,
-    attemptId: attempt?.id,
-    isCompleted,
-    canAnswer,
-    completed_at: attempt?.completed_at,
-    attemptsAllowed,
-    attemptsCount,
-    maxAttemptsReached
-  });
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-purple-50 to-slate-100 dark:from-slate-950 dark:via-slate-900 dark:to-slate-950 p-4 md:p-8">
