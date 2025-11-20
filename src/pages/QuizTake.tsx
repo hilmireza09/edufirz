@@ -273,15 +273,8 @@ const QuizTake = () => {
 
       toast.success(`Quiz submitted! Score: ${totalScore}/${maxScore}`);
       
-      // Update local state
-      setAttempt(prev => prev ? { 
-        ...prev, 
-        completed_at: new Date().toISOString(), 
-        score: totalScore 
-      } : null);
-      
-      // Refresh to show updated attempt count
-      await fetchQuizData();
+      // Navigate to review page
+      navigate(`/quizzes/${quizId}/review/${attempt.id}`);
       
     } catch (error: any) {
       console.error('Error submitting quiz:', error);
@@ -346,14 +339,22 @@ const QuizTake = () => {
                 <div className="flex items-center gap-2 text-green-500 bg-green-50 dark:bg-green-900/20 p-3 rounded-lg border border-green-100 dark:border-green-900/50">
                   <CheckCircle className="h-5 w-5" />
                   <span className="font-semibold">Completed • Score: {attempt?.score}</span>
+                  <Button 
+                    variant="outline" 
+                    size="sm" 
+                    onClick={() => navigate(`/quizzes/${quizId}/review/${attempt?.id}`)}
+                    className="ml-auto border-green-200 hover:bg-green-100 hover:text-green-700"
+                  >
+                    Review
+                  </Button>
                   {user?.id === creatorId && (
                     <Button 
                       variant="outline" 
                       size="sm" 
                       onClick={handleResetAttempt}
-                      className="ml-auto border-green-200 hover:bg-green-100 hover:text-green-700"
+                      className="ml-2 border-green-200 hover:bg-green-100 hover:text-green-700"
                     >
-                      Reset All Attempts (Creator)
+                      Reset (Creator)
                     </Button>
                   )}
                 </div>
@@ -367,18 +368,28 @@ const QuizTake = () => {
               </div>
             )}
 
-            {isCompleted && maxAttemptsReached && user?.id === creatorId && (
+            {isCompleted && maxAttemptsReached && (
               <div className="flex items-center gap-2 text-green-500 bg-green-50 dark:bg-green-900/20 p-3 rounded-lg border border-green-100 dark:border-green-900/50 mt-2">
                 <CheckCircle className="h-5 w-5" />
                 <span className="font-semibold">Completed • Score: {attempt?.score}</span>
                 <Button 
                   variant="outline" 
                   size="sm" 
-                  onClick={handleResetAttempt}
+                  onClick={() => navigate(`/quizzes/${quizId}/review/${attempt?.id}`)}
                   className="ml-auto border-green-200 hover:bg-green-100 hover:text-green-700"
                 >
-                  Reset All Attempts (Creator)
+                  Review
                 </Button>
+                {user?.id === creatorId && (
+                  <Button 
+                    variant="outline" 
+                    size="sm" 
+                    onClick={handleResetAttempt}
+                    className="ml-2 border-green-200 hover:bg-green-100 hover:text-green-700"
+                  >
+                    Reset (Creator)
+                  </Button>
+                )}
               </div>
             )}
           </CardHeader>

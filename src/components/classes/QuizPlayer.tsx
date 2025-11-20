@@ -255,6 +255,14 @@ const QuizPlayer = () => {
             <div className="flex items-center gap-2 text-green-500 mt-2">
               <CheckCircle className="h-5 w-5" />
               <span className="font-semibold">Completed • Score: {attempt?.score}</span>
+              <Button 
+                variant="outline" 
+                size="sm" 
+                onClick={() => navigate(`/quizzes/${assignment.quiz_id}/review/${attempt?.id}`)}
+                className="ml-auto"
+              >
+                Review
+              </Button>
             </div>
           )}
         </CardHeader>
