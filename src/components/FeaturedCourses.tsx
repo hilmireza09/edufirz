@@ -1,124 +1,114 @@
+import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { Clock, Star, Users } from "lucide-react";
-import mathImage from "@/assets/course-math.jpg";
-import programmingImage from "@/assets/course-programming.jpg";
-import languageImage from "@/assets/course-language.jpg";
+import { BrainCircuit, GraduationCap, ArrowRight, Sparkles, Users, MessageSquare } from "lucide-react";
 
-const courses = [
+const features = [
   {
-    id: 1,
-    title: "Advanced Mathematics",
-    description: "Master calculus, algebra, and geometry with expert instructors",
-    image: mathImage,
-    rating: 4.9,
-    students: 2340,
-    duration: "8 weeks",
-    level: "Intermediate",
-    color: "from-blue-500 to-cyan-500",
+    id: 'flashcards',
+    title: 'Flashcards',
+    description: 'Master subjects with active recall. Create custom decks or study from shared collections.',
+    icon: BrainCircuit,
+    path: '/flashcards',
+    color: 'text-purple-600 dark:text-purple-400',
+    bg: 'bg-purple-100 dark:bg-purple-900/30',
+    gradient: 'from-pink-500 to-purple-600',
+    delay: '0s'
   },
   {
-    id: 2,
-    title: "Web Development Bootcamp",
-    description: "Learn HTML, CSS, JavaScript, and React from scratch",
-    image: programmingImage,
-    rating: 4.8,
-    students: 3120,
-    duration: "12 weeks",
-    level: "Beginner",
-    color: "from-purple-500 to-pink-500",
+    id: 'quizzes',
+    title: 'Quizzes',
+    description: 'Test your knowledge and track progress with comprehensive interactive quizzes.',
+    icon: GraduationCap,
+    path: '/quizzes',
+    color: 'text-blue-600 dark:text-blue-400',
+    bg: 'bg-blue-100 dark:bg-blue-900/30',
+    gradient: 'from-blue-500 to-cyan-500',
+    delay: '0.1s'
   },
   {
-    id: 3,
-    title: "Language Mastery",
-    description: "Become fluent in Spanish, French, or Mandarin",
-    image: languageImage,
-    rating: 4.7,
-    students: 1890,
-    duration: "10 weeks",
-    level: "All Levels",
-    color: "from-orange-500 to-red-500",
+    id: 'classes',
+    title: 'Classes',
+    description: 'Join classrooms, manage assignments, and collaborate with teachers and peers.',
+    icon: Users,
+    path: '/classes',
+    color: 'text-emerald-600 dark:text-emerald-400',
+    bg: 'bg-emerald-100 dark:bg-emerald-900/30',
+    gradient: 'from-emerald-500 to-teal-500',
+    delay: '0.2s'
   },
+  {
+    id: 'forum',
+    title: 'Forum',
+    description: 'Engage in discussions, ask questions, and share knowledge with the community.',
+    icon: MessageSquare,
+    path: '/forum',
+    color: 'text-orange-600 dark:text-orange-400',
+    bg: 'bg-orange-100 dark:bg-orange-900/30',
+    gradient: 'from-orange-500 to-amber-500',
+    delay: '0.3s'
+  }
 ];
 
 const FeaturedCourses = () => {
+  const navigate = useNavigate();
+
   return (
-    <section className="py-24 px-4 relative overflow-hidden">
-      {/* Enhanced liquid glass background */}
-      <div className="absolute inset-0 overflow-hidden">
-        <div className="absolute top-0 left-0 w-full h-1/2 bg-gradient-to-b from-transparent to-white/30 backdrop-blur-xl"></div>
-        <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-purple-200/40 rounded-full blur-3xl animate-pulse"></div>
-        <div className="absolute top-1/3 right-1/4 w-80 h-80 bg-white/30 rounded-full blur-3xl animate-pulse" style={{ animationDelay: "1s" }}></div>
-        <div className="absolute bottom-0 left-0 w-full h-32 bg-gradient-to-t from-white to-transparent"></div>
+    <section className="py-24 px-4 relative overflow-hidden bg-slate-50/50 dark:bg-slate-950/50">
+      {/* Background Elements */}
+      <div className="absolute inset-0 overflow-hidden pointer-events-none">
+        <div className="absolute top-0 left-1/4 w-[500px] h-[500px] bg-purple-200/30 dark:bg-purple-900/20 rounded-full blur-[100px] animate-pulse" />
+        <div className="absolute bottom-0 right-1/4 w-[500px] h-[500px] bg-blue-200/30 dark:bg-blue-900/20 rounded-full blur-[100px] animate-pulse delay-1000" />
       </div>
-      
+
       <div className="container mx-auto max-w-7xl relative z-10">
-        <div className="text-center mb-16 animate-fade-in-up">
-          <div className="inline-block px-4 py-2 rounded-full glass-card text-sm font-medium mb-4">
-            Popular Picks
+        <div className="text-center mb-16 space-y-4 animate-in fade-in slide-in-from-bottom-4 duration-700">
+          <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-white/80 dark:bg-slate-900/80 border border-purple-100 dark:border-purple-900/50 shadow-sm backdrop-blur-md text-sm font-medium text-purple-600 dark:text-purple-400">
+            <Sparkles className="w-4 h-4" />
+            <span>Explore Features</span>
           </div>
-          <h2 className="text-4xl md:text-5xl font-bold mb-4">
-            Featured <span className="gradient-text">Courses</span>
+          <h2 className="text-4xl md:text-5xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-slate-900 via-purple-800 to-slate-900 dark:from-white dark:via-purple-200 dark:to-white">
+            Everything You Need to Excel
           </h2>
-          <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
-            Discover our most popular courses, carefully curated to help you achieve your learning goals
+          <p className="text-lg text-muted-foreground max-w-2xl mx-auto leading-relaxed">
+            Discover powerful tools designed to enhance your learning journey. From active recall to community discussions, we have it all.
           </p>
         </div>
 
-        <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
-          {courses.map((course, index) => (
-            <Card
-              key={course.id}
-              className="glass-card border-0 overflow-hidden hover-lift group animate-entrance-card backdrop-blur-lg bg-white/50"
-              style={{ animationDelay: `${index * 0.15}s` }}
+        <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6 lg:gap-8">
+          {features.map((feature) => (
+            <div 
+              key={feature.id}
+              onClick={() => navigate(feature.path)}
+              className="group relative cursor-pointer animate-in fade-in slide-in-from-bottom-8 duration-700 fill-mode-backwards"
+              style={{ animationDelay: feature.delay }}
             >
-              <div className="relative overflow-hidden">
-                <img
-                  src={course.image}
-                  alt={course.title}
-                  className="w-full h-48 object-cover transition-transform duration-500 group-hover:scale-110"
-                />
-                <div className={`absolute inset-0 bg-gradient-to-br ${course.color} opacity-20 mix-blend-overlay`} />
-                <div className="absolute top-4 right-4 glass-card px-3 py-1 rounded-full text-sm font-medium bg-white/30 backdrop-blur-sm">
-                  {course.level}
+              <div className={`absolute -inset-0.5 bg-gradient-to-r ${feature.gradient} rounded-3xl opacity-0 group-hover:opacity-30 blur transition duration-500`} />
+              <Card className="relative h-full overflow-hidden border-white/20 bg-white/80 dark:bg-slate-900/80 backdrop-blur-xl rounded-3xl p-6 transition-all duration-500 group-hover:translate-y-[-4px] group-hover:shadow-xl">
+                <div className="absolute top-0 right-0 p-6 opacity-[0.03] group-hover:opacity-10 transition-opacity duration-500">
+                  <feature.icon className={`w-32 h-32 ${feature.color} rotate-12`} />
                 </div>
-              </div>
-
-              <div className="p-6 space-y-4">
-                <h3 className="text-xl font-bold group-hover:text-primary transition-colors">
-                  {course.title}
-                </h3>
-                <p className="text-muted-foreground text-sm">
-                  {course.description}
-                </p>
-
-                <div className="flex items-center justify-between text-sm">
-                  <div className="flex items-center gap-1">
-                    <Star className="w-4 h-4 fill-accent text-accent" />
-                    <span className="font-medium">{course.rating}</span>
+                
+                <div className="relative z-10 flex flex-col h-full">
+                  <div className={`w-14 h-14 rounded-2xl ${feature.bg} flex items-center justify-center mb-6 group-hover:scale-110 transition-transform duration-500`}>
+                    <feature.icon className={`w-7 h-7 ${feature.color}`} />
                   </div>
-                  <div className="flex items-center gap-1 text-muted-foreground">
-                    <Users className="w-4 h-4" />
-                    <span>{course.students.toLocaleString()}</span>
-                  </div>
-                  <div className="flex items-center gap-1 text-muted-foreground">
-                    <Clock className="w-4 h-4" />
-                    <span>{course.duration}</span>
+                  
+                  <h3 className="text-xl font-bold mb-3 text-slate-900 dark:text-white group-hover:text-purple-600 dark:group-hover:text-purple-400 transition-colors">
+                    {feature.title}
+                  </h3>
+                  
+                  <p className="text-muted-foreground mb-6 text-sm leading-relaxed flex-grow">
+                    {feature.description}
+                  </p>
+
+                  <div className="flex items-center text-sm font-medium text-purple-600 dark:text-purple-400 opacity-0 -translate-x-2 group-hover:opacity-100 group-hover:translate-x-0 transition-all duration-300">
+                    Explore <ArrowRight className="ml-2 w-4 h-4" />
                   </div>
                 </div>
-
-                <Button className="w-full bg-gradient-to-r from-primary to-secondary hover:opacity-90">
-                  Enroll Now
-                </Button>
-              </div>
-            </Card>
+              </Card>
+            </div>
           ))}
-        </div>
-
-        <div className="text-center mt-12">
-          <Button size="lg" variant="outline" className="glass-card hover-lift bg-white/30 backdrop-blur-sm border-white/50">
-            View All Courses
-          </Button>
         </div>
       </div>
     </section>
