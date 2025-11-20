@@ -134,7 +134,7 @@ export const QuestionEditor = ({ question, index, onUpdate, onRemove }: Question
         <GripVertical className="h-5 w-5 text-muted-foreground" />
       </div>
 
-      <CardContent className="p-6 pl-10">
+      <CardContent className="p-6 pl-10 relative z-10">
         {/* Header */}
         <div className="flex justify-between items-start mb-6">
           <div className="flex items-center gap-3">
@@ -147,6 +147,7 @@ export const QuestionEditor = ({ question, index, onUpdate, onRemove }: Question
             </div>
           </div>
           <Button
+            type="button"
             size="icon"
             variant="ghost"
             className="text-destructive hover:text-destructive hover:bg-destructive/10 transition-all"
@@ -164,33 +165,36 @@ export const QuestionEditor = ({ question, index, onUpdate, onRemove }: Question
               const TypeIcon = typeConfig.icon;
               return (
                 <button
+                  type="button"
                   key={type}
                   onClick={() => {
-                    onUpdate(index, 'type', type);
-                    // Reset answers when type changes
-                    if (type !== 'checkbox') {
-                      onUpdate(index, 'correct_answers', undefined);
-                      setSelectedOptions(new Set());
-                    }
-                    // Set appropriate options based on question type
-                    if (type === 'true_false') {
-                      onUpdate(index, 'options', ['True', 'False']);
-                      onUpdate(index, 'correct_answer', '');
-                    } else if (type === 'essay' || type === 'fill_in_blank') {
-                      // Essay and Fill-in-blank don't need options
-                      onUpdate(index, 'options', null);
-                      onUpdate(index, 'correct_answer', '');
-                    } else if (type === 'multiple_choice' || type === 'checkbox') {
-                      // Ensure options array exists for multiple choice and checkbox
-                      if (!question.options || question.options.length === 0) {
-                        onUpdate(index, 'options', ['', '', '', '']);
+                    if (type !== question.type) {
+                      onUpdate(index, 'type', type);
+                      // Reset answers when type changes
+                      if (type !== 'checkbox') {
+                        onUpdate(index, 'correct_answers', undefined);
+                        setSelectedOptions(new Set());
                       }
-                      onUpdate(index, 'correct_answer', '');
+                      // Set appropriate options based on question type
+                      if (type === 'true_false') {
+                        onUpdate(index, 'options', ['True', 'False']);
+                        onUpdate(index, 'correct_answer', '');
+                      } else if (type === 'essay' || type === 'fill_in_blank') {
+                        // Essay and Fill-in-blank don't need options
+                        onUpdate(index, 'options', null);
+                        onUpdate(index, 'correct_answer', '');
+                      } else if (type === 'multiple_choice' || type === 'checkbox') {
+                        // Ensure options array exists for multiple choice and checkbox
+                        if (!question.options || question.options.length === 0) {
+                          onUpdate(index, 'options', ['', '', '', '']);
+                        }
+                        onUpdate(index, 'correct_answer', '');
+                      }
                     }
                   }}
-                  className={`p-3 rounded-xl border-2 transition-all duration-200 flex flex-col items-center gap-2 ${
+                  className={`p-3 rounded-xl border-2 transition-all duration-200 flex flex-col items-center gap-2 cursor-pointer relative z-20 ${
                     question.type === type
-                      ? typeConfig.color + ' border-current shadow-md'
+                      ? typeConfig.color + ' border-current shadow-md ring-2 ring-primary/50'
                       : 'bg-card hover:bg-accent border-border'
                   }`}
                 >
@@ -236,6 +240,7 @@ export const QuestionEditor = ({ question, index, onUpdate, onRemove }: Question
                   Answer Options {question.type === 'checkbox' && <Badge variant="secondary" className="ml-2">Select all correct</Badge>}
                 </label>
                 <Button
+                  type="button"
                   onClick={addOption}
                   variant="outline"
                   size="sm"
@@ -253,7 +258,7 @@ export const QuestionEditor = ({ question, index, onUpdate, onRemove }: Question
                       <button
                         type="button"
                         onClick={() => toggleCheckboxOption(optIdx)}
-                        className={`flex-shrink-0 w-5 h-5 rounded border-2 transition-all ${
+                        className={`flex-shrink-0 w-5 h-5 rounded border-2 transition-all cursor-pointer relative z-20 ${
                           selectedOptions.has(optIdx)
                             ? 'bg-primary border-primary text-primary-foreground'
                             : 'border-muted-foreground/30 hover:border-primary/50'
@@ -265,7 +270,7 @@ export const QuestionEditor = ({ question, index, onUpdate, onRemove }: Question
                       <button
                         type="button"
                         onClick={() => onUpdate(index, 'correct_answer', option)}
-                        className={`flex-shrink-0 w-5 h-5 rounded-full border-2 transition-all ${
+                        className={`flex-shrink-0 w-5 h-5 rounded-full border-2 transition-all cursor-pointer relative z-20 ${
                           question.correct_answer === option
                             ? 'bg-primary border-primary'
                             : 'border-muted-foreground/30 hover:border-primary/50'
@@ -283,6 +288,7 @@ export const QuestionEditor = ({ question, index, onUpdate, onRemove }: Question
                       className="flex-1 bg-background/50 border-border/50 focus:border-primary/50"
                     />
                     <Button
+                      type="button"
                       size="icon"
                       variant="ghost"
                       className="opacity-0 group-hover/option:opacity-100 transition-opacity text-destructive hover:text-destructive hover:bg-destructive/10"
@@ -309,9 +315,10 @@ export const QuestionEditor = ({ question, index, onUpdate, onRemove }: Question
               <div className="grid grid-cols-2 gap-3">
                 {['True', 'False'].map((answer) => (
                   <button
+                    type="button"
                     key={answer}
                     onClick={() => onUpdate(index, 'correct_answer', answer)}
-                    className={`p-4 rounded-xl border-2 font-medium transition-all duration-200 ${
+                    className={`p-4 rounded-xl border-2 font-medium transition-all duration-200 cursor-pointer relative z-20 ${
                       question.correct_answer === answer
                         ? 'bg-primary text-primary-foreground border-primary shadow-md'
                         : 'bg-card hover:bg-accent border-border'

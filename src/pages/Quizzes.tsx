@@ -287,9 +287,11 @@ const Quizzes = () => {
    * Updates a field of a question at index.
    */
   const updateQuestion = (index: number, field: keyof QuizQuestion, value: string | number | string[] | boolean | undefined) => {
-    const next = [...questionDrafts];
-    next[index] = { ...next[index], [field]: value };
-    setQuestionDrafts(next);
+    setQuestionDrafts(prev => {
+      const next = [...prev];
+      next[index] = { ...next[index], [field]: value };
+      return next;
+    });
   };
 
   /**
@@ -795,7 +797,7 @@ const Quizzes = () => {
                       <Sparkles className="h-5 w-5 text-primary" />
                       Questions
                     </h3>
-                    <Button onClick={addQuestion} className="flex items-center gap-2 bg-gradient-to-r from-primary to-secondary hover:opacity-90">
+                    <Button type="button" onClick={addQuestion} className="flex items-center gap-2 bg-gradient-to-r from-primary to-secondary hover:opacity-90">
                       <Plus className="h-4 w-4" />
                       Add Question
                     </Button>
@@ -806,7 +808,7 @@ const Quizzes = () => {
                       <Sparkles className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
                       <h3 className="text-lg font-semibold mb-2">No questions yet</h3>
                       <p className="text-muted-foreground mb-4">Get started by adding your first question</p>
-                      <Button onClick={addQuestion} className="bg-gradient-to-r from-primary to-secondary hover:opacity-90">
+                      <Button type="button" onClick={addQuestion} className="bg-gradient-to-r from-primary to-secondary hover:opacity-90">
                         <Plus className="h-4 w-4 mr-2" />
                         Add Your First Question
                       </Button>
