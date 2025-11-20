@@ -66,8 +66,16 @@ const AssignmentScores = () => {
 
           if (error) throw error;
           
+          // Deduplicate by user_id to show only the best score per student
+          const uniqueAttempts = new Map();
+          (attempts || []).forEach((a: any) => {
+            if (!uniqueAttempts.has(a.user_id)) {
+              uniqueAttempts.set(a.user_id, a);
+            }
+          });
+          
           // Transform data to match type
-          const formattedScores: StudentScore[] = (attempts || []).map((a: any) => ({
+          const formattedScores: StudentScore[] = Array.from(uniqueAttempts.values()).map((a: any) => ({
             id: a.id,
             score: a.score,
             completed_at: a.completed_at,

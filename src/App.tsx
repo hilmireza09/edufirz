@@ -11,6 +11,7 @@ import Dashboard from "./pages/Dashboard";
 import Flashcards from "./pages/Flashcards";
 import CreateDeck from "./pages/CreateDeck";
 import Quizzes from "./pages/Quizzes";
+import QuizTake from "./pages/QuizTake";
 import Classes from "./pages/Classes";
 import ClassDetails from "./pages/ClassDetails";
 import Forum from "./pages/Forum";
@@ -34,6 +35,7 @@ const App = () => (
             <Route path="/flashcards" element={<Flashcards />} />
             <Route path="/flashcards/new" element={<CreateDeck />} />
             <Route path="/quizzes" element={<Quizzes />} />
+            <Route path="/quizzes/:id/take" element={<QuizTake />} />
             <Route path="/classes" element={<Classes />} />
             <Route path="/classes/:id/*" element={<ClassDetails />} />
             <Route path="/forum/*" element={<Forum />} />

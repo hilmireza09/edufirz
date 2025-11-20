@@ -67,6 +67,21 @@ export const QuestionEditor = ({ question, index, onUpdate, onRemove }: Question
 
   const handleOptionChange = (optionIndex: number, value: string) => {
     const newOptions = [...(question.options || [])];
+    const oldValue = newOptions[optionIndex];
+    
+    // Update correct_answer if it matches the old value (for multiple choice)
+    if (question.type === 'multiple_choice' && question.correct_answer === oldValue) {
+      onUpdate(index, 'correct_answer', value);
+    }
+    
+    // Update correct_answers for checkbox if it contains the old value
+    if (question.type === 'checkbox' && question.correct_answers?.includes(oldValue)) {
+      const newCorrect = (question.correct_answers || []).map(a => a === oldValue ? value : a);
+      onUpdate(index, 'correct_answers', newCorrect);
+      // Also update the delimited string version
+      onUpdate(index, 'correct_answer', newCorrect.join('|||'));
+    }
+
     newOptions[optionIndex] = value;
     onUpdate(index, 'options', newOptions);
   };
@@ -189,7 +204,19 @@ export const QuestionEditor = ({ question, index, onUpdate, onRemove }: Question
 
         {/* Question Text */}
         <div className="mb-6">
-          <label className="text-sm font-medium mb-2 block">Question Text</label>
+          <div className="flex justify-between items-center mb-2">
+            <label className="text-sm font-medium">Question Text</label>
+            <div className="flex items-center gap-2 bg-muted/30 px-3 py-1 rounded-lg border border-border/50">
+              <label className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Points</label>
+              <Input
+                type="number"
+                min={0}
+                value={question.points ?? 1}
+                onChange={(e) => onUpdate(index, 'points', parseInt(e.target.value) || 0)}
+                className="w-16 h-7 text-center bg-background border-border/50 focus:border-primary/50"
+              />
+            </div>
+          </div>
           <Textarea
             value={question.question}
             onChange={(e) => onUpdate(index, 'question', e.target.value)}

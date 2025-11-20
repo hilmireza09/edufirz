@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import { Button } from '@/components/ui/button';
@@ -7,9 +7,10 @@ import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Label } from '@/components/ui/label';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Textarea } from '@/components/ui/textarea';
+import { Badge } from '@/components/ui/badge';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
-import { Loader2, CheckCircle, XCircle, ArrowLeft } from 'lucide-react';
+import { Loader2, CheckCircle, XCircle, ArrowLeft, AlertCircle } from 'lucide-react';
 
 type Question = {
   id: string;
@@ -25,6 +26,7 @@ type QuizAttempt = {
   score: number | null;
   completed_at: string | null;
   answers: Record<string, any>;
+  attempt_number?: number;
 };
 
 const QuizPlayer = () => {
@@ -39,19 +41,25 @@ const QuizPlayer = () => {
   const [answers, setAnswers] = useState<Record<string, any>>({});
   const [attempt, setAttempt] = useState<QuizAttempt | null>(null);
   const [quizId, setQuizId] = useState<string | null>(null);
+  
+  const [attemptsAllowed, setAttemptsAllowed] = useState<number | null>(null);
+  const [attemptsCount, setAttemptsCount] = useState(0);
+  const [maxAttemptsReached, setMaxAttemptsReached] = useState(false);
 
   useEffect(() => {
     if (user && assignmentId) {
       fetchQuizData();
     }
-  }, [assignmentId, user]);
+  }, [assignmentId, user, fetchQuizData]);
 
-  const fetchQuizData = async () => {
+  const fetchQuizData = useCallback(async () => {
     try {
+      if (!user?.id || !assignmentId) return;
+
       // 1. Get Assignment details to find quiz_id
       const { data: assignment, error: assignError } = await supabase
         .from('class_assignments')
-        .select('quiz_id, quiz:quizzes(title)')
+        .select('quiz_id, quiz:quizzes(title, attempts_allowed)')
         .eq('id', assignmentId)
         .single();
 
@@ -64,37 +72,63 @@ const QuizPlayer = () => {
 
       setQuizId(assignment.quiz_id);
       setQuizTitle(assignment.quiz?.title || 'Quiz');
+      setAttemptsAllowed(assignment.quiz?.attempts_allowed);
 
-      // 2. Check for existing attempt
-      const { data: existingAttempt, error: attemptError } = await supabase
+      // 2. Check for existing attempts
+      const { data: existingAttempts, error: attemptsError } = await supabase
         .from('quiz_attempts')
         .select('*')
         .eq('quiz_id', assignment.quiz_id)
-        .eq('user_id', user?.id)
-        .maybeSingle();
+        .eq('user_id', user.id)
+        .order('started_at', { ascending: false });
 
-      if (attemptError) throw attemptError;
+      if (attemptsError) throw attemptsError;
       
-      if (existingAttempt) {
-        setAttempt(existingAttempt);
-        if (existingAttempt.answers) {
-          setAnswers(existingAttempt.answers);
-        }
+      const attempts = existingAttempts || [];
+      const completedAttempts = attempts.filter(a => a.completed_at);
+      setAttemptsCount(completedAttempts.length);
+
+      // Check for an active (incomplete) attempt
+      const activeAttempt = attempts.find(a => !a.completed_at);
+
+      if (activeAttempt) {
+        setAttempt(activeAttempt);
+        setAnswers(activeAttempt.answers || {});
+        setMaxAttemptsReached(false);
       } else {
-        // Start new attempt
-        const { data: newAttempt, error: createError } = await supabase
-          .from('quiz_attempts')
-          .insert({
-            quiz_id: assignment.quiz_id,
-            user_id: user?.id,
-            started_at: new Date().toISOString(),
-            answers: {}
-          })
-          .select()
-          .single();
+        // Check limits
+        const limit = assignment.quiz?.attempts_allowed;
+        const completedCount = completedAttempts.length;
         
-        if (createError) throw createError;
-        setAttempt(newAttempt);
+        if (limit !== null && completedCount >= limit) {
+          setMaxAttemptsReached(true);
+          if (attempts.length > 0) {
+            setAttempt(attempts[0]);
+            setAnswers(attempts[0].answers || {});
+          }
+        } else {
+          // Start new attempt
+          const { data: newAttempt, error: createError } = await supabase
+            .from('quiz_attempts')
+            .insert({
+              quiz_id: assignment.quiz_id,
+              user_id: user.id,
+              started_at: new Date().toISOString(),
+              answers: {},
+              attempt_number: completedCount + 1,
+              completed_at: null // Explicitly set to null
+            })
+            .select()
+            .single();
+          
+          if (createError) {
+            console.error('Error creating attempt:', createError);
+            throw createError;
+          }
+          setAttempt(newAttempt);
+          setAnswers({});
+          setMaxAttemptsReached(false);
+        }
       }
 
       // 3. Fetch Questions
@@ -113,7 +147,7 @@ const QuizPlayer = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [assignmentId, user, classId, navigate]);
 
   const handleAnswerChange = (questionId: string, value: any) => {
     if (attempt?.completed_at) return; // Prevent changes if submitted
@@ -133,47 +167,26 @@ const QuizPlayer = () => {
 
     setSubmitting(true);
     try {
-      // Calculate score (simplified - ideally done on server or with secure answers)
-      // For now, we'll fetch correct answers to calculate score client-side (NOT SECURE but functional for MVP)
-      const { data: correctData } = await supabase
-        .from('quiz_questions')
-        .select('id, correct_answer, correct_answers, points')
-        .eq('quiz_id', quizId);
+      // Use server-side scoring via RPC
+      const { data, error } = await supabase
+        .rpc('submit_quiz_attempt', {
+          p_attempt_id: attempt.id,
+          p_answers: answers
+        });
 
-      let totalScore = 0;
-      let maxScore = 0;
+      if (error) {
+        console.error('RPC error:', error);
+        throw error;
+      }
 
-      correctData?.forEach(q => {
-        const userAnswer = answers[q.id];
-        maxScore += q.points || 1;
+      if (!data || !data.success) {
+        throw new Error(data?.error || 'Failed to submit quiz');
+      }
 
-        if (!userAnswer) return;
+      const totalScore = data.score;
+      const maxScore = data.max_score;
 
-        if (q.correct_answer) {
-          // Single answer check
-          if (String(userAnswer).toLowerCase() === String(q.correct_answer).toLowerCase()) {
-            totalScore += q.points || 1;
-          }
-        } else if (q.correct_answers) {
-          // Multiple answer check (simplified exact match of arrays)
-          // Implementation depends on how checkbox answers are stored
-        }
-      });
-
-      // Update attempt
-      const { error } = await supabase
-        .from('quiz_attempts')
-        .update({
-          answers: answers,
-          completed_at: new Date().toISOString(),
-          score: totalScore
-        })
-        .eq('id', attempt.id);
-
-      if (error) throw error;
-
-      // Also update assignment_submissions if needed (optional, but good for redundancy)
-      // Check if submission exists
+      // Also update assignment_submissions if needed
       const { data: existingSub } = await supabase
         .from('assignment_submissions')
         .select('id')
@@ -197,12 +210,12 @@ const QuizPlayer = () => {
         }).eq('id', existingSub.id);
       }
 
-      toast.success('Quiz submitted successfully!');
+      toast.success(`Quiz submitted! Score: ${totalScore}/${maxScore}`);
       setAttempt(prev => prev ? { ...prev, completed_at: new Date().toISOString(), score: totalScore } : null);
       
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error submitting quiz:', error);
-      toast.error('Failed to submit quiz');
+      toast.error(error.message || 'Failed to submit quiz');
     } finally {
       setSubmitting(false);
     }
@@ -222,7 +235,22 @@ const QuizPlayer = () => {
 
       <Card className="border-primary/20 bg-card/80 backdrop-blur-xl">
         <CardHeader>
-          <CardTitle className="text-2xl text-primary">{quizTitle}</CardTitle>
+          <div className="flex justify-between items-start">
+            <CardTitle className="text-2xl text-primary">{quizTitle}</CardTitle>
+            {attemptsAllowed !== null && (
+              <Badge variant="outline" className="ml-2">
+                Attempt {attempt?.attempt_number || (attemptsCount + (isCompleted ? 0 : 1))} of {attemptsAllowed}
+              </Badge>
+            )}
+          </div>
+
+          {maxAttemptsReached && (
+            <div className="flex items-center gap-2 text-amber-600 mt-2 bg-amber-50 dark:bg-amber-900/20 p-3 rounded-lg border border-amber-100 dark:border-amber-900/50">
+              <AlertCircle className="h-5 w-5" />
+              <span className="font-semibold">Maximum attempts reached. Showing your latest attempt.</span>
+            </div>
+          )}
+
           {isCompleted && (
             <div className="flex items-center gap-2 text-green-500 mt-2">
               <CheckCircle className="h-5 w-5" />
@@ -238,7 +266,7 @@ const QuizPlayer = () => {
             <CardHeader className="bg-muted/30 pb-3">
               <div className="flex justify-between">
                 <h3 className="font-medium text-lg">Question {index + 1}</h3>
-                <span className="text-sm text-muted-foreground">{q.points} pts</span>
+                <span className="text-sm text-muted-foreground">{q.points ?? 1} pts</span>
               </div>
             </CardHeader>
             <CardContent className="pt-4 space-y-4">
@@ -258,6 +286,35 @@ const QuizPlayer = () => {
                       </div>
                     ))}
                   </RadioGroup>
+                )}
+
+                {q.question_type === 'checkbox' && q.options && (
+                  <div className="space-y-2">
+                    {q.options.map((opt, i) => {
+                      const isChecked = (answers[q.id] || []).includes(opt);
+                      return (
+                        <div key={i} className="flex items-center space-x-2 p-2 rounded hover:bg-accent/50">
+                          <Checkbox 
+                            id={`${q.id}-${i}`} 
+                            checked={isChecked}
+                            onCheckedChange={(checked) => {
+                              if (isCompleted) return;
+                              const currentAnswers = answers[q.id] || [];
+                              let newAnswers;
+                              if (checked) {
+                                newAnswers = [...currentAnswers, opt];
+                              } else {
+                                newAnswers = currentAnswers.filter((a: string) => a !== opt);
+                              }
+                              handleAnswerChange(q.id, newAnswers);
+                            }}
+                            disabled={isCompleted}
+                          />
+                          <Label htmlFor={`${q.id}-${i}`} className="flex-1 cursor-pointer">{opt}</Label>
+                        </div>
+                      );
+                    })}
+                  </div>
                 )}
 
                 {q.question_type === 'true_false' && (

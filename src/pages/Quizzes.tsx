@@ -572,7 +572,7 @@ const Quizzes = () => {
                   <>
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                       {filteredQuizzes.slice((currentPage - 1) * quizzesPerPage, currentPage * quizzesPerPage).map((quiz) => (
-                        <div key={quiz.id} className="bg-card/80 backdrop-blur-sm rounded-2xl border border-border shadow-sm p-6 cursor-pointer hover:shadow-md transition-all duration-300" onClick={() => { setSelectedQuiz(quiz); setMode('attempt'); }}>
+                        <div key={quiz.id} className="bg-card/80 backdrop-blur-sm rounded-2xl border border-border shadow-sm p-6 cursor-pointer hover:shadow-md transition-all duration-300" onClick={() => navigate(`/quizzes/${quiz.id}/take`)}>
                           <div className="flex justify-between items-start mb-2">
                             <h3 className="font-semibold truncate">{quiz.title}</h3>
                             <div className="flex gap-1">
