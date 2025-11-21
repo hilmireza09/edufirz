@@ -19,28 +19,12 @@ const Settings = () => {
   const [emailNotifications, setEmailNotifications] = useState(true);
 
   useEffect(() => {
-    const fetchProfile = async () => {
-      if (!user) return;
-      
-      try {
-        const { data, error } = await supabase
-          .from('profiles')
-          .select('*')
-          .eq('id', user.id)
-          .single();
-          
-        if (error) throw error;
-        
-        setProfile(data);
-        setFullName(data.full_name || '');
-        // Assuming there might be a notification setting in the future, for now just local state
-      } catch (error) {
-        console.error('Error fetching profile:', error);
-      }
-    };
-    
-    fetchProfile();
-  }, [user]);
+    // Use profile from useAuth instead of fetching
+    if (profile) {
+      setProfile(profile);
+      setFullName(profile.full_name || '');
+    }
+  }, [profile]);
 
   const handleSaveProfile = async () => {
     if (!user) return;

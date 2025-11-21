@@ -73,35 +73,20 @@ const Flashcards = () => {
     { id: 'settings', title: 'Settings', icon: Settings },
   ];
 
-  // Fetch user role
+  // Use profile from useAuth instead of fetching
   useEffect(() => {
-    const fetchUserRole = async () => {
-      if (!user) return;
-      
-      const { data, error } = await supabase
-        .from('profiles')
-        .select('*')
-        .eq('id', user.id)
-        .single();
-      
-      if (!error && data) {
-        setUserRole(data.role || 'student');
-        setProfile(data);
-      } else {
-        console.error('Error fetching profile:', error);
-        setUserRole('student');
-      }
-      setLoading(false);
-    };
-
-    fetchUserRole();
-  }, [user]);
+    if (profile) {
+      setUserRole(profile.role || 'student');
+      setProfile(profile);
+    }
+  }, [profile]);
 
   // Fetch decks based on user role
   useEffect(() => {
     const fetchDecks = async () => {
-      if (!user || loading) return;
+      if (!user || !userRole) return;
       
+      setLoading(true);
       try {
         let query = supabase
           .from('decks')
@@ -145,11 +130,13 @@ const Flashcards = () => {
       } catch (error) {
         console.error('Error fetching decks:', error);
         toast.error('Failed to load flashcards');
+      } finally {
+        setLoading(false);
       }
     };
 
     fetchDecks();
-  }, [user, userRole, loading, selectedDeck, editingDeck]);
+  }, [user, userRole]);
 
   // Close profile menu when clicking outside
   useEffect(() => {

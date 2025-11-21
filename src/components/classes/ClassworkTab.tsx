@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import { Button } from '@/components/ui/button';
@@ -31,7 +31,7 @@ type Quiz = {
 
 const ClassworkTab = () => {
   const { id: classId } = useParams<{ id: string }>();
-  const { user } = useAuth();
+  const { user, profile } = useAuth();
   const navigate = useNavigate();
   const [assignments, setAssignments] = useState<Assignment[]>([]);
   const [loading, setLoading] = useState(true);
@@ -46,24 +46,14 @@ const ClassworkTab = () => {
   const [teacherQuizzes, setTeacherQuizzes] = useState<Quiz[]>([]);
   const [submitting, setSubmitting] = useState(false);
 
+  // Use profile from useAuth
   useEffect(() => {
-    if (user && classId && classId !== 'undefined') {
-      checkUserRole();
-      fetchAssignments();
+    if (profile) {
+      setUserRole(profile.role || 'student');
     }
-  }, [classId, user]);
+  }, [profile]);
 
-  const checkUserRole = async () => {
-    if (!user) return;
-    const { data } = await supabase
-      .from('profiles')
-      .select('role')
-      .eq('id', user.id)
-      .single();
-    if (data) setUserRole(data.role);
-  };
-
-  const fetchAssignments = async () => {
+  const fetchAssignments = useCallback(async () => {
     try {
       const { data, error } = await supabase
         .from('class_assignments')
@@ -82,7 +72,13 @@ const ClassworkTab = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [classId]);
+
+  useEffect(() => {
+    if (user && classId && classId !== 'undefined') {
+      fetchAssignments();
+    }
+  }, [classId, user, fetchAssignments]);
 
   const fetchTeacherQuizzes = async () => {
     if (!user) return;

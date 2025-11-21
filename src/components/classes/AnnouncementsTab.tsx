@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useParams } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import { Button } from '@/components/ui/button';
@@ -26,7 +26,7 @@ type Announcement = {
 
 const AnnouncementsTab = () => {
   const { id: classId } = useParams<{ id: string }>();
-  const { user } = useAuth();
+  const { user, profile } = useAuth();
   const [announcements, setAnnouncements] = useState<Announcement[]>([]);
   const [loading, setLoading] = useState(true);
   const [isCreateOpen, setIsCreateOpen] = useState(false);
@@ -35,24 +35,14 @@ const AnnouncementsTab = () => {
   const [submitting, setSubmitting] = useState(false);
   const [userRole, setUserRole] = useState<string>('student');
 
+  // Use profile from useAuth
   useEffect(() => {
-    if (user && classId && classId !== 'undefined') {
-      checkUserRole();
-      fetchAnnouncements();
+    if (profile) {
+      setUserRole(profile.role || 'student');
     }
-  }, [classId, user]);
+  }, [profile]);
 
-  const checkUserRole = async () => {
-    if (!user) return;
-    const { data } = await supabase
-      .from('profiles')
-      .select('role')
-      .eq('id', user.id)
-      .single();
-    if (data) setUserRole(data.role);
-  };
-
-  const fetchAnnouncements = async () => {
+  const fetchAnnouncements = useCallback(async () => {
     try {
       const { data, error } = await supabase
         .from('class_announcements')
@@ -71,7 +61,13 @@ const AnnouncementsTab = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [classId]);
+
+  useEffect(() => {
+    if (user && classId && classId !== 'undefined') {
+      fetchAnnouncements();
+    }
+  }, [classId, user, fetchAnnouncements]);
 
   const handleCreate = async () => {
     if (!newTitle.trim() || !newContent.trim()) {

@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
+import { useQuizTimer } from '@/hooks/useQuizTimer';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
@@ -10,7 +11,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
-import { Loader2, CheckCircle, ArrowLeft, AlertCircle } from 'lucide-react';
+import { Loader2, CheckCircle, ArrowLeft, AlertCircle, Clock } from 'lucide-react';
 
 type Question = {
   id: string;
@@ -39,12 +40,76 @@ const QuizTake = () => {
   const [quizTitle, setQuizTitle] = useState('');
   const [creatorId, setCreatorId] = useState<string | null>(null);
   const [questions, setQuestions] = useState<Question[]>([]);
-  const [answers, setAnswers] = useState<Record<string, any>>({});
+  const [answers, setAnswers] = useState<Record<string, string | string[]>>({});
   const [attempt, setAttempt] = useState<QuizAttempt | null>(null);
+  const [timeLimit, setTimeLimit] = useState<number | null>(null);
 
   const [attemptsAllowed, setAttemptsAllowed] = useState<number | null>(null);
   const [attemptsCount, setAttemptsCount] = useState(0);
   const [maxAttemptsReached, setMaxAttemptsReached] = useState(false);
+
+  // Handle quiz submission (must be defined before useQuizTimer)
+  const handleSubmit = useCallback(async (isAutoSubmit = false) => {
+    if (!attempt || !quizId) return;
+    
+    // Confirm submission only if manual
+    if (!isAutoSubmit) {
+      if (!window.confirm('Are you sure you want to submit? You cannot change answers after submission.')) {
+        return;
+      }
+    } else {
+      toast.info('Time expired! Auto-submitting quiz...');
+    }
+
+    setSubmitting(true);
+    try {
+      // Use server-side scoring function
+      const { data, error } = await supabase
+        .rpc('submit_quiz_attempt', {
+          p_attempt_id: attempt.id,
+          p_answers: answers
+        });
+
+      if (error) {
+        console.error('RPC error:', error);
+        throw error;
+      }
+
+      if (!data || !data.success) {
+        throw new Error(data?.error || 'Failed to submit quiz');
+      }
+
+      const totalScore = data.score;
+      const maxScore = data.max_score;
+
+      toast.success(`Quiz submitted! Score: ${totalScore}/${maxScore}`);
+      
+      // Navigate to review page
+      navigate(`/quizzes/${quizId}/review/${attempt.id}`);
+      
+    } catch (error) {
+      console.error('Error submitting quiz:', error);
+      const message = error instanceof Error ? error.message : 'Failed to submit quiz';
+      toast.error(message);
+    } finally {
+      setSubmitting(false);
+    }
+  }, [attempt, quizId, answers, navigate]);
+
+  // Quiz timer hook
+  const {
+    timeRemaining,
+    isActive: isTimerActive,
+    hasStarted: hasTimerStarted,
+    isExpired: isTimerExpired,
+    formattedTime,
+    startTimer
+  } = useQuizTimer({
+    attemptId: attempt?.id || null,
+    timeLimitMinutes: timeLimit,
+    onTimeExpired: () => handleSubmit(true),
+    enabled: !!attempt && !attempt.completed_at && !!timeLimit
+  });
 
   // Fetch quiz data
   const fetchQuizData = useCallback(async () => {
@@ -54,7 +119,7 @@ const QuizTake = () => {
       // 1. Get Quiz details
       const { data: quiz, error: quizError } = await supabase
         .from('quizzes')
-        .select('title, creator_id, attempts_allowed')
+        .select('title, creator_id, attempts_allowed, time_limit')
         .eq('id', quizId)
         .single();
 
@@ -62,6 +127,7 @@ const QuizTake = () => {
       setQuizTitle(quiz.title);
       setCreatorId(quiz.creator_id);
       setAttemptsAllowed(quiz.attempts_allowed);
+      setTimeLimit(quiz.time_limit);
 
       // 2. Get all attempts for this user
       const { data: existingAttempts, error: attemptsError } = await supabase
@@ -131,7 +197,7 @@ const QuizTake = () => {
         .order('order_index');
 
       if (questionsError) throw questionsError;
-      setQuestions(questionsData || []);
+      setQuestions((questionsData as Question[]) || []);
 
     } catch (error) {
       console.error('Error loading quiz:', error);
@@ -219,48 +285,6 @@ const QuizTake = () => {
     }));
   };
 
-  const handleSubmit = async () => {
-    if (!attempt || !quizId) return;
-    
-    // Confirm submission
-    if (!window.confirm('Are you sure you want to submit? You cannot change answers after submission.')) {
-      return;
-    }
-
-    setSubmitting(true);
-    try {
-      // Use server-side scoring function
-      const { data, error } = await supabase
-        .rpc('submit_quiz_attempt', {
-          p_attempt_id: attempt.id,
-          p_answers: answers
-        });
-
-      if (error) {
-        console.error('RPC error:', error);
-        throw error;
-      }
-
-      if (!data || !data.success) {
-        throw new Error(data?.error || 'Failed to submit quiz');
-      }
-
-      const totalScore = data.score;
-      const maxScore = data.max_score;
-
-      toast.success(`Quiz submitted! Score: ${totalScore}/${maxScore}`);
-      
-      // Navigate to review page
-      navigate(`/quizzes/${quizId}/review/${attempt.id}`);
-      
-    } catch (error: any) {
-      console.error('Error submitting quiz:', error);
-      toast.error(error.message || 'Failed to submit quiz');
-    } finally {
-      setSubmitting(false);
-    }
-  };
-
   if (loading) {
     return <div className="flex justify-center py-12"><Loader2 className="animate-spin" /></div>;
   }
@@ -271,7 +295,10 @@ const QuizTake = () => {
   }
 
   const isCompleted = !!attempt?.completed_at;
-  const canAnswer = !isCompleted;
+  const canAnswer = !isCompleted && hasTimerStarted;
+
+  // Show timer start screen if timer exists but hasn't started
+  const showTimerStartScreen = timeLimit && timeLimit > 0 && !hasTimerStarted && !isCompleted;
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-purple-50 to-slate-100 dark:from-slate-950 dark:via-slate-900 dark:to-slate-950 p-4 md:p-8">
@@ -286,11 +313,22 @@ const QuizTake = () => {
               <CardTitle className="text-2xl md:text-3xl font-bold bg-gradient-to-r from-primary to-purple-600 bg-clip-text text-transparent">
                 {quizTitle}
               </CardTitle>
-              {attemptsAllowed !== null && (
-                <Badge variant="outline" className="ml-2">
-                  Attempt {attempt?.attempt_number || (attemptsCount + (isCompleted ? 0 : 1))} of {attemptsAllowed}
-                </Badge>
-              )}
+              <div className="flex items-center gap-2">
+                {attemptsAllowed !== null && (
+                  <Badge variant="outline" className="ml-2">
+                    Attempt {attempt?.attempt_number || (attemptsCount + (isCompleted ? 0 : 1))} of {attemptsAllowed}
+                  </Badge>
+                )}
+                {timeLimit && timeLimit > 0 && hasTimerStarted && !isCompleted && (
+                  <Badge 
+                    variant={timeRemaining < 300 ? "destructive" : "secondary"} 
+                    className="flex items-center gap-1 text-lg px-3 py-1"
+                  >
+                    <Clock className="h-4 w-4" />
+                    {formattedTime}
+                  </Badge>
+                )}
+              </div>
             </div>
 
             {maxAttemptsReached && (
@@ -361,7 +399,39 @@ const QuizTake = () => {
           </CardHeader>
         </Card>
 
-        <div className="space-y-6">
+        {/* Timer Start Screen */}
+        {showTimerStartScreen && (
+          <Card className="border-primary/20 bg-white/80 dark:bg-slate-900/80 backdrop-blur-xl shadow-xl">
+            <CardContent className="p-8 text-center space-y-6">
+              <div className="flex justify-center">
+                <div className="rounded-full bg-primary/10 p-6">
+                  <Clock className="h-16 w-16 text-primary" />
+                </div>
+              </div>
+              <div className="space-y-2">
+                <h3 className="text-2xl font-bold">Ready to Start?</h3>
+                <p className="text-muted-foreground">
+                  This quiz has a time limit of <strong>{timeLimit} minutes</strong>.
+                </p>
+                <p className="text-sm text-muted-foreground">
+                  Once you click "Start Quiz", the timer will begin and cannot be paused.
+                  The quiz questions will appear after you start the timer.
+                </p>
+              </div>
+              <Button
+                onClick={startTimer}
+                size="lg"
+                className="bg-gradient-to-r from-primary to-purple-600 hover:opacity-90 shadow-lg px-8"
+              >
+                <Clock className="mr-2 h-5 w-5" />
+                Start Quiz Timer
+              </Button>
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Questions - Blurred until timer starts */}
+        <div className={`space-y-6 transition-all duration-500 ${!canAnswer && !isCompleted ? 'blur-md pointer-events-none select-none' : ''}`}>
           {questions.map((q, index) => (
             <Card key={q.id} className="overflow-hidden border-white/20 shadow-lg">
               <CardHeader className="bg-muted/30 pb-3 border-b border-border/50">
@@ -378,8 +448,8 @@ const QuizTake = () => {
                 <div className="mt-4">
                   {q.question_type === 'multiple_choice' && q.options && (
                     <RadioGroup 
-                      value={answers[q.id] || ''} 
-                      onValueChange={(val) => handleAnswerChange(q.id, val)}
+                      value={(answers[q.id] as string) || ''}
+                      onValueChange={(value) => handleAnswerChange(q.id, value)}
                       disabled={!canAnswer}
                       className="space-y-3"
                     >
@@ -416,7 +486,7 @@ const QuizTake = () => {
                                 if (checked) {
                                   newAnswers = [...currentAnswers, opt];
                                 } else {
-                                  newAnswers = currentAnswers.filter((a: string) => a !== opt);
+                                  newAnswers = (currentAnswers as string[]).filter((a: string) => a !== opt);
                                 }
                                 handleAnswerChange(q.id, newAnswers);
                               }}
@@ -457,7 +527,7 @@ const QuizTake = () => {
 
                   {(q.question_type === 'essay' || q.question_type === 'fill_in_blank') && (
                     <Textarea 
-                      value={answers[q.id] || ''}
+                      value={(answers[q.id] as string) || ''}
                       onChange={(e) => handleAnswerChange(q.id, e.target.value)}
                       disabled={!canAnswer}
                       placeholder="Type your answer here..."
@@ -474,7 +544,7 @@ const QuizTake = () => {
           <div className="flex justify-end pt-6 pb-12">
             <Button 
               size="lg" 
-              onClick={handleSubmit} 
+              onClick={() => handleSubmit(false)} 
               disabled={submitting}
               className="bg-gradient-to-r from-primary to-purple-600 hover:opacity-90 min-w-[200px] h-12 text-lg shadow-lg shadow-primary/25 rounded-xl"
             >

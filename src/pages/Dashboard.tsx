@@ -37,13 +37,8 @@ const Dashboard = () => {
       if (!user) return;
       setLoading(true);
       try {
-        // Fetch Profile
-        const { data: profileData } = await supabase
-          .from('profiles')
-          .select('*')
-          .eq('id', user.id)
-          .single();
-        setProfile(profileData);
+        // Profile is now available from useAuth, no need to fetch again
+        setProfile(profile);
 
         // Fetch Flashcards Count (via Decks)
         const { data: decks } = await supabase
@@ -150,7 +145,7 @@ const Dashboard = () => {
     };
 
     fetchData();
-  }, [user]);
+  }, [user, profile]);
 
   return (
     <div className="h-screen w-full flex bg-gradient-to-br from-slate-50 via-purple-50 to-slate-100 dark:from-slate-950 dark:via-slate-900 dark:to-slate-950 overflow-hidden">

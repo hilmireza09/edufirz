@@ -48,29 +48,13 @@ const Classes = () => {
   const [newClassDescription, setNewClassDescription] = useState('');
   const [creating, setCreating] = useState(false);
 
-  // Fetch user profile and role
+  // Use profile from useAuth instead of fetching again
   useEffect(() => {
-    const fetchProfile = async () => {
-      if (!user) return;
-
-      try {
-        const { data, error } = await supabase
-          .from('profiles')
-          .select('*')
-          .eq('id', user.id)
-          .single();
-
-        if (error) throw error;
-
-        setProfile(data);
-        setUserRole(data.role || 'student');
-      } catch (error) {
-        console.error('Error fetching profile:', error);
-      }
-    };
-
-    fetchProfile();
-  }, [user]);
+    if (profile) {
+      setProfile(profile);
+      setUserRole(profile.role || 'student');
+    }
+  }, [profile]);
 
   // Fetch classes
   useEffect(() => {

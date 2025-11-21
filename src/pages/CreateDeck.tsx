@@ -26,27 +26,16 @@ type Deck = {
 };
 
 const CreateDeck = () => {
-  const { user } = useAuth();
+  const { user, profile } = useAuth();
   const navigate = useNavigate();
   const [userRole, setUserRole] = useState<string>('student');
 
   useEffect(() => {
-    const fetchUserRole = async () => {
-      if (!user) return;
-      
-      const { data, error } = await supabase
-        .from('profiles')
-        .select('role')
-        .eq('id', user.id)
-        .single();
-      
-      if (!error && data) {
-        setUserRole(data.role || 'student');
-      }
-    };
-
-    fetchUserRole();
-  }, [user]);
+    // Use profile from useAuth instead of fetching
+    if (profile) {
+      setUserRole(profile.role || 'student');
+    }
+  }, [profile]);
 
   const [newDeck] = useState<Deck>({
     id: '',

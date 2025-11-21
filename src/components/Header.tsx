@@ -2,34 +2,12 @@ import { useState, useRef, useEffect } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { Button } from '@/components/ui/button';
 import { Search, ChevronDown, LogOut, BookOpen } from 'lucide-react';
-import { supabase } from '@/integrations/supabase/client';
-
-type Profile = {
-  id: string;
-  role: string;
-  full_name?: string;
-  [key: string]: unknown;
-};
 
 export const Header = () => {
-  const { user, signOut } = useAuth();
+  const { user, profile, signOut } = useAuth();
   const [searchQuery, setSearchQuery] = useState('');
   const [isProfileMenuOpen, setIsProfileMenuOpen] = useState(false);
-  const [profile, setProfile] = useState<Profile | null>(null);
   const profileMenuRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    const fetchProfile = async () => {
-      if (!user) return;
-      const { data } = await supabase
-        .from('profiles')
-        .select('*')
-        .eq('id', user.id)
-        .single();
-      setProfile(data);
-    };
-    fetchProfile();
-  }, [user]);
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
