@@ -110,6 +110,8 @@ const Quizzes = () => {
 
   /**
    * Loads quizzes according to role with soft-delete filtering.
+   * SECURITY: Only fetches id and title for list view to prevent exposing sensitive quiz data.
+   * Full quiz details are loaded only when editing (for teachers/admins) or taking (without answers).
    */
   useEffect(() => {
     const fetchQuizzes = async () => {
@@ -119,8 +121,7 @@ const Quizzes = () => {
         let query = supabase
           .from('quizzes')
           .select(`
-            id, title, description, status, is_public, difficulty, due_date, attempts_allowed, time_limit, category, creator_id,
-            quiz_questions ( id, question_text, options, correct_answer, explanation, points, order_index, question_type )
+            id, title, description, status, is_public, difficulty, due_date, attempts_allowed, time_limit, category, creator_id
           `)
           .is('deleted_at', null)
           .order('created_at', { ascending: false });
@@ -136,17 +137,7 @@ const Quizzes = () => {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const quizzesData: Quiz[] = (data || []).map((q: any) => ({
           ...q,
-          quiz_questions: Array.isArray(q.quiz_questions) 
-            ? q.quiz_questions
-                // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                .map((qq: any) => ({
-                  ...qq,
-                  question: qq.question_text || qq.question,
-                  type: qq.question_type || qq.type || 'multiple_choice',
-                }))
-                // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                .sort((a: any, b: any) => (a.order_index ?? 0) - (b.order_index ?? 0)) 
-            : [],
+          quiz_questions: [], // Questions are loaded separately when needed for editing/taking
         }));
         setQuizzes(quizzesData);
         const catSet = new Set<string>();
@@ -210,17 +201,43 @@ const Quizzes = () => {
 
   /**
    * Opens a quiz in the editor for CRUD operations.
+   * SECURITY: Loads full question details with answers only for authorized users (teachers/admins).
    */
-  const handleEditQuiz = (quiz: Quiz) => {
+  const handleEditQuiz = async (quiz: Quiz) => {
     setEditingQuiz(quiz);
-    const drafts = (quiz.quiz_questions || []).map((qq) => ({ ...qq }));
-    setQuestionDrafts(drafts);
-    originalQuestionIdsRef.current = drafts
-      .map((d) => d.id)
-      .filter((id): id is string => Boolean(id));
     setMode('edit');
-    // Update URL for navigation
     navigate(`/quizzes?mode=edit&id=${quiz.id}`);
+    
+    // Fetch full question details with correct_answer and explanation for editing
+    if (quiz.id) {
+      try {
+        const { data: questions, error } = await supabase
+          .from('quiz_questions')
+          .select('id, question_text, question_type, options, correct_answer, explanation, points, order_index')
+          .eq('quiz_id', quiz.id)
+          .order('order_index');
+        
+        if (error) throw error;
+        
+        const drafts = (questions || []).map((qq) => ({
+          ...qq,
+          question: qq.question_text,
+          type: qq.question_type,
+        }));
+        setQuestionDrafts(drafts);
+        originalQuestionIdsRef.current = drafts
+          .map((d) => d.id)
+          .filter((id): id is string => Boolean(id));
+      } catch (err) {
+        console.error('Error loading quiz questions for editing:', err);
+        toast.error('Failed to load quiz questions');
+        setQuestionDrafts([]);
+        originalQuestionIdsRef.current = [];
+      }
+    } else {
+      setQuestionDrafts([]);
+      originalQuestionIdsRef.current = [];
+    }
   };
 
   /**

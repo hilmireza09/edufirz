@@ -190,6 +190,9 @@ const QuizTake = () => {
       }
 
       // 3. Fetch Questions
+      // SECURITY: Explicitly exclude correct_answer and explanation to prevent answer discovery
+      // through browser DevTools, Network tab, or HTML inspection. These fields are only
+      // loaded server-side during grading via the submit_quiz_attempt RPC function.
       const { data: questionsData, error: questionsError } = await supabase
         .from('quiz_questions')
         .select('id, question_text, question_type, options, points, order_index')
