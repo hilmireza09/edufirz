@@ -7,7 +7,7 @@ import { Sidebar } from '@/components/Sidebar';
 import { Header } from '@/components/Header';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
-import { BookOpen, CreditCard, Users, LogOut, MessageSquare, Settings, Home, Search, Plus, ChevronRight, GraduationCap, User, Loader2, School, ChevronDown } from 'lucide-react';
+import { BookOpen, CreditCard, Users, LogOut, MessageSquare, Settings, Home, Search, Plus, ChevronRight, GraduationCap, User, Loader2, School, ChevronDown, Edit, Trash } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { Database } from '@/integrations/supabase/types';
 import { toast } from 'sonner';
@@ -23,11 +23,10 @@ type ClassItem = {
 };
 
 const Classes = () => {
-  const { user, signOut } = useAuth();
+  const { user, profile, signOut } = useAuth();
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
-  const [profile, setProfile] = useState<Database['public']['Tables']['profiles']['Row'] | null>(null);
-  const [userRole, setUserRole] = useState<string>('student');
+  const userRole = profile?.role || 'student';
   
   const [classes, setClasses] = useState<ClassItem[]>([]);
   const [loading, setLoading] = useState(true);
@@ -48,23 +47,16 @@ const Classes = () => {
   const [newClassDescription, setNewClassDescription] = useState('');
   const [creating, setCreating] = useState(false);
 
-  // Use profile from useAuth instead of fetching again
-  useEffect(() => {
-    if (profile) {
-      setProfile(profile);
-      setUserRole(profile.role || 'student');
-    }
-  }, [profile]);
-
   // Fetch classes
   useEffect(() => {
     const fetchClasses = async () => {
       if (!user) return;
+      
       setLoading(true);
       try {
-        // For students, we fetch ONLY classes they are enrolled in via class_students
-        // For teachers, we fetch classes they created
-        // RLS policies enforce this at the database level
+        // For admins: fetch ALL classes
+        // For students: fetch ONLY classes they are enrolled in via class_students
+        // For teachers: fetch classes they created (handled by RLS)
         
         let query = supabase.from('classes').select(`
           *,
@@ -92,6 +84,8 @@ const Classes = () => {
 
           query = query.in('id', enrolledClassIds);
         }
+        // Admins: no additional filtering, fetch all classes
+        // Teachers: RLS policy handles filtering to their created classes
 
         const { data, error } = await query;
 
@@ -237,13 +231,19 @@ const Classes = () => {
                   My Classes
                 </h1>
                 <p className="text-muted-foreground mt-1">
-                  {userRole === 'teacher' ? 'Manage your classes and assignments' : 'View your enrolled classes and coursework'}
+                  {userRole === 'admin' ? 'Manage all classes and oversee the platform' : userRole === 'teacher' ? 'Manage your classes and assignments' : 'View your enrolled classes and coursework'}
                 </p>
               </div>
               
               <div className="flex gap-3">
                 {userRole === 'student' && (
                   <Button onClick={() => setIsJoinDialogOpen(true)} className="bg-white/10 hover:bg-white/20 text-foreground border border-primary/20 backdrop-blur-sm">
+                    <Users className="mr-2 h-4 w-4" />
+                    Join Class
+                  </Button>
+                )}
+                {userRole === 'admin' && (
+                  <Button onClick={() => setIsJoinDialogOpen(true)} variant="outline" className="border-primary/20">
                     <Users className="mr-2 h-4 w-4" />
                     Join Class
                   </Button>
@@ -277,11 +277,13 @@ const Classes = () => {
                 <School className="h-16 w-16 text-muted-foreground mx-auto mb-4 opacity-50" />
                 <h3 className="text-xl font-semibold mb-2">No classes found</h3>
                 <p className="text-muted-foreground mb-6">
-                  {userRole === 'teacher' 
+                  {userRole === 'admin'
+                    ? "No classes have been created yet."
+                    : userRole === 'teacher' 
                     ? "You haven't created any classes yet." 
                     : "You haven't joined any classes yet."}
                 </p>
-                {userRole === 'teacher' ? (
+                {userRole === 'admin' || userRole === 'teacher' ? (
                   <Button onClick={() => setIsCreateDialogOpen(true)}>Create your first class</Button>
                 ) : (
                   <Button onClick={() => setIsJoinDialogOpen(true)}>Join a class</Button>
@@ -300,6 +302,46 @@ const Classes = () => {
                       <CardHeader>
                         <CardTitle className="flex justify-between items-start">
                           <span className="truncate text-xl">{cls.name}</span>
+                          {(userRole === 'admin' || (userRole === 'teacher' && cls.teacher_id === user?.id)) && (
+                            <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity" onClick={(e) => e.stopPropagation()}>
+                              <Button
+                                size="icon"
+                                variant="ghost"
+                                className="h-8 w-8 hover:bg-primary/10 hover:text-primary"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  // TODO: Implement edit functionality
+                                  toast.info('Edit functionality coming soon');
+                                }}
+                              >
+                                <Edit className="h-4 w-4" />
+                              </Button>
+                              <Button
+                                size="icon"
+                                variant="ghost"
+                                className="h-8 w-8 hover:bg-red-50 hover:text-red-500"
+                                onClick={async (e) => {
+                                  e.stopPropagation();
+                                  if (confirm(`Are you sure you want to delete "${cls.name}"?`)) {
+                                    try {
+                                      const { error } = await supabase
+                                        .from('classes')
+                                        .delete()
+                                        .eq('id', cls.id);
+                                      if (error) throw error;
+                                      toast.success('Class deleted successfully');
+                                      setClasses(classes.filter(c => c.id !== cls.id));
+                                    } catch (error) {
+                                      console.error('Error deleting class:', error);
+                                      toast.error('Failed to delete class');
+                                    }
+                                  }
+                                }}
+                              >
+                                <Trash className="h-4 w-4" />
+                              </Button>
+                            </div>
+                          )}
                         </CardTitle>
                         <CardDescription className="line-clamp-2">
                           {cls.description || 'No description'}
