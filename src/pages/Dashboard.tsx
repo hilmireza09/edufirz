@@ -61,7 +61,12 @@ const Dashboard = () => {
         
         const totalAttempts = attempts?.length || 0;
         const avgScore = totalAttempts > 0 
-          ? (attempts?.reduce((acc, curr) => acc + ((curr.score || 0) / (curr.max_score || 1)) * 100, 0) || 0) / totalAttempts 
+          ? (attempts?.reduce((acc, curr) => {
+              const score = curr.score || 0;
+              const maxScore = curr.max_score || 0;
+              const percentage = maxScore > 0 ? (score / maxScore) * 100 : 0;
+              return acc + percentage;
+            }, 0) || 0) / totalAttempts 
           : 0;
 
         // Fetch Classes Joined
@@ -78,20 +83,30 @@ const Dashboard = () => {
         });
 
         // Prepare Chart Data (Last 7 attempts)
-        const chartData = attempts?.slice(0, 7).reverse().map(attempt => ({
-          name: new Date(attempt.created_at!).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
-          score: Math.round(((attempt.score || 0) / (attempt.max_score || 1)) * 100)
-        })) || [];
+        const chartData = attempts?.slice(0, 7).reverse().map(attempt => {
+          const score = attempt.score || 0;
+          const maxScore = attempt.max_score || 0;
+          const percentage = maxScore > 0 ? (score / maxScore) * 100 : 0;
+          return {
+            name: new Date(attempt.created_at!).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
+            score: Math.round(percentage)
+          };
+        }) || [];
         setChartData(chartData);
 
         // Recent Activity (Mix of quiz attempts and maybe deck creation if we had timestamps, for now just quizzes)
-        const activity = attempts?.slice(0, 5).map(attempt => ({
-          id: attempt.created_at,
-          type: 'quiz',
-          title: `Completed ${attempt.quizzes?.title || 'a quiz'}`,
-          time: attempt.created_at,
-          score: Math.round(((attempt.score || 0) / (attempt.max_score || 1)) * 100)
-        })) || [];
+        const activity = attempts?.slice(0, 5).map(attempt => {
+          const score = attempt.score || 0;
+          const maxScore = attempt.max_score || 0;
+          const percentage = maxScore > 0 ? (score / maxScore) * 100 : 0;
+          return {
+            id: attempt.created_at,
+            type: 'quiz',
+            title: `Completed ${attempt.quizzes?.title || 'a quiz'}`,
+            time: attempt.created_at,
+            score: Math.round(percentage)
+          };
+        }) || [];
         setRecentActivity(activity);
 
       } catch (error) {
@@ -202,9 +217,12 @@ const Dashboard = () => {
                           axisLine={false} 
                           tickLine={false} 
                           tick={{ fill: '#6b7280', fontSize: 12 }} 
+                          domain={[0, 100]}
+                          tickFormatter={(value) => `${value}%`}
                         />
                         <Tooltip 
                           contentStyle={{ backgroundColor: 'rgba(255, 255, 255, 0.9)', borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)' }}
+                          formatter={(value: number) => [`${value}%`, 'Score']}
                         />
                         <Area 
                           type="monotone" 
@@ -272,7 +290,16 @@ const Dashboard = () => {
   );
 };
 
-const StatCard = ({ title, value, icon: Icon, color, bg, trend }: any) => (
+interface StatCardProps {
+  title: string;
+  value: string | number;
+  icon: React.ElementType;
+  color: string;
+  bg: string;
+  trend?: string;
+}
+
+const StatCard = ({ title, value, icon: Icon, color, bg, trend }: StatCardProps) => (
   <div className="bg-white/60 backdrop-blur-xl border border-white/20 p-6 rounded-2xl shadow-lg hover:shadow-xl transition-all duration-300 hover:-translate-y-1 group">
     <div className="flex justify-between items-start mb-4">
       <div className={`${bg} p-3 rounded-xl group-hover:scale-110 transition-transform duration-300`}>
