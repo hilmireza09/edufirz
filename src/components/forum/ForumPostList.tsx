@@ -91,7 +91,7 @@ export default function ForumPostList() {
   };
 
   // Extract unique tags
-  const allTags = Array.from(new Set(posts.flatMap(post => post.tags || []))).sort();
+  // const allTags = Array.from(new Set(posts.flatMap(post => post.tags || []))).sort();
 
   const filteredPosts = posts.filter(post => {
     const matchesSearch = post.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -103,12 +103,13 @@ export default function ForumPostList() {
     if (selectedFilter === 'Unsolved') return matchesSearch && !post.is_solved;
     
     // For categories
-    if (['General', 'Help', 'Study Tips'].includes(selectedFilter)) {
+    if (['Mathematics', 'Biology', 'Chemistry', 'Physics', 'History', 'Geography', 'Government', 'Social', 'Economics', 'Arts', 'Technology', 'English', 'Others'].includes(selectedFilter)) {
       return matchesSearch && post.category === selectedFilter;
     }
 
-    // For tags
-    return matchesSearch && post.tags?.includes(selectedFilter);
+    // For tags - removed
+    // return matchesSearch && post.tags?.includes(selectedFilter);
+    return matchesSearch;
   });
 
   // Pagination calculations
@@ -216,7 +217,7 @@ export default function ForumPostList() {
                   </CommandGroup>
                   <CommandSeparator />
                   <CommandGroup heading="Categories">
-                    {['General', 'Help', 'Study Tips'].map((category) => (
+                    {['Mathematics', 'Biology', 'Chemistry', 'Physics', 'History', 'Geography', 'Government', 'Social', 'Economics', 'Arts', 'Technology', 'English', 'Others'].map((category) => (
                       <CommandItem
                         key={category}
                         onSelect={() => {
@@ -231,26 +232,6 @@ export default function ForumPostList() {
                           )}
                         />
                         {category}
-                      </CommandItem>
-                    ))}
-                  </CommandGroup>
-                  <CommandSeparator />
-                  <CommandGroup heading="Tags">
-                    {allTags.map((tag) => (
-                      <CommandItem
-                        key={tag}
-                        onSelect={() => {
-                          setSelectedFilter(tag);
-                          setOpen(false);
-                        }}
-                      >
-                        <Check
-                          className={cn(
-                            "mr-2 h-4 w-4",
-                            selectedFilter === tag ? "opacity-100" : "opacity-0"
-                          )}
-                        />
-                        #{tag}
                       </CommandItem>
                     ))}
                   </CommandGroup>

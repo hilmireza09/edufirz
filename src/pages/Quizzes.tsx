@@ -750,12 +750,26 @@ const Quizzes = () => {
                       </div>
                       <div>
                         <label className="text-sm font-medium mb-2 block">Category</label>
-                        <Input 
-                          value={editingQuiz.category || ''} 
-                          onChange={(e) => setEditingQuiz({ ...(editingQuiz as Quiz), category: e.target.value })} 
-                          placeholder="e.g., Mathematics, Science..."
-                          className="bg-background/50 border-border/50 focus:border-primary/50"
-                        />
+                        <select
+                          className="w-full h-10 px-3 py-2 rounded-md bg-background/50 border border-border/50 focus:border-primary/50 focus:outline-none focus:ring-2 focus:ring-primary/30 transition-all"
+                          value={editingQuiz.category || ''}
+                          onChange={(e) => setEditingQuiz({ ...(editingQuiz as Quiz), category: e.target.value })}
+                        >
+                          <option value="">Select a category</option>
+                          <option value="Mathematics">Mathematics</option>
+                          <option value="Biology">Biology</option>
+                          <option value="Chemistry">Chemistry</option>
+                          <option value="Physics">Physics</option>
+                          <option value="History">History</option>
+                          <option value="Geography">Geography</option>
+                          <option value="Government">Government</option>
+                          <option value="Social">Social</option>
+                          <option value="Economics">Economics</option>
+                          <option value="Arts">Arts</option>
+                          <option value="Technology">Technology</option>
+                          <option value="English">English</option>
+                          <option value="Others">Others</option>
+                        </select>
                       </div>
                       <div>
                         <label className="text-sm font-medium mb-2 block">Attempts Allowed</label>

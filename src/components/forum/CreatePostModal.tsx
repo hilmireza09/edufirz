@@ -17,12 +17,19 @@ interface CreatePostModalProps {
 }
 
 const CATEGORIES = [
-  'General Discussion',
-  'Homework Help',
-  'Project Ideas',
-  'Study Tips',
-  'Announcements',
-  'Technical Support'
+  'Mathematics',
+  'Biology',
+  'Chemistry',
+  'Physics',
+  'History',
+  'Geography',
+  'Government',
+  'Social',
+  'Economics',
+  'Arts',
+  'Technology',
+  'English',
+  'Others'
 ];
 
 export function CreatePostModal({ open, onOpenChange, onPostCreated }: CreatePostModalProps) {
