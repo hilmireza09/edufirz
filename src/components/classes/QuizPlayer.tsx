@@ -38,7 +38,7 @@ const QuizPlayer = () => {
   const [submitting, setSubmitting] = useState(false);
   const [quizTitle, setQuizTitle] = useState('');
   const [questions, setQuestions] = useState<Question[]>([]);
-  const [answers, setAnswers] = useState<Record<string, any>>({});
+  const [answers, setAnswers] = useState<Record<string, string | string[]>>({});
   const [attempt, setAttempt] = useState<QuizAttempt | null>(null);
   const [quizId, setQuizId] = useState<string | null>(null);
   
@@ -46,15 +46,25 @@ const QuizPlayer = () => {
   const [attemptsCount, setAttemptsCount] = useState(0);
   const [maxAttemptsReached, setMaxAttemptsReached] = useState(false);
 
-  useEffect(() => {
-    if (user && assignmentId) {
-      fetchQuizData();
-    }
-  }, [assignmentId, user, fetchQuizData]);
-
   const fetchQuizData = useCallback(async () => {
     try {
-      if (!user?.id || !assignmentId) return;
+      if (!user?.id || !assignmentId || !classId) return;
+
+      // 0. Verify student enrollment in the class
+      const { data: enrollment, error: enrollError } = await supabase
+        .from('class_students')
+        .select('id')
+        .eq('class_id', classId)
+        .eq('student_id', user.id)
+        .maybeSingle();
+
+      if (enrollError) throw enrollError;
+
+      if (!enrollment) {
+        toast.error('Access denied. You are not enrolled in this class.');
+        navigate('/classes');
+        return;
+      }
 
       // 1. Get Assignment details to find quiz_id
       const { data: assignment, error: assignError } = await supabase
@@ -149,7 +159,13 @@ const QuizPlayer = () => {
     }
   }, [assignmentId, user, classId, navigate]);
 
-  const handleAnswerChange = (questionId: string, value: any) => {
+  useEffect(() => {
+    if (user && assignmentId) {
+      fetchQuizData();
+    }
+  }, [assignmentId, user, fetchQuizData]);
+
+  const handleAnswerChange = (questionId: string, value: string | string[]) => {
     if (attempt?.completed_at) return; // Prevent changes if submitted
     setAnswers(prev => ({
       ...prev,
@@ -211,9 +227,11 @@ const QuizPlayer = () => {
       }
 
       toast.success(`Quiz submitted! Score: ${totalScore}/${maxScore}`);
-      setAttempt(prev => prev ? { ...prev, completed_at: new Date().toISOString(), score: totalScore } : null);
       
-    } catch (error: any) {
+      // Redirect to review page
+      navigate(`/quizzes/${quizId}/review/${attempt.id}`);
+      
+    } catch (error) {
       console.error('Error submitting quiz:', error);
       toast.error(error.message || 'Failed to submit quiz');
     } finally {
@@ -258,7 +276,7 @@ const QuizPlayer = () => {
               <Button 
                 variant="outline" 
                 size="sm" 
-                onClick={() => navigate(`/quizzes/${assignment.quiz_id}/review/${attempt?.id}`)}
+                onClick={() => navigate(`/quizzes/${quizId}/review/${attempt?.id}`)}
                 className="ml-auto"
               >
                 Review

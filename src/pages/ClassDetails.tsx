@@ -177,6 +177,8 @@ const ClassDetails = () => {
           } />
           <Route path="classwork" element={<ClassworkTab />} />
           <Route path="people" element={<PeopleTab />} />
+          <Route path="classwork/:assignmentId/quiz" element={<QuizPlayer />} />
+          <Route path="classwork/:assignmentId/scores" element={<AssignmentScores />} />
         </Routes>
       </main>
     </div>
