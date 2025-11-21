@@ -309,17 +309,6 @@ const Flashcards = () => {
     setShowHint(false);
   };
 
-  if (loading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-50 via-purple-50 to-slate-100">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto"></div>
-          <p className="mt-4 text-muted-foreground animate-pulse">Loading your decks...</p>
-        </div>
-      </div>
-    );
-  }
-
   if (editingDeck) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-slate-50 via-purple-50 to-slate-100 p-4 md:p-8">
@@ -353,7 +342,7 @@ const Flashcards = () => {
         {/* Content Area */}
         <main className="flex-1 p-4 md:p-8 z-10 overflow-y-auto custom-scrollbar">
           <div className="max-w-7xl mx-auto space-y-8">
-            {/* Page Header */}
+            {/* Page Header - Always Visible */}
             <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
               <div>
                 <h1 className="text-4xl font-bold bg-gradient-to-r from-gray-900 to-gray-600 bg-clip-text text-transparent mb-2">Flashcards</h1>
@@ -370,7 +359,7 @@ const Flashcards = () => {
               )}
             </div>
 
-            {/* Search and Filter Controls */}
+            {/* Search and Filter Controls - Always Visible */}
             <div className="bg-white/60 backdrop-blur-xl border border-white/40 rounded-2xl p-6 shadow-xl shadow-gray-200/20">
               <div className="flex flex-col md:flex-row gap-4 items-center">
                 <div className="flex-1 w-full">
@@ -403,8 +392,41 @@ const Flashcards = () => {
               </div>
             </div>
 
-            {/* Decks Grid */}
-            {filteredDecks.length === 0 ? (
+            {/* Decks Grid - Content Only Loading */}
+            {loading ? (
+              /* Loading Skeleton for Deck Grid Only */
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {[1, 2, 3, 4, 5, 6].map((i) => (
+                  <div key={i} className="bg-white/60 backdrop-blur-lg border border-white/40 rounded-2xl p-6">
+                    <div className="space-y-4">
+                      <div className="flex items-start justify-between">
+                        <div className="w-14 h-14 bg-gray-200 rounded-2xl animate-pulse" />
+                        <div className="flex gap-1">
+                          <div className="w-9 h-9 bg-gray-200 rounded-full animate-pulse" />
+                          <div className="w-9 h-9 bg-gray-200 rounded-full animate-pulse" />
+                        </div>
+                      </div>
+                      <div className="space-y-3">
+                        <div className="h-6 w-3/4 bg-gray-200 rounded animate-pulse" />
+                        <div className="h-4 w-full bg-gray-200 rounded animate-pulse" />
+                        <div className="h-4 w-2/3 bg-gray-200 rounded animate-pulse" />
+                      </div>
+                      <div className="pt-4 border-t border-gray-100/50 flex items-center justify-between">
+                        <div className="h-5 w-20 bg-gray-200 rounded animate-pulse" />
+                        <div className="flex gap-2">
+                          <div className="h-6 w-16 bg-gray-200 rounded-full animate-pulse" />
+                        </div>
+                      </div>
+                      <div className="flex gap-1.5 pt-2">
+                        <div className="h-5 w-16 bg-gray-200 rounded-md animate-pulse" />
+                        <div className="h-5 w-16 bg-gray-200 rounded-md animate-pulse" />
+                        <div className="h-5 w-16 bg-gray-200 rounded-md animate-pulse" />
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : filteredDecks.length === 0 ? (
               <div className="text-center py-20 bg-white/40 backdrop-blur-sm rounded-3xl border border-white/20 border-dashed">
                 <div className="w-20 h-20 bg-primary/5 rounded-full flex items-center justify-center mx-auto mb-6">
                   <CreditCard className="h-10 w-10 text-primary/40" />

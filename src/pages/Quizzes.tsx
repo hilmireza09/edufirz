@@ -41,6 +41,7 @@ const Quizzes = () => {
   const [searchParams, setSearchParams] = useSearchParams();
   const [userRole, setUserRole] = useState<string>('student');
   const [loadingRole, setLoadingRole] = useState(true);
+  const [loading, setLoading] = useState(false);
   const [mode, setMode] = useState<Mode>('list');
   const [quizzes, setQuizzes] = useState<Quiz[]>([]);
   const [selectedQuiz, setSelectedQuiz] = useState<Quiz | null>(null);
@@ -113,6 +114,7 @@ const Quizzes = () => {
   useEffect(() => {
     const fetchQuizzes = async () => {
       if (!user || loadingRole) return;
+      setLoading(true);
       try {
         let query = supabase
           .from('quizzes')
@@ -162,6 +164,8 @@ const Quizzes = () => {
       } catch (err) {
         console.error('Error fetching quizzes:', err);
         toast.error('Failed to load quizzes');
+      } finally {
+        setLoading(false);
       }
     };
     fetchQuizzes();
@@ -482,17 +486,6 @@ const Quizzes = () => {
     });
   }, [quizzes, searchQuery, statusFilter, difficultyFilter, categoryFilter, dueDateFrom, dueDateTo]);
 
-  if (loadingRole) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto"></div>
-          <p className="mt-4 text-muted-foreground">Loading quizzes...</p>
-        </div>
-      </div>
-    );
-  }
-
   return (
     <div className="h-screen w-full flex bg-gradient-to-br from-slate-50 via-purple-50 to-slate-100 dark:from-slate-950 dark:via-slate-900 dark:to-slate-950 overflow-hidden">
       <Sidebar />
@@ -506,6 +499,7 @@ const Quizzes = () => {
           <div className="space-y-6">
             {mode === 'list' && (
               <div className="glass-card p-6 md:p-8 rounded-2xl">
+                {/* Header - Always Visible */}
                 <div className="flex items-center justify-between mb-6">
                   <div className="flex items-center gap-3">
                     <h1 className="text-2xl md:text-3xl font-bold">Quizzes</h1>
@@ -518,6 +512,7 @@ const Quizzes = () => {
                   )}
                 </div>
 
+                {/* Filters - Always Visible */}
                 <div className="bg-card/80 backdrop-blur-sm rounded-2xl p-4 border border-border shadow-sm mb-6">
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
                     <div className="relative">
@@ -564,7 +559,36 @@ const Quizzes = () => {
                   </div>
                 </div>
 
-                {filteredQuizzes.length === 0 ? (
+                {/* Quiz Grid - Content Only Loading */}
+                {loading ? (
+                  /* Loading Skeleton for Quiz Grid Only */
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                    {[1, 2, 3, 4, 5, 6].map((i) => (
+                      <div key={i} className="bg-card/80 backdrop-blur-sm rounded-2xl border border-border shadow-sm p-6">
+                        <div className="space-y-3">
+                          <div className="flex justify-between items-start">
+                            <div className="h-5 w-3/4 bg-gray-200 rounded animate-pulse" />
+                            <div className="flex gap-1">
+                              <div className="w-8 h-8 bg-gray-200 rounded animate-pulse" />
+                              <div className="w-8 h-8 bg-gray-200 rounded animate-pulse" />
+                            </div>
+                          </div>
+                          <div className="space-y-2">
+                            <div className="h-4 w-full bg-gray-200 rounded animate-pulse" />
+                            <div className="h-4 w-5/6 bg-gray-200 rounded animate-pulse" />
+                            <div className="h-4 w-4/6 bg-gray-200 rounded animate-pulse" />
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <div className="h-5 w-16 bg-gray-200 rounded animate-pulse" />
+                            <div className="h-5 w-24 bg-gray-200 rounded animate-pulse" />
+                            <div className="h-5 w-20 bg-gray-200 rounded animate-pulse" />
+                          </div>
+                          <div className="h-4 w-24 bg-gray-200 rounded animate-pulse" />
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : filteredQuizzes.length === 0 ? (
                   <div className="text-center py-12">
                     <GraduationCap className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
                     <h2 className="text-xl font-semibold">No Quizzes</h2>
