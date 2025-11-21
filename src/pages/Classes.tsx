@@ -78,17 +78,38 @@ const Classes = () => {
       if (!user) return;
       setLoading(true);
       try {
-        // For students, we fetch classes they are enrolled in
+        // For students, we fetch ONLY classes they are enrolled in via class_students
         // For teachers, we fetch classes they created
-        // RLS policies should handle the filtering, but we need to join with profiles to get teacher name
+        // RLS policies enforce this at the database level
         
-        const { data, error } = await supabase
-          .from('classes')
-          .select(`
-            *,
-            teacher:profiles!classes_teacher_id_fkey(full_name),
-            class_students(count)
-          `);
+        let query = supabase.from('classes').select(`
+          *,
+          teacher:profiles!classes_teacher_id_fkey(full_name),
+          class_students(count)
+        `);
+
+        // Students: explicitly filter by enrollment
+        if (userRole === 'student') {
+          // Get enrolled class IDs first
+          const { data: enrollments, error: enrollError } = await supabase
+            .from('class_students')
+            .select('class_id')
+            .eq('student_id', user.id);
+
+          if (enrollError) throw enrollError;
+
+          const enrolledClassIds = enrollments?.map(e => e.class_id) || [];
+          
+          if (enrolledClassIds.length === 0) {
+            setClasses([]);
+            setLoading(false);
+            return;
+          }
+
+          query = query.in('id', enrolledClassIds);
+        }
+
+        const { data, error } = await query;
 
         if (error) throw error;
 
@@ -113,7 +134,7 @@ const Classes = () => {
     };
 
     fetchClasses();
-  }, [user]);
+  }, [user, userRole]);
 
   const handleJoinClass = async () => {
     if (!joinCode.trim()) {

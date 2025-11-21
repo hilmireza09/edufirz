@@ -35,6 +35,7 @@ const ClassDetails = () => {
       if (!id || id === 'undefined' || !user) return;
       
       try {
+        // Fetch class data
         const { data, error } = await supabase
           .from('classes')
           .select(`
@@ -45,6 +46,28 @@ const ClassDetails = () => {
           .single();
 
         if (error) throw error;
+
+        // Check if user has access (either teacher or enrolled student)
+        const isTeacher = data.teacher_id === user.id;
+        
+        if (!isTeacher) {
+          // Verify student enrollment
+          const { data: enrollment, error: enrollError } = await supabase
+            .from('class_students')
+            .select('id')
+            .eq('class_id', id)
+            .eq('student_id', user.id)
+            .maybeSingle();
+
+          if (enrollError) throw enrollError;
+
+          if (!enrollment) {
+            toast.error('Access denied. You are not enrolled in this class.');
+            navigate('/classes');
+            return;
+          }
+        }
+
         setClassData(data);
       } catch (error) {
         console.error('Error fetching class details:', error);
