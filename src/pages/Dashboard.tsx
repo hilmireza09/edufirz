@@ -82,16 +82,48 @@ const Dashboard = () => {
           classesJoined: classesCount || 0
         });
 
-        // Prepare Chart Data (Last 7 attempts)
-        const chartData = attempts?.slice(0, 7).reverse().map(attempt => {
+        // Prepare Chart Data (Last 7 days)
+        const today = new Date();
+        const last7Days = Array.from({ length: 7 }, (_, i) => {
+          const date = new Date(today);
+          date.setDate(date.getDate() - (6 - i));
+          date.setHours(0, 0, 0, 0);
+          return date;
+        });
+
+        // Group attempts by date and calculate average percentage for each day
+        const attemptsByDate = new Map<string, number[]>();
+        
+        attempts?.forEach(attempt => {
+          const attemptDate = new Date(attempt.created_at!);
+          attemptDate.setHours(0, 0, 0, 0);
+          const dateKey = attemptDate.toDateString();
+          
           const score = attempt.score || 0;
           const maxScore = attempt.max_score || 0;
           const percentage = maxScore > 0 ? (score / maxScore) * 100 : 0;
+          
+          if (!attemptsByDate.has(dateKey)) {
+            attemptsByDate.set(dateKey, []);
+          }
+          attemptsByDate.get(dateKey)!.push(percentage);
+        });
+
+        // Build chart data with 7 continuous days
+        const chartData = last7Days.map(date => {
+          const dateKey = date.toDateString();
+          const percentages = attemptsByDate.get(dateKey) || [];
+          
+          // Calculate average for the day, or 0 if no attempts
+          const avgPercentage = percentages.length > 0
+            ? percentages.reduce((sum, p) => sum + p, 0) / percentages.length
+            : 0;
+          
           return {
-            name: new Date(attempt.created_at!).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
-            score: Math.round(percentage)
+            name: date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
+            score: Math.round(avgPercentage)
           };
-        }) || [];
+        });
         setChartData(chartData);
 
         // Recent Activity (Mix of quiz attempts and maybe deck creation if we had timestamps, for now just quizzes)
