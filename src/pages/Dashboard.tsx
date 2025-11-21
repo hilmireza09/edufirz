@@ -212,7 +212,7 @@ const Dashboard = () => {
           </div>
 
           {/* Charts & Activity Section */}
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-10">
             {/* Performance Chart */}
             <Card className="lg:col-span-2 border-white/20 bg-white/60 backdrop-blur-xl shadow-xl">
               <CardHeader>
