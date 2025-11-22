@@ -41,7 +41,7 @@ const Quizzes = () => {
   const [searchParams, setSearchParams] = useSearchParams();
   const [userRole, setUserRole] = useState<string>('student');
   const [loadingRole, setLoadingRole] = useState(true);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
   const [mode, setMode] = useState<Mode>('list');
   const [quizzes, setQuizzes] = useState<Quiz[]>([]);
   const [selectedQuiz, setSelectedQuiz] = useState<Quiz | null>(null);
