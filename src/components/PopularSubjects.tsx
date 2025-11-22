@@ -38,7 +38,8 @@ const PopularSubjects = () => {
 
       <div className="container mx-auto max-w-7xl">
         <div className="text-center mb-16 animate-fade-in-up">
-          <div className="inline-block px-4 py-2 rounded-full glass-card text-sm font-medium mb-4 border border-white/20 bg-white/10 backdrop-blur-md shadow-sm">
+          <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full glass-card text-sm font-medium mb-4 border border-white/20 bg-white/10 backdrop-blur-md shadow-sm">
+            <BookOpen className="w-4 h-4 text-purple-500" />
             Explore Materials
           </div>
           <h2 className="text-4xl md:text-5xl font-bold mb-4 text-slate-900 dark:text-white">
