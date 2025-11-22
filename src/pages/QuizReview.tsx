@@ -16,7 +16,7 @@ type Question = {
   id: string;
   question_text: string;
   question_type: 'multiple_choice' | 'checkbox' | 'true_false' | 'essay' | 'fill_in_blank';
-  options: string[] | null;
+  options: string[] | any[] | null;
   points: number;
   order_index: number;
   correct_answer: string | null;
@@ -112,6 +112,21 @@ const QuizReview = () => {
       if (!Array.isArray(user)) return false;
       return user.length === correct.length && user.every(a => correct.includes(a));
     }
+
+    if (question.question_type === 'fill_in_blank') {
+      if (!Array.isArray(userAnswer)) return false;
+      const blankDefs = (question.options as any[]) || [];
+      // If number of answers doesn't match blanks, it's incorrect (or partially correct, but we mark as incorrect for now)
+      // Actually, let's check if every blank is correct
+      return blankDefs.every((def, index) => {
+        const userVal = (userAnswer[index] || '').trim();
+        const accepted = def.accepted_answers || [];
+        if (def.case_sensitive) {
+          return accepted.includes(userVal);
+        }
+        return accepted.some((a: string) => a.toLowerCase() === userVal.toLowerCase());
+      });
+    }
     
     if (question.question_type === 'essay') {
       // Essay questions might need manual grading, for now assume correct if not empty or handle differently
@@ -178,7 +193,9 @@ const QuizReview = () => {
                   </div>
                 </CardHeader>
                 <CardContent className="pt-6 space-y-4">
-                  <p className="text-lg text-foreground/90 leading-relaxed">{q.question_text}</p>
+                  {q.question_type !== 'fill_in_blank' && (
+                    <p className="text-lg text-foreground/90 leading-relaxed">{q.question_text}</p>
+                  )}
                   
                   <div className="mt-4 pointer-events-none opacity-100">
                     {q.question_type === 'multiple_choice' && q.options && (
@@ -262,18 +279,63 @@ const QuizReview = () => {
                       </RadioGroup>
                     )}
 
-                    {(q.question_type === 'essay' || q.question_type === 'fill_in_blank') && (
+                    {q.question_type === 'essay' && (
                       <div className="space-y-2">
                         <Textarea 
                           value={userAnswer || ''}
                           readOnly
                           className="bg-background/50 min-h-[100px] text-base"
                         />
-                        {q.question_type === 'fill_in_blank' && (
-                          <div className="text-sm text-muted-foreground mt-2">
-                            Correct Answer: <span className="font-medium text-green-600">{q.correct_answer}</span>
-                          </div>
-                        )}
+                      </div>
+                    )}
+
+                    {q.question_type === 'fill_in_blank' && (
+                      <div className="leading-loose text-lg font-medium">
+                        {(() => {
+                          const parts = q.question_text.split('[blank]');
+                          const userAnswers = (userAnswer as string[]) || [];
+                          
+                          // Handle potential stringified JSON in options (if column is text[])
+                          let blankDefs = (q.options as any[]) || [];
+                          if (blankDefs.length > 0 && typeof blankDefs[0] === 'string') {
+                            try {
+                              blankDefs = blankDefs.map(d => typeof d === 'string' ? JSON.parse(d) : d);
+                            } catch (e) {
+                              console.error('Failed to parse options', e);
+                            }
+                          }
+                          
+                          return parts.map((part, i) => {
+                            if (i >= parts.length - 1) return <span key={i}>{part}</span>;
+
+                            const userVal = userAnswers[i] || '';
+                            const def = blankDefs.find((d: any) => d.index === i);
+                            const accepted = def?.accepted_answers || [];
+                            const isBlankCorrect = def?.case_sensitive 
+                              ? accepted.includes(userVal.trim())
+                              : accepted.some((a: string) => a.toLowerCase() === userVal.trim().toLowerCase());
+
+                            return (
+                              <span key={i}>
+                                {part}
+                                <span className="inline-flex flex-col mx-2 align-middle">
+                                  <span className={`px-2 py-1 rounded border-b-2 ${
+                                    isBlankCorrect 
+                                      ? 'bg-green-100 border-green-500 text-green-800 dark:bg-green-900/30 dark:text-green-300' 
+                                      : 'bg-red-100 border-red-500 text-red-800 dark:bg-red-900/30 dark:text-red-300'
+                                  }`}>
+                                    {userVal || '(empty)'}
+                                  </span>
+                                  {!isBlankCorrect && (
+                                    <span className="text-xs text-green-600 dark:text-green-400 font-bold mt-1">
+                                      {accepted && accepted.length > 0 ? accepted[0] : 'No answer defined'}
+                                    </span>
+                                  )}
+                                </span>
+                              </span>
+                            );
+                          });
+                        })()}
                       </div>
                     )}
                   </div>

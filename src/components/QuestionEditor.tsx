@@ -8,10 +8,16 @@ import { Badge } from '@/components/ui/badge';
 
 export type QuestionType = 'multiple_choice' | 'checkbox' | 'essay' | 'fill_in_blank' | 'true_false';
 
+export type BlankDefinition = {
+  index: number;
+  accepted_answers: string[];
+  case_sensitive?: boolean;
+};
+
 export type QuizQuestion = {
   id?: string;
   question: string;
-  options: string[] | null;
+  options: string[] | BlankDefinition[] | null;
   correct_answer: string;
   correct_answers?: string[]; // For checkbox questions
   explanation: string | null;
@@ -62,7 +68,7 @@ const questionTypeConfig = {
 
 export const QuestionEditor = ({ question, index, onUpdate, onRemove }: QuestionEditorProps) => {
   const [selectedOptions, setSelectedOptions] = useState<Set<number>>(
-    new Set(question.correct_answers?.map(ans => question.options?.indexOf(ans) || -1).filter(i => i !== -1) || [])
+    new Set(question.correct_answers?.map(ans => (question.options as string[])?.indexOf(ans) || -1).filter(i => i !== -1) || [])
   );
 
   const handleOptionChange = (optionIndex: number, value: string) => {
@@ -209,7 +215,36 @@ export const QuestionEditor = ({ question, index, onUpdate, onRemove }: Question
         {/* Question Text */}
         <div className="mb-6">
           <div className="flex justify-between items-center mb-2">
-            <label className="text-sm font-medium">Question Text</label>
+            <div className="flex items-center gap-2">
+              <label className="text-sm font-medium">Question Text</label>
+              {question.type === 'fill_in_blank' && (
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="h-6 text-xs"
+                  onClick={() => {
+                    const textarea = document.getElementById(`question-text-${index}`) as HTMLTextAreaElement;
+                    if (textarea) {
+                      const start = textarea.selectionStart;
+                      const end = textarea.selectionEnd;
+                      const text = question.question;
+                      const newText = text.substring(0, start) + '[blank]' + text.substring(end);
+                      onUpdate(index, 'question', newText);
+                      setTimeout(() => {
+                        textarea.focus();
+                        textarea.setSelectionRange(start + 7, start + 7);
+                      }, 0);
+                    } else {
+                      onUpdate(index, 'question', question.question + ' [blank]');
+                    }
+                  }}
+                >
+                  <Plus className="h-3 w-3 mr-1" />
+                  Insert Blank
+                </Button>
+              )}
+            </div>
             <div className="flex items-center gap-2 bg-muted/30 px-3 py-1 rounded-lg border border-border/50">
               <label className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Points</label>
               <Input
@@ -222,6 +257,7 @@ export const QuestionEditor = ({ question, index, onUpdate, onRemove }: Question
             </div>
           </div>
           <Textarea
+            id={`question-text-${index}`}
             value={question.question}
             onChange={(e) => onUpdate(index, 'question', e.target.value)}
             placeholder="Enter your question here..."
@@ -350,16 +386,100 @@ export const QuestionEditor = ({ question, index, onUpdate, onRemove }: Question
 
           {/* Fill in the Blank */}
           {question.type === 'fill_in_blank' && (
-            <div>
-              <label className="text-sm font-medium mb-2 block">Acceptable Answers</label>
-              <Input
-                value={question.correct_answer}
-                onChange={(e) => onUpdate(index, 'correct_answer', e.target.value)}
-                placeholder="Enter acceptable answers separated by | (e.g., answer1|answer2|answer3)"
-                className="bg-background/50 border-border/50 focus:border-primary/50"
-              />
-              <p className="text-xs text-muted-foreground mt-2">
-                💡 Separate multiple acceptable answers with | (case-insensitive matching)
+            <div className="space-y-4">
+              <div className="bg-muted/30 p-4 rounded-lg border border-border/50">
+                <h5 className="text-sm font-medium mb-3 flex items-center gap-2">
+                  <Type className="h-4 w-4" />
+                  Blank Configuration
+                </h5>
+                
+                {(() => {
+                  // Count blanks in the question text
+                  const blankCount = (question.question.match(/\[blank\]/g) || []).length;
+                  
+                  if (blankCount === 0) {
+                    return (
+                      <p className="text-sm text-muted-foreground italic">
+                        Insert [blank] markers in the question text to configure answers.
+                      </p>
+                    );
+                  }
+
+                  return Array.from({ length: blankCount }).map((_, blankIndex) => {
+                    const currentOptions = (question.options as BlankDefinition[]) || [];
+                    const blankDef = currentOptions.find(o => o.index === blankIndex) || {
+                      index: blankIndex,
+                      accepted_answers: [],
+                      case_sensitive: false
+                    };
+
+                    return (
+                      <div key={blankIndex} className="mb-4 last:mb-0 p-3 bg-background rounded-md border border-border/50">
+                        <label className="text-sm font-medium mb-2 block text-primary">
+                          Blank #{blankIndex + 1} Accepted Answers
+                        </label>
+                        <Input
+                          value={blankDef.accepted_answers.join('|')}
+                          onChange={(e) => {
+                            const newAnswers = e.target.value.split('|');
+                            const newOptions = [...currentOptions];
+                            const existingIdx = newOptions.findIndex(o => o.index === blankIndex);
+                            
+                            const newDef = {
+                              ...blankDef,
+                              accepted_answers: newAnswers
+                            };
+
+                            if (existingIdx >= 0) {
+                              newOptions[existingIdx] = newDef;
+                            } else {
+                              newOptions.push(newDef);
+                            }
+                            
+                            // Sort by index to keep things clean
+                            newOptions.sort((a, b) => a.index - b.index);
+                            
+                            onUpdate(index, 'options', newOptions);
+                          }}
+                          placeholder="answer1|answer2 (separated by |)"
+                          className="bg-background/50 border-border/50 focus:border-primary/50"
+                        />
+                        <div className="flex items-center gap-2 mt-2">
+                          <input
+                            type="checkbox"
+                            id={`case-sensitive-${index}-${blankIndex}`}
+                            checked={blankDef.case_sensitive || false}
+                            onChange={(e) => {
+                              const newOptions = [...currentOptions];
+                              const existingIdx = newOptions.findIndex(o => o.index === blankIndex);
+                              
+                              const newDef = {
+                                ...blankDef,
+                                case_sensitive: e.target.checked
+                              };
+
+                              if (existingIdx >= 0) {
+                                newOptions[existingIdx] = newDef;
+                              } else {
+                                newOptions.push(newDef);
+                              }
+                              
+                              onUpdate(index, 'options', newOptions);
+                            }}
+                            className="rounded border-gray-300 text-primary focus:ring-primary"
+                          />
+                          <label htmlFor={`case-sensitive-${index}-${blankIndex}`} className="text-xs text-muted-foreground cursor-pointer">
+                            Case sensitive matching
+                          </label>
+                        </div>
+                      </div>
+                    );
+                  });
+                })()}
+              </div>
+              <p className="text-xs text-muted-foreground">
+                💡 Use <strong>[blank]</strong> in the question text where you want the input field to appear.
+                Separate multiple acceptable answers with <strong>|</strong>.
               </p>
             </div>
           )}

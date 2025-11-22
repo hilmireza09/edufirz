@@ -349,9 +349,10 @@ const Quizzes = () => {
         if (error) throw error;
         savedQuiz = data as unknown as Quiz;
       } else {
+        // Use single object for insert to potentially simplify the request
         const { data, error } = await supabase
           .from('quizzes')
-          .insert([{ ...quizData, creator_id: editingQuiz.creator_id }])
+          .insert({ ...quizData, creator_id: editingQuiz.creator_id })
           .select()
           .single();
         if (error) throw error;
@@ -380,7 +381,8 @@ const Quizzes = () => {
           quiz_id: savedQuiz.id,
           question_text: q.question,
           question_type: q.type,
-          options: q.options,
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          options: q.options as any,
           correct_answer: q.correct_answer,
           correct_answers: q.correct_answers, // Support for checkbox questions
           explanation: q.explanation,
@@ -399,7 +401,8 @@ const Quizzes = () => {
           quiz_id: savedQuiz.id,
           question_text: q.question,
           question_type: q.type,
-          options: q.options,
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          options: q.options as any,
           correct_answer: q.correct_answer,
           correct_answers: q.correct_answers, // Support for checkbox questions
           explanation: q.explanation,
@@ -438,11 +441,14 @@ const Quizzes = () => {
       navigate('/quizzes');
     } catch (error) {
       console.error('Error saving quiz:', error);
-      const err = error as { code?: string; message?: string };
-      if (err.code === '23514' || err.message?.includes('quizzes_difficulty_check')) {
+      const err = error as { code?: string; message?: string; status?: number };
+      
+      if (err.message?.includes('Failed to fetch') || err.status === 523) {
+        toast.error('Network Error: Unable to reach the server. Please check your connection or if the project is paused.');
+      } else if (err.code === '23514' || err.message?.includes('quizzes_difficulty_check')) {
         toast.error('Database Error: Please run the migration to fix the difficulty constraint.');
       } else {
-        toast.error('Failed to save quiz');
+        toast.error('Failed to save quiz: ' + (err.message || 'Unknown error'));
       }
     }
   };

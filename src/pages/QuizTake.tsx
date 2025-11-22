@@ -8,6 +8,7 @@ import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Label } from '@/components/ui/label';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Textarea } from '@/components/ui/textarea';
+import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
@@ -17,7 +18,7 @@ type Question = {
   id: string;
   question_text: string;
   question_type: 'multiple_choice' | 'checkbox' | 'true_false' | 'essay' | 'fill_in_blank';
-  options: string[] | null;
+  options: string[] | any[] | null;
   points: number;
   order_index: number;
 };
@@ -446,7 +447,9 @@ const QuizTake = () => {
                 </div>
               </CardHeader>
               <CardContent className="pt-6 space-y-4">
-                <p className="text-lg text-foreground/90 leading-relaxed">{q.question_text}</p>
+                {q.question_type !== 'fill_in_blank' && (
+                  <p className="text-lg text-foreground/90 leading-relaxed">{q.question_text}</p>
+                )}
                 
                 <div className="mt-4">
                   {q.question_type === 'multiple_choice' && q.options && (
@@ -528,7 +531,7 @@ const QuizTake = () => {
                     </RadioGroup>
                   )}
 
-                  {(q.question_type === 'essay' || q.question_type === 'fill_in_blank') && (
+                  {q.question_type === 'essay' && (
                     <Textarea 
                       value={(answers[q.id] as string) || ''}
                       onChange={(e) => handleAnswerChange(q.id, e.target.value)}
@@ -536,6 +539,36 @@ const QuizTake = () => {
                       placeholder="Type your answer here..."
                       className="bg-background/50 min-h-[100px] text-base"
                     />
+                  )}
+
+                  {q.question_type === 'fill_in_blank' && (
+                    <div className="leading-loose text-lg font-medium">
+                      {(() => {
+                        const parts = q.question_text.split('[blank]');
+                        const currentAnswers = (answers[q.id] as string[]) || [];
+                        
+                        return parts.map((part, i) => (
+                          <span key={i}>
+                            {part}
+                            {i < parts.length - 1 && (
+                              <Input
+                                type="text"
+                                value={currentAnswers[i] || ''}
+                                onChange={(e) => {
+                                  if (!canAnswer) return;
+                                  const newAnswers = [...currentAnswers];
+                                  newAnswers[i] = e.target.value;
+                                  handleAnswerChange(q.id, newAnswers);
+                                }}
+                                disabled={!canAnswer}
+                                className="inline-block w-40 mx-2 h-8 text-center border-b-2 border-t-0 border-x-0 rounded-none focus:ring-0 focus:border-primary px-1 bg-transparent"
+                                placeholder="Answer..."
+                              />
+                            )}
+                          </span>
+                        ));
+                      })()}
+                    </div>
                   )}
                 </div>
               </CardContent>
