@@ -10,7 +10,7 @@ import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { 
   ArrowLeft, ThumbsUp, MessageSquare, CheckCircle, 
-  MoreVertical, Trash2, Flag, Share2 
+  MoreVertical, Trash2, Flag, Share2, Heart 
 } from 'lucide-react';
 import { 
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, 
@@ -18,12 +18,15 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { toast } from 'sonner';
 import { formatDistanceToNow } from 'date-fns';
+import { cn } from '@/lib/utils';
 
 type Reply = {
   id: string;
   content: string;
   created_at: string;
-  votes: number;
+  upvotes: number;
+  helpfuls: number;
+  user_vote?: 'up' | 'helpful' | null;
   is_solution: boolean;
   author_id: string;
   author: {
@@ -38,7 +41,9 @@ type PostDetail = {
   content: string;
   category: string;
   tags: string[];
-  votes: number;
+  upvotes: number;
+  helpfuls: number;
+  user_vote?: 'up' | 'helpful' | null;
   created_at: string;
   is_solved: boolean;
   author_id: string;
@@ -58,13 +63,12 @@ export default function ForumPostDetail() {
   const [loading, setLoading] = useState(true);
   const [newReply, setNewReply] = useState('');
   const [submitting, setSubmitting] = useState(false);
-  const [userVote, setUserVote] = useState<'up' | 'down' | null>(null);
 
   useEffect(() => {
     if (postId) {
       fetchPostAndReplies();
-      checkUserVote();
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [postId, user]);
 
   const fetchPostAndReplies = async () => {
@@ -80,7 +84,23 @@ export default function ForumPostDetail() {
         .single();
 
       if (postError) throw postError;
-      setPost(postData);
+
+      // Fetch Post Votes
+      const { data: postVotes } = await supabase
+        .from('forum_post_votes')
+        .select('*')
+        .eq('post_id', postId);
+
+      const postUpvotes = postVotes?.filter(v => v.vote_type === 'up').length || 0;
+      const postHelpfuls = postVotes?.filter(v => v.vote_type === 'helpful').length || 0;
+      const postUserVote = user ? postVotes?.find(v => v.user_id === user.id)?.vote_type : null;
+
+      setPost({
+        ...postData,
+        upvotes: postUpvotes,
+        helpfuls: postHelpfuls,
+        user_vote: postUserVote as 'up' | 'helpful' | null
+      });
 
       // Fetch Replies
       const { data: repliesData, error: repliesError } = await supabase
@@ -94,7 +114,27 @@ export default function ForumPostDetail() {
         .order('created_at', { ascending: true });
 
       if (repliesError) throw repliesError;
-      setReplies(repliesData || []);
+
+      if (repliesData && repliesData.length > 0) {
+        const replyIds = repliesData.map(r => r.id);
+        const { data: replyVotes } = await supabase
+          .from('forum_reply_votes')
+          .select('*')
+          .in('reply_id', replyIds);
+        
+        const processedReplies = repliesData.map(reply => {
+          const rVotes = replyVotes?.filter(v => v.reply_id === reply.id) || [];
+          return {
+            ...reply,
+            upvotes: rVotes.filter(v => v.vote_type === 'up').length,
+            helpfuls: rVotes.filter(v => v.vote_type === 'helpful').length,
+            user_vote: user ? rVotes.find(v => v.user_id === user.id)?.vote_type : null
+          } as Reply;
+        });
+        setReplies(processedReplies);
+      } else {
+        setReplies(repliesData as unknown as Reply[] || []);
+      }
     } catch (error) {
       console.error('Error fetching details:', error);
       toast.error('Failed to load discussion');
@@ -104,47 +144,71 @@ export default function ForumPostDetail() {
     }
   };
 
-  const checkUserVote = async () => {
-    if (!user || !postId) return;
-    const { data } = await supabase
-      .from('forum_post_votes')
-      .select('vote_type')
-      .eq('post_id', postId)
-      .eq('user_id', user.id)
-      .maybeSingle();
-    
-    if (data) setUserVote(data.vote_type as 'up' | 'down');
-  };
+  const handleVote = async (targetId: string, type: 'up' | 'helpful', isReply: boolean = false) => {
+    if (!user) {
+      toast.error('Please sign in to vote');
+      return;
+    }
 
-  const handleVote = async () => {
-    if (!user || !post) return;
+    // Get current vote state for logic
+    let currentVote: 'up' | 'helpful' | null | undefined;
+    if (isReply) {
+      currentVote = replies.find(r => r.id === targetId)?.user_vote;
+    } else {
+      currentVote = post?.user_vote;
+    }
+
+    // Optimistic update
+    if (isReply) {
+      setReplies(prev => prev.map(r => {
+        if (r.id !== targetId) return r;
+        
+        const oldVote = r.user_vote;
+        let newUpvotes = r.upvotes;
+        let newHelpfuls = r.helpfuls;
+        let newVote = oldVote;
+
+        if (oldVote === type) {
+          newVote = null;
+          if (type === 'up') newUpvotes--; else newHelpfuls--;
+        } else {
+          newVote = type;
+          if (oldVote === 'up') newUpvotes--;
+          if (oldVote === 'helpful') newHelpfuls--;
+          if (type === 'up') newUpvotes++; else newHelpfuls++;
+        }
+        return { ...r, upvotes: newUpvotes, helpfuls: newHelpfuls, user_vote: newVote };
+      }));
+    } else {
+      setPost(prev => {
+        if (!prev) return null;
+        const oldVote = prev.user_vote;
+        let newUpvotes = prev.upvotes;
+        let newHelpfuls = prev.helpfuls;
+        let newVote = oldVote;
+
+        if (oldVote === type) {
+          newVote = null;
+          if (type === 'up') newUpvotes--; else newHelpfuls--;
+        } else {
+          newVote = type;
+          if (oldVote === 'up') newUpvotes--;
+          if (oldVote === 'helpful') newHelpfuls--;
+          if (type === 'up') newUpvotes++; else newHelpfuls++;
+        }
+        return { ...prev, upvotes: newUpvotes, helpfuls: newHelpfuls, user_vote: newVote };
+      });
+    }
 
     try {
-      const newVoteType = userVote === 'up' ? null : 'up'; // Toggle vote
-      const voteDiff = newVoteType === 'up' ? 1 : -1;
+      const table = isReply ? 'forum_reply_votes' : 'forum_post_votes';
+      const idField = isReply ? 'reply_id' : 'post_id';
 
-      // Optimistic update
-      setPost(prev => prev ? ({ ...prev, votes: (prev.votes || 0) + voteDiff }) : null);
-      setUserVote(newVoteType);
-
-      if (newVoteType) {
-        await supabase
-          .from('forum_post_votes')
-          .upsert({ post_id: postId, user_id: user.id, vote_type: 'up' });
+      if (currentVote === type) {
+        await supabase.from(table).delete().eq(idField, targetId).eq('user_id', user.id);
       } else {
-        await supabase
-          .from('forum_post_votes')
-          .delete()
-          .eq('post_id', postId)
-          .eq('user_id', user.id);
+        await supabase.from(table).upsert({ [idField]: targetId, user_id: user.id, vote_type: type });
       }
-
-      // Update post count
-      await supabase
-        .from('forum_posts')
-        .update({ votes: (post.votes || 0) + voteDiff })
-        .eq('id', postId);
-
     } catch (error) {
       console.error('Error voting:', error);
       toast.error('Failed to vote');
@@ -276,13 +340,22 @@ export default function ForumPostDetail() {
 
           <div className="flex items-center gap-4">
             <Button 
-              variant={userVote === 'up' ? "default" : "outline"} 
+              variant="ghost"
               size="sm" 
-              onClick={handleVote}
-              className={`transition-all duration-300 ${userVote === 'up' ? "bg-primary text-white shadow-lg shadow-primary/25" : "hover:bg-secondary/50"}`}
+              onClick={() => handleVote(post.id, 'up')}
+              className={cn("gap-1 px-2 h-8", post.user_vote === 'up' && "text-primary bg-primary/10")}
             >
-              <ThumbsUp className={`mr-2 h-4 w-4 ${userVote === 'up' ? 'fill-current animate-bounce' : ''}`} />
-              {post.votes || 0} Upvotes
+              <ThumbsUp className={cn("h-4 w-4", post.user_vote === 'up' && "fill-current")} />
+              {post.upvotes} Upvotes
+            </Button>
+            <Button 
+              variant="ghost"
+              size="sm" 
+              onClick={() => handleVote(post.id, 'helpful')}
+              className={cn("gap-1 px-2 h-8", post.user_vote === 'helpful' && "text-green-600 bg-green-50")}
+            >
+              <Heart className={cn("h-4 w-4", post.user_vote === 'helpful' && "fill-current")} />
+              {post.helpfuls} Helpful
             </Button>
             <div className="flex items-center gap-2 text-muted-foreground text-sm px-3 py-1.5 rounded-md bg-secondary/30">
               <MessageSquare className="h-4 w-4" />
@@ -334,8 +407,23 @@ export default function ForumPostDetail() {
 
               <div className="flex items-center justify-between pl-11">
                 <div className="flex items-center gap-2">
-                  <Button variant="ghost" size="sm" className="h-8 text-muted-foreground hover:text-primary hover:bg-primary/5">
-                    <ThumbsUp className="mr-1 h-3 w-3" /> {reply.votes || 0} Helpful
+                  <Button 
+                    variant="ghost" 
+                    size="sm" 
+                    className={cn("h-8 gap-1", reply.user_vote === 'up' && "text-primary bg-primary/5")}
+                    onClick={() => handleVote(reply.id, 'up', true)}
+                  >
+                    <ThumbsUp className={cn("mr-1 h-3 w-3", reply.user_vote === 'up' && "fill-current")} /> 
+                    {reply.upvotes}
+                  </Button>
+                  <Button 
+                    variant="ghost" 
+                    size="sm" 
+                    className={cn("h-8 gap-1", reply.user_vote === 'helpful' && "text-green-600 bg-green-50")}
+                    onClick={() => handleVote(reply.id, 'helpful', true)}
+                  >
+                    <Heart className={cn("mr-1 h-3 w-3", reply.user_vote === 'helpful' && "fill-current")} /> 
+                    {reply.helpfuls}
                   </Button>
                 </div>
                 

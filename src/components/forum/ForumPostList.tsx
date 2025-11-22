@@ -1,11 +1,13 @@
 import { useState, useEffect, useRef } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
+import { useAuth } from '@/hooks/useAuth';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { toast } from 'sonner';
 import { 
   Command,
   CommandEmpty,
@@ -20,7 +22,7 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from '@/components/ui/popover';
-import { MessageSquare, ThumbsUp, Search, Plus, Filter, Clock, Check, ChevronsUpDown, ChevronLeft, ChevronRight } from 'lucide-react';
+import { MessageSquare, ThumbsUp, Search, Plus, Filter, Clock, Check, ChevronsUpDown, ChevronLeft, ChevronRight, Heart } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import { cn } from '@/lib/utils';
 import { CreatePostModal } from './CreatePostModal';
@@ -31,7 +33,9 @@ type Post = {
   content: string;
   category: string;
   tags: string[];
-  votes: number;
+  upvotes: number;
+  helpfuls: number;
+  user_vote?: 'up' | 'helpful' | null;
   reply_count: number;
   created_at: string;
   is_solved: boolean;
@@ -43,6 +47,7 @@ type Post = {
 
 export default function ForumPostList() {
   const navigate = useNavigate();
+  const { user } = useAuth();
   const [searchParams, setSearchParams] = useSearchParams();
   const [posts, setPosts] = useState<Post[]>([]);
   const [loading, setLoading] = useState(true);
@@ -69,11 +74,12 @@ export default function ForumPostList() {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, []);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user]); // Re-fetch when user changes to update vote status
 
   const fetchPosts = async () => {
     try {
-      const { data, error } = await supabase
+      const { data: postsData, error } = await supabase
         .from('forum_posts')
         .select(`
           *,
@@ -82,11 +88,108 @@ export default function ForumPostList() {
         .order('created_at', { ascending: false });
 
       if (error) throw error;
-      setPosts(data || []);
+
+      if (!postsData) {
+        setPosts([]);
+        return;
+      }
+
+      // Fetch votes for all posts
+      const postIds = postsData.map(p => p.id);
+      
+      // Fetch votes
+      const { data: votesData } = await supabase
+        .from('forum_post_votes')
+        .select('post_id, vote_type, user_id')
+        .in('post_id', postIds);
+      
+      // Fetch reply counts
+      const { data: repliesData } = await supabase
+        .from('forum_replies')
+        .select('post_id');
+      
+      // Process posts
+      const processedPosts = postsData.map(post => {
+          const postVotes = votesData?.filter(v => v.post_id === post.id) || [];
+          const upvotes = postVotes.filter(v => v.vote_type === 'up').length;
+          const helpfuls = postVotes.filter(v => v.vote_type === 'helpful').length;
+          const userVote = user ? postVotes.find(v => v.user_id === user.id)?.vote_type : null;
+          const replyCount = repliesData?.filter(r => r.post_id === post.id).length || 0;
+
+          return {
+              ...post,
+              upvotes,
+              helpfuls,
+              user_vote: userVote as 'up' | 'helpful' | null,
+              reply_count: replyCount
+          };
+      });
+
+      setPosts(processedPosts);
     } catch (error) {
       console.error('Error fetching posts:', error);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleVote = async (e: React.MouseEvent, postId: string, type: 'up' | 'helpful') => {
+    e.stopPropagation();
+    if (!user) {
+      toast.error('Please sign in to vote');
+      return;
+    }
+
+    // Optimistic update
+    setPosts(currentPosts => currentPosts.map(p => {
+      if (p.id !== postId) return p;
+      
+      const oldVote = p.user_vote;
+      let newUpvotes = p.upvotes;
+      let newHelpfuls = p.helpfuls;
+      let newVote = oldVote;
+
+      if (oldVote === type) {
+        // Toggle off
+        newVote = null;
+        if (type === 'up') newUpvotes--;
+        else newHelpfuls--;
+      } else {
+        // Change vote
+        newVote = type;
+        if (oldVote === 'up') newUpvotes--;
+        if (oldVote === 'helpful') newHelpfuls--;
+        
+        if (type === 'up') newUpvotes++;
+        else newHelpfuls++;
+      }
+
+      return {
+        ...p,
+        upvotes: newUpvotes,
+        helpfuls: newHelpfuls,
+        user_vote: newVote as 'up' | 'helpful' | null
+      };
+    }));
+
+    try {
+      const post = posts.find(p => p.id === postId);
+      const oldVote = post?.user_vote;
+
+      if (oldVote === type) {
+        // Delete
+        await supabase.from('forum_post_votes').delete().eq('post_id', postId).eq('user_id', user.id);
+      } else if (oldVote) {
+        // Update
+        await supabase.from('forum_post_votes').update({ vote_type: type }).eq('post_id', postId).eq('user_id', user.id);
+      } else {
+        // Insert
+        await supabase.from('forum_post_votes').insert({ post_id: postId, user_id: user.id, vote_type: type });
+      }
+    } catch (error) {
+      console.error('Error voting:', error);
+      toast.error('Failed to vote');
+      fetchPosts(); // Revert on error
     }
   };
 
@@ -313,11 +416,25 @@ export default function ForumPostList() {
                     <span>{post.author?.full_name || 'Unknown User'}</span>
                   </div>
                   <div className="flex items-center gap-4">
-                    <div className="flex items-center gap-1">
-                      <ThumbsUp className="h-4 w-4" />
-                      <span>{post.votes || 0}</span>
-                    </div>
-                    <div className="flex items-center gap-1">
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className={cn("gap-1 px-2 h-8", post.user_vote === 'up' && "text-primary bg-primary/10")}
+                      onClick={(e) => handleVote(e, post.id, 'up')}
+                    >
+                      <ThumbsUp className={cn("h-4 w-4", post.user_vote === 'up' && "fill-current")} />
+                      <span>{post.upvotes}</span>
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className={cn("gap-1 px-2 h-8", post.user_vote === 'helpful' && "text-green-600 bg-green-50")}
+                      onClick={(e) => handleVote(e, post.id, 'helpful')}
+                    >
+                      <Heart className={cn("h-4 w-4", post.user_vote === 'helpful' && "fill-current")} />
+                      <span>{post.helpfuls}</span>
+                    </Button>
+                    <div className="flex items-center gap-1 px-2">
                       <MessageSquare className="h-4 w-4" />
                       <span>{post.reply_count || 0}</span>
                     </div>
