@@ -235,7 +235,7 @@ const FlashcardEditor = ({ deck, onSave, onCancel, userRole = 'student' }: Flash
   };
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-10">
       <div className="flex justify-between items-center">
         <h2 className="text-2xl md:text-3xl font-bold bg-gradient-to-r from-primary to-purple-600 bg-clip-text text-transparent">
           {deck.id ? 'Edit Deck' : 'Create New Deck'}
@@ -260,7 +260,7 @@ const FlashcardEditor = ({ deck, onSave, onCancel, userRole = 'student' }: Flash
       </div>
 
       {/* Deck Metadata Section */}
-      <div className="glass-card backdrop-blur-xl bg-white/60 dark:bg-slate-800/60 border-white/20 shadow-lg rounded-2xl p-6 md:p-8 space-y-6 animate-in fade-in-up duration-500">
+      <div className="glass-card backdrop-blur-xl bg-white/60 dark:bg-slate-800/60 border-white/20 shadow-lg rounded-2xl p-8 md:p-10 space-y-8 animate-in fade-in-up duration-500">
         <h3 className="text-xl font-semibold text-foreground flex items-center gap-2">
           <div className="p-2 bg-primary/10 rounded-lg">
             <Save className="h-5 w-5 text-primary" />
@@ -268,8 +268,8 @@ const FlashcardEditor = ({ deck, onSave, onCancel, userRole = 'student' }: Flash
           Deck Information
         </h3>
         
-        <div className="space-y-5">
-          <div className="space-y-2">
+        <div className="space-y-6">
+          <div className="space-y-3">
             <label className="text-sm font-semibold text-foreground">Deck Title <span className="text-red-500">*</span></label>
             <Input
               value={title}
@@ -278,40 +278,40 @@ const FlashcardEditor = ({ deck, onSave, onCancel, userRole = 'student' }: Flash
                 if (errors.title) setErrors(prev => ({ ...prev, title: undefined }));
               }}
               placeholder="Enter deck title"
-              className={`h-12 bg-white/50 dark:bg-slate-700/50 border-white/20 focus:border-primary/50 focus:ring-2 focus:ring-primary/20 rounded-xl transition-all hover:bg-white/70 dark:hover:bg-slate-700/70 ${errors.title ? 'border-red-500 focus:border-red-500 focus:ring-red-500/20' : ''}`}
+              className={`h-14 px-4 bg-white/50 dark:bg-slate-700/50 border-white/20 focus:border-primary/50 focus:ring-2 focus:ring-primary/20 rounded-xl transition-all hover:bg-white/70 dark:hover:bg-slate-700/70 ${errors.title ? 'border-red-500 focus:border-red-500 focus:ring-red-500/20' : ''}`}
             />
             {errors.title && <p className="text-xs text-red-500 mt-1">{errors.title}</p>}
           </div>
 
-          <div className="space-y-2">
+          <div className="space-y-3">
             <label className="text-sm font-semibold text-foreground">Description</label>
             <Textarea
               value={description}
               onChange={(e) => setDescription(e.target.value)}
               placeholder="Enter deck description"
-              rows={3}
-              className="bg-white/50 dark:bg-slate-700/50 border-white/20 focus:border-primary/50 focus:ring-2 focus:ring-primary/20 rounded-xl resize-none transition-all hover:bg-white/70 dark:hover:bg-slate-700/70"
+              rows={4}
+              className="p-4 bg-white/50 dark:bg-slate-700/50 border-white/20 focus:border-primary/50 focus:ring-2 focus:ring-primary/20 rounded-xl resize-none transition-all hover:bg-white/70 dark:hover:bg-slate-700/70"
             />
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-            <div className={`flex items-center space-x-3 p-4 glass-card backdrop-blur-sm bg-white/40 dark:bg-slate-700/40 border-white/20 rounded-xl ${userRole === 'student' ? 'opacity-50 cursor-not-allowed' : ''}`}>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className={`flex items-center space-x-4 p-6 glass-card backdrop-blur-sm bg-white/40 dark:bg-slate-700/40 border-white/20 rounded-xl ${userRole === 'student' ? 'opacity-50 cursor-not-allowed' : ''}`}>
               <input
                 type="checkbox"
                 id="public"
                 checked={isPublic}
                 onChange={(e) => userRole !== 'student' && setIsPublic(e.target.checked)}
                 disabled={userRole === 'student'}
-                className="h-5 w-5 rounded-lg border-2 border-primary/30 text-primary focus:ring-2 focus:ring-primary/20 transition-all cursor-pointer disabled:cursor-not-allowed"
+                className="h-6 w-6 rounded-lg border-2 border-primary/30 text-primary focus:ring-2 focus:ring-primary/20 transition-all cursor-pointer disabled:cursor-not-allowed"
               />
-              <label htmlFor="public" className={`text-sm font-medium text-foreground ${userRole === 'student' ? 'cursor-not-allowed' : 'cursor-pointer'}`}>
+              <label htmlFor="public" className={`text-base font-medium text-foreground ${userRole === 'student' ? 'cursor-not-allowed' : 'cursor-pointer'}`}>
                 Make this deck public {userRole === 'student' && '(Teachers only)'}
               </label>
             </div>
           </div>
 
           {/* Tags Section - Replaced with selection chips */}
-          <div className="space-y-3">
+          <div className="space-y-4">
             <label className="text-sm font-semibold text-foreground flex items-center gap-2">
               <Tag className="h-4 w-4 text-primary" />
               Select Tag <span className="text-red-500">*</span>
@@ -319,7 +319,7 @@ const FlashcardEditor = ({ deck, onSave, onCancel, userRole = 'student' }: Flash
                 (Choose one)
               </span>
             </label>
-            <div className={`flex flex-wrap gap-2 p-4 glass-card backdrop-blur-sm bg-white/40 dark:bg-slate-700/40 border-white/20 rounded-xl ${errors.tags ? 'border-red-500/50 bg-red-500/5' : ''}`}>
+            <div className={`flex flex-wrap gap-3 p-6 glass-card backdrop-blur-sm bg-white/40 dark:bg-slate-700/40 border-white/20 rounded-xl ${errors.tags ? 'border-red-500/50 bg-red-500/5' : ''}`}>
               {AVAILABLE_TAGS.map((tag) => {
                 const isSelected = tags.includes(tag);
                 return (
@@ -328,7 +328,7 @@ const FlashcardEditor = ({ deck, onSave, onCancel, userRole = 'student' }: Flash
                     type="button"
                     onClick={() => toggleTag(tag)}
                     className={`
-                      px-4 py-2 rounded-full text-sm font-medium transition-all duration-300 
+                      px-5 py-2.5 rounded-full text-sm font-medium transition-all duration-300 
                       ${isSelected 
                         ? 'bg-gradient-to-r from-primary to-purple-600 text-white shadow-lg shadow-primary/30 scale-105' 
                         : 'glass-card bg-white/50 dark:bg-slate-700/50 border border-white/20 text-foreground hover:bg-white/70 dark:hover:bg-slate-700/70 hover:shadow-[0_0_15px_rgba(124,58,237,0.3)] hover:border-primary/30'
@@ -352,11 +352,11 @@ const FlashcardEditor = ({ deck, onSave, onCancel, userRole = 'student' }: Flash
       </div>
 
       {/* Flashcards Section */}
-      <div className="space-y-6">
-        <div className="flex items-center justify-between">
-          <h3 className="text-xl md:text-2xl font-bold text-foreground flex items-center gap-2">
-            <div className="p-2 bg-purple-500/10 rounded-lg">
-              <CreditCard className="h-5 w-5 text-purple-600" />
+      <div className="space-y-8">
+        <div className="flex items-center justify-between px-2">
+          <h3 className="text-xl md:text-2xl font-bold text-foreground flex items-center gap-3">
+            <div className="p-2.5 bg-purple-500/10 rounded-xl">
+              <CreditCard className="h-6 w-6 text-purple-600" />
             </div>
             Flashcards
             <span className="text-base font-normal text-muted-foreground">({cards.length} cards)</span>
@@ -364,49 +364,49 @@ const FlashcardEditor = ({ deck, onSave, onCancel, userRole = 'student' }: Flash
         </div>
         
         {/* Add New Card Form */}
-        <div className="glass-card backdrop-blur-xl bg-gradient-to-br from-purple-50/80 to-blue-50/80 dark:from-purple-900/20 dark:to-blue-900/20 border-white/20 shadow-lg rounded-2xl p-6 md:p-8 animate-in fade-in-up duration-500" style={{ animationDelay: '100ms' }}>
-          <h4 className="text-lg font-semibold text-foreground mb-4 flex items-center gap-2">
+        <div className="glass-card backdrop-blur-xl bg-gradient-to-br from-purple-50/80 to-blue-50/80 dark:from-purple-900/20 dark:to-blue-900/20 border-white/20 shadow-lg rounded-2xl p-8 md:p-10 animate-in fade-in-up duration-500" style={{ animationDelay: '100ms' }}>
+          <h4 className="text-lg font-semibold text-foreground mb-6 flex items-center gap-2">
             <Plus className="h-5 w-5 text-primary" />
             Add New Card
           </h4>
           
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div className="space-y-2">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <div className="space-y-3">
               <label className="text-sm font-semibold text-foreground">Front *</label>
               <Textarea
                 value={newCard.front}
                 onChange={(e) => setNewCard({ ...newCard, front: e.target.value })}
                 placeholder="Question or term"
-                rows={4}
-                className="bg-white/60 dark:bg-slate-800/60 border-white/20 focus:border-primary/50 focus:ring-2 focus:ring-primary/20 rounded-xl resize-none transition-all hover:bg-white/80 dark:hover:bg-slate-800/80"
+                rows={5}
+                className="p-4 bg-white/60 dark:bg-slate-800/60 border-white/20 focus:border-primary/50 focus:ring-2 focus:ring-primary/20 rounded-xl resize-none transition-all hover:bg-white/80 dark:hover:bg-slate-800/80"
               />
             </div>
-            <div className="space-y-2">
+            <div className="space-y-3">
               <label className="text-sm font-semibold text-foreground">Back *</label>
               <Textarea
                 value={newCard.back}
                 onChange={(e) => setNewCard({ ...newCard, back: e.target.value })}
                 placeholder="Answer or definition"
-                rows={4}
-                className="bg-white/60 dark:bg-slate-800/60 border-white/20 focus:border-primary/50 focus:ring-2 focus:ring-primary/20 rounded-xl resize-none transition-all hover:bg-white/80 dark:hover:bg-slate-800/80"
+                rows={5}
+                className="p-4 bg-white/60 dark:bg-slate-800/60 border-white/20 focus:border-primary/50 focus:ring-2 focus:ring-primary/20 rounded-xl resize-none transition-all hover:bg-white/80 dark:hover:bg-slate-800/80"
               />
             </div>
-            <div className="space-y-2">
+            <div className="space-y-3">
               <label className="text-sm font-semibold text-foreground">Hint (Optional)</label>
               <Textarea
                 value={newCard.hint}
                 onChange={(e) => setNewCard({ ...newCard, hint: e.target.value })}
                 placeholder="Additional hint"
-                rows={4}
-                className="bg-white/60 dark:bg-slate-800/60 border-white/20 focus:border-primary/50 focus:ring-2 focus:ring-primary/20 rounded-xl resize-none transition-all hover:bg-white/80 dark:hover:bg-slate-800/80"
+                rows={5}
+                className="p-4 bg-white/60 dark:bg-slate-800/60 border-white/20 focus:border-primary/50 focus:ring-2 focus:ring-primary/20 rounded-xl resize-none transition-all hover:bg-white/80 dark:hover:bg-slate-800/80"
               />
             </div>
           </div>
-          <div className="mt-6 flex justify-end">
+          <div className="mt-8 flex justify-end">
             <Button 
               onClick={addCard} 
               disabled={!newCard.front.trim() || !newCard.back.trim()}
-              className="bg-gradient-to-r from-primary to-purple-600 hover:opacity-90 text-white shadow-lg shadow-primary/25 h-11 px-6 rounded-xl transition-all hover:-translate-y-0.5 disabled:opacity-50 disabled:cursor-not-allowed"
+              className="bg-gradient-to-r from-primary to-purple-600 hover:opacity-90 text-white shadow-lg shadow-primary/25 h-12 px-8 rounded-xl transition-all hover:-translate-y-0.5 disabled:opacity-50 disabled:cursor-not-allowed"
             >
               <Plus className="h-4 w-4 mr-2" />
               Add Card
@@ -416,14 +416,14 @@ const FlashcardEditor = ({ deck, onSave, onCancel, userRole = 'student' }: Flash
 
         {/* Existing Cards List */}
         {cards.length > 0 ? (
-          <div className="space-y-4">
+          <div className="space-y-6">
             {cards.map((card, index) => (
               <div 
                 key={index} 
-                className="glass-card backdrop-blur-xl bg-white/60 dark:bg-slate-800/60 border-white/20 shadow-lg rounded-2xl p-6 hover:shadow-xl hover:shadow-primary/10 transition-all duration-300 animate-in fade-in-up"
+                className="glass-card backdrop-blur-xl bg-white/60 dark:bg-slate-800/60 border-white/20 shadow-lg rounded-2xl p-8 hover:shadow-xl hover:shadow-primary/10 transition-all duration-300 animate-in fade-in-up"
                 style={{ animationDelay: `${(index + 2) * 50}ms` }}
               >
-                <div className="flex items-center justify-between mb-4">
+                <div className="flex items-center justify-between mb-6">
                   <h5 className="text-sm font-semibold text-muted-foreground">Card #{index + 1}</h5>
                   <Button
                     variant="outline"
@@ -436,32 +436,32 @@ const FlashcardEditor = ({ deck, onSave, onCancel, userRole = 'student' }: Flash
                   </Button>
                 </div>
                 
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  <div className="space-y-2">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                  <div className="space-y-3">
                     <label className="text-sm font-semibold text-foreground">Front</label>
                     <Textarea
                       value={card.front}
                       onChange={(e) => updateCard(index, 'front', e.target.value)}
                       rows={4}
-                      className="bg-white/60 dark:bg-slate-700/60 border-white/20 focus:border-primary/50 focus:ring-2 focus:ring-primary/20 rounded-xl resize-none transition-all hover:bg-white/80 dark:hover:bg-slate-700/80"
+                      className="p-4 bg-white/60 dark:bg-slate-700/60 border-white/20 focus:border-primary/50 focus:ring-2 focus:ring-primary/20 rounded-xl resize-none transition-all hover:bg-white/80 dark:hover:bg-slate-700/80"
                     />
                   </div>
-                  <div className="space-y-2">
+                  <div className="space-y-3">
                     <label className="text-sm font-semibold text-foreground">Back</label>
                     <Textarea
                       value={card.back}
                       onChange={(e) => updateCard(index, 'back', e.target.value)}
                       rows={4}
-                      className="bg-white/60 dark:bg-slate-700/60 border-white/20 focus:border-primary/50 focus:ring-2 focus:ring-primary/20 rounded-xl resize-none transition-all hover:bg-white/80 dark:hover:bg-slate-700/80"
+                      className="p-4 bg-white/60 dark:bg-slate-700/60 border-white/20 focus:border-primary/50 focus:ring-2 focus:ring-primary/20 rounded-xl resize-none transition-all hover:bg-white/80 dark:hover:bg-slate-700/80"
                     />
                   </div>
-                  <div className="space-y-2">
+                  <div className="space-y-3">
                     <label className="text-sm font-semibold text-foreground">Hint</label>
                     <Textarea
                       value={card.hint}
                       onChange={(e) => updateCard(index, 'hint', e.target.value)}
                       rows={4}
-                      className="bg-white/60 dark:bg-slate-700/60 border-white/20 focus:border-primary/50 focus:ring-2 focus:ring-primary/20 rounded-xl resize-none transition-all hover:bg-white/80 dark:hover:bg-slate-700/80"
+                      className="p-4 bg-white/60 dark:bg-slate-700/60 border-white/20 focus:border-primary/50 focus:ring-2 focus:ring-primary/20 rounded-xl resize-none transition-all hover:bg-white/80 dark:hover:bg-slate-700/80"
                     />
                   </div>
                 </div>
@@ -469,12 +469,12 @@ const FlashcardEditor = ({ deck, onSave, onCancel, userRole = 'student' }: Flash
             ))}
           </div>
         ) : (
-          <div className="glass-card backdrop-blur-xl bg-white/40 dark:bg-slate-800/40 border-white/20 border-dashed rounded-2xl p-12 text-center animate-in fade-in-up duration-500" style={{ animationDelay: '200ms' }}>
-            <div className="inline-flex p-4 bg-purple-100/50 dark:bg-purple-900/20 rounded-2xl mb-4">
-              <CreditCard className="h-12 w-12 text-purple-500" />
+          <div className="glass-card backdrop-blur-xl bg-white/40 dark:bg-slate-800/40 border-white/20 border-dashed rounded-2xl p-16 text-center animate-in fade-in-up duration-500" style={{ animationDelay: '200ms' }}>
+            <div className="inline-flex p-5 bg-purple-100/50 dark:bg-purple-900/20 rounded-2xl mb-6">
+              <CreditCard className="h-14 w-14 text-purple-500" />
             </div>
-            <h4 className="text-lg font-semibold text-foreground mb-2">No flashcards yet</h4>
-            <p className="text-muted-foreground">Start adding cards using the form above to build your deck</p>
+            <h4 className="text-xl font-semibold text-foreground mb-3">No flashcards yet</h4>
+            <p className="text-muted-foreground text-lg">Start adding cards using the form above to build your deck</p>
           </div>
         )}
       </div>

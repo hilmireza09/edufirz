@@ -61,6 +61,14 @@ const App = () => (
               } 
             />
             <Route 
+              path="/flashcards/decks/:id/edit" 
+              element={
+                <ProtectedRoute>
+                  <CreateDeck />
+                </ProtectedRoute>
+              } 
+            />
+            <Route 
               path="/quizzes" 
               element={
                 <ProtectedRoute>

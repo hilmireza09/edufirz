@@ -48,7 +48,6 @@ const Flashcards = () => {
   const [showHint, setShowHint] = useState(false);
   const [userRole, setUserRole] = useState<string>('student');
   const [loading, setLoading] = useState(true);
-  const [editingDeck, setEditingDeck] = useState<Deck | null>(null);
   const [profile, setProfile] = useState<Profile | null>(null);
   const [isProfileMenuOpen, setIsProfileMenuOpen] = useState(false);
   const profileMenuRef = useRef<HTMLDivElement>(null);
@@ -224,8 +223,7 @@ const Flashcards = () => {
   }, [flashcardsSearchQuery, selectedTag, currentPage, setSearchParams]);
 
   const handleEditDeck = (deck: Deck) => {
-    setEditingDeck(deck);
-    setSelectedDeck(null);
+    navigate(`/flashcards/decks/${deck.id}/edit`);
   };
 
   const handleDeleteDeck = (deckId: string) => {
@@ -273,22 +271,6 @@ const Flashcards = () => {
     }
   };
 
-  const handleSaveDeck = (updatedDeck: Deck) => {
-    // Update the decks list with the saved deck
-    const updatedDecks = decks.map(deck => 
-      deck.id === updatedDeck.id ? updatedDeck : deck
-    );
-    
-    // If it's a new deck, add it to the list
-    if (!decks.some(deck => deck.id === updatedDeck.id)) {
-      updatedDecks.unshift(updatedDeck);
-    }
-    
-    setDecks(updatedDecks);
-    setSelectedDeck(updatedDeck);
-    setEditingDeck(null);
-  };
-
   const next = () => {
     if (!selectedDeck) return;
     setFlipped(false);
@@ -308,21 +290,6 @@ const Flashcards = () => {
     setFlipped(false);
     setShowHint(false);
   };
-
-  if (editingDeck) {
-    return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-50 via-purple-50 to-slate-100 p-4 md:p-8">
-        <div className="max-w-6xl mx-auto bg-white/80 backdrop-blur-xl rounded-3xl shadow-2xl border border-white/20 overflow-hidden">
-          <FlashcardEditor 
-            deck={editingDeck} 
-            onSave={handleSaveDeck}
-            onCancel={() => setEditingDeck(null)}
-            userRole={userRole}
-          />
-        </div>
-      </div>
-    );
-  }
 
   return (
     <div className="h-screen w-full flex bg-gradient-to-br from-slate-50 via-purple-50 to-slate-100 dark:from-slate-950 dark:via-slate-900 dark:to-slate-950 overflow-hidden">
