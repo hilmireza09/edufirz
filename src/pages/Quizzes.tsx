@@ -22,7 +22,7 @@ type Quiz = {
   id?: string;
   title: string;
   description: string | null;
-  status: string; // 'draft' | 'published'
+  status: string; // 'draft' | 'published' | 'private'
   is_public: boolean | null;
   difficulty: string | null;
   due_date: string | null;
@@ -55,7 +55,7 @@ const Quizzes = () => {
 
   // Filters
   const [searchQuery, setSearchQuery] = useState('');
-  const [statusFilter, setStatusFilter] = useState<'all' | 'draft' | 'published'>('all');
+  const [statusFilter, setStatusFilter] = useState<'all' | 'draft' | 'published' | 'private'>('all');
   const [difficultyFilter, setDifficultyFilter] = useState<'all' | 'easy' | 'medium' | 'hard'>('all');
   const [categoryFilter, setCategoryFilter] = useState('');
   const [dueDateFrom, setDueDateFrom] = useState('');
@@ -541,10 +541,11 @@ const Quizzes = () => {
                       />
                     </div>
                     <div>
-                      <select className="w-full px-3 py-2 rounded-md bg-background border border-border" value={statusFilter} onChange={(e) => setStatusFilter(e.target.value as "all" | "draft" | "published")}>
+                      <select className="w-full px-3 py-2 rounded-md bg-background border border-border" value={statusFilter} onChange={(e) => setStatusFilter(e.target.value as "all" | "draft" | "published" | "private")}>
                         <option value="all">All Status</option>
                         <option value="draft">Draft</option>
                         <option value="published">Published</option>
+                        <option value="private">Private</option>
                       </select>
                     </div>
                     <div>
@@ -775,6 +776,7 @@ const Quizzes = () => {
                         >
                           <option value="draft">📝 Draft</option>
                           <option value="published">✅ Published</option>
+                          <option value="private">🔒 Private</option>
                         </select>
                       </div>
                       <div>

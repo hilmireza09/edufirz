@@ -87,7 +87,7 @@ const ClassworkTab = () => {
         .from('quizzes')
         .select('id, title')
         .eq('creator_id', user.id)
-        .eq('status', 'published'); // Only published quizzes
+        .eq('status', 'private'); // Only private quizzes
 
       if (error) throw error;
       setTeacherQuizzes(data || []);
