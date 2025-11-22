@@ -15,6 +15,7 @@ import Quizzes from "./pages/Quizzes";
 import QuizTake from "./pages/QuizTake";
 import QuizReview from "./pages/QuizReview";
 import Classes from "./pages/Classes";
+import EditClass from "./pages/EditClass";
 import ClassDetails from "./pages/ClassDetails";
 import Forum from "./pages/Forum";
 import NotFound from "./pages/NotFound";
@@ -101,7 +102,15 @@ const App = () => (
               } 
             />
             <Route 
-              path="/classes/:id/*" 
+              path="/classes/:id/edit" 
+              element={
+                <ProtectedRoute>
+                  <EditClass />
+                </ProtectedRoute>
+              } 
+            />
+            <Route 
+              path="/classes/:id" 
               element={
                 <ProtectedRoute>
                   <ClassDetails />

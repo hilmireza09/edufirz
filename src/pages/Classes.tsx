@@ -325,8 +325,7 @@ const Classes = () => {
                                 className="h-8 w-8 hover:bg-primary/10 hover:text-primary"
                                 onClick={(e) => {
                                   e.stopPropagation();
-                                  // TODO: Implement edit functionality
-                                  toast.info('Edit functionality coming soon');
+                                  navigate(`/classes/${cls.id}/edit`);
                                 }}
                               >
                                 <Edit className="h-4 w-4" />
