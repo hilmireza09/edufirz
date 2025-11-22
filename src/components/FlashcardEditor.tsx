@@ -55,6 +55,7 @@ const FlashcardEditor = ({ deck, onSave, onCancel, userRole = 'student' }: Flash
   const [cards, setCards] = useState<Card[]>(deck.flashcards || []);
   const [newCard, setNewCard] = useState({ front: '', back: '', hint: '' });
   const [tags, setTags] = useState<string[]>(deck.tags || []);
+  const [errors, setErrors] = useState<{ title?: string; tags?: string }>({});
   const originalCardIdsRef = useRef<string[]>([]);
 
   // Toggle tag selection (Single selection mode)
@@ -64,6 +65,10 @@ const FlashcardEditor = ({ deck, onSave, onCancel, userRole = 'student' }: Flash
         ? [] // Deselect if already selected
         : [tag] // Select only this tag (replace previous)
     );
+    // Clear tag error when user selects a tag
+    if (errors.tags) {
+      setErrors(prev => ({ ...prev, tags: undefined }));
+    }
   };
 
   // Enforce private decks for students
@@ -112,6 +117,21 @@ const FlashcardEditor = ({ deck, onSave, onCancel, userRole = 'student' }: Flash
    * - Inserts new cards
    */
   const handleSave = async () => {
+    // Validation
+    const newErrors: { title?: string; tags?: string } = {};
+    if (!title.trim()) {
+      newErrors.title = 'Deck title is required';
+    }
+    if (tags.length === 0) {
+      newErrors.tags = 'Please select exactly one tag';
+    }
+
+    if (Object.keys(newErrors).length > 0) {
+      setErrors(newErrors);
+      toast.error('Please fill in all required fields');
+      return;
+    }
+
     try {
       // Save deck
       const deckData = {
@@ -230,7 +250,8 @@ const FlashcardEditor = ({ deck, onSave, onCancel, userRole = 'student' }: Flash
           </Button>
           <Button 
             onClick={handleSave} 
-            className="bg-gradient-to-r from-primary to-purple-600 hover:opacity-90 text-white shadow-lg shadow-primary/25 h-11 px-6 rounded-xl transition-all hover:-translate-y-0.5"
+            disabled={!title.trim() || tags.length === 0}
+            className="bg-gradient-to-r from-primary to-purple-600 hover:opacity-90 text-white shadow-lg shadow-primary/25 h-11 px-6 rounded-xl transition-all hover:-translate-y-0.5 disabled:opacity-50 disabled:cursor-not-allowed"
           >
             <Save className="h-4 w-4 mr-2" />
             Save Deck
@@ -249,13 +270,17 @@ const FlashcardEditor = ({ deck, onSave, onCancel, userRole = 'student' }: Flash
         
         <div className="space-y-5">
           <div className="space-y-2">
-            <label className="text-sm font-semibold text-foreground">Deck Title *</label>
+            <label className="text-sm font-semibold text-foreground">Deck Title <span className="text-red-500">*</span></label>
             <Input
               value={title}
-              onChange={(e) => setTitle(e.target.value)}
+              onChange={(e) => {
+                setTitle(e.target.value);
+                if (errors.title) setErrors(prev => ({ ...prev, title: undefined }));
+              }}
               placeholder="Enter deck title"
-              className="h-12 bg-white/50 dark:bg-slate-700/50 border-white/20 focus:border-primary/50 focus:ring-2 focus:ring-primary/20 rounded-xl transition-all hover:bg-white/70 dark:hover:bg-slate-700/70"
+              className={`h-12 bg-white/50 dark:bg-slate-700/50 border-white/20 focus:border-primary/50 focus:ring-2 focus:ring-primary/20 rounded-xl transition-all hover:bg-white/70 dark:hover:bg-slate-700/70 ${errors.title ? 'border-red-500 focus:border-red-500 focus:ring-red-500/20' : ''}`}
             />
+            {errors.title && <p className="text-xs text-red-500 mt-1">{errors.title}</p>}
           </div>
 
           <div className="space-y-2">
@@ -289,12 +314,12 @@ const FlashcardEditor = ({ deck, onSave, onCancel, userRole = 'student' }: Flash
           <div className="space-y-3">
             <label className="text-sm font-semibold text-foreground flex items-center gap-2">
               <Tag className="h-4 w-4 text-primary" />
-              Select Tag
+              Select Tag <span className="text-red-500">*</span>
               <span className="text-xs font-normal text-muted-foreground">
                 (Choose one)
               </span>
             </label>
-            <div className="flex flex-wrap gap-2 p-4 glass-card backdrop-blur-sm bg-white/40 dark:bg-slate-700/40 border-white/20 rounded-xl">
+            <div className={`flex flex-wrap gap-2 p-4 glass-card backdrop-blur-sm bg-white/40 dark:bg-slate-700/40 border-white/20 rounded-xl ${errors.tags ? 'border-red-500/50 bg-red-500/5' : ''}`}>
               {AVAILABLE_TAGS.map((tag) => {
                 const isSelected = tags.includes(tag);
                 return (
@@ -316,7 +341,8 @@ const FlashcardEditor = ({ deck, onSave, onCancel, userRole = 'student' }: Flash
                 );
               })}
             </div>
-            {tags.length === 0 && (
+            {errors.tags && <p className="text-xs text-red-500 pl-1">{errors.tags}</p>}
+            {tags.length === 0 && !errors.tags && (
               <p className="text-xs text-muted-foreground pl-1">
                 Click on tags above to categorize your deck
               </p>
