@@ -39,9 +39,34 @@ export function CreatePostModal({ open, onOpenChange, onPostCreated }: CreatePos
   const [content, setContent] = useState('');
   const [category, setCategory] = useState<string>('');
   const [tags, setTags] = useState('');
+  
+  const [touched, setTouched] = useState({
+    title: false,
+    category: false,
+    content: false,
+    tags: false
+  });
+
+  const isTitleValid = title.trim().length > 0;
+  const isCategoryValid = category.length > 0;
+  const isContentValid = content.trim().length > 0;
+  const isTagsValid = tags.trim().length > 0;
+
+  const isFormValid = isTitleValid && isCategoryValid && isContentValid && isTagsValid;
+
+  const handleBlur = (field: keyof typeof touched) => {
+    setTouched(prev => ({ ...prev, [field]: true }));
+  };
 
   const handleSubmit = async () => {
-    if (!title.trim() || !content.trim() || !category) {
+    setTouched({
+      title: true,
+      category: true,
+      content: true,
+      tags: true
+    });
+
+    if (!isFormValid) {
       toast.error('Please fill in all required fields');
       return;
     }
@@ -75,6 +100,12 @@ export function CreatePostModal({ open, onOpenChange, onPostCreated }: CreatePos
       setContent('');
       setCategory('');
       setTags('');
+      setTouched({
+        title: false,
+        category: false,
+        content: false,
+        tags: false
+      });
     } catch (error) {
       console.error('Error creating post:', error);
       toast.error('Failed to create post');
@@ -94,20 +125,37 @@ export function CreatePostModal({ open, onOpenChange, onPostCreated }: CreatePos
         
         <div className="space-y-6 py-4">
           <div className="space-y-2">
-            <Label htmlFor="title">Title</Label>
+            <Label htmlFor="title" className="flex gap-1">
+              Title <span className="text-red-500">*</span>
+            </Label>
             <Input
               id="title"
               placeholder="What's on your mind?"
               value={title}
               onChange={(e) => setTitle(e.target.value)}
-              className="bg-white/50 border-gray-200 focus:border-primary/50 focus:ring-primary/20"
+              onBlur={() => handleBlur('title')}
+              className={`bg-white/50 border-gray-200 focus:border-primary/50 focus:ring-primary/20 ${touched.title && !isTitleValid ? 'border-red-500 focus:border-red-500' : ''}`}
             />
+            {touched.title && !isTitleValid && (
+              <p className="text-xs text-red-500">Title is required</p>
+            )}
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="category">Category</Label>
-            <Select value={category} onValueChange={setCategory}>
-              <SelectTrigger className="bg-white/50 border-gray-200">
+            <Label htmlFor="category" className="flex gap-1">
+              Category <span className="text-red-500">*</span>
+            </Label>
+            <Select 
+              value={category} 
+              onValueChange={(val) => {
+                setCategory(val);
+                if (val) setTouched(prev => ({ ...prev, category: true }));
+              }}
+            >
+              <SelectTrigger 
+                className={`bg-white/50 border-gray-200 ${touched.category && !isCategoryValid ? 'border-red-500' : ''}`}
+                onBlur={() => handleBlur('category')}
+              >
                 <SelectValue placeholder="Select a category" />
               </SelectTrigger>
               <SelectContent>
@@ -118,28 +166,43 @@ export function CreatePostModal({ open, onOpenChange, onPostCreated }: CreatePos
                 ))}
               </SelectContent>
             </Select>
+            {touched.category && !isCategoryValid && (
+              <p className="text-xs text-red-500">Category is required</p>
+            )}
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="content">Content</Label>
+            <Label htmlFor="content" className="flex gap-1">
+              Content <span className="text-red-500">*</span>
+            </Label>
             <Textarea
               id="content"
               placeholder="Describe your topic in detail..."
               value={content}
               onChange={(e) => setContent(e.target.value)}
-              className="min-h-[150px] bg-white/50 border-gray-200 focus:border-primary/50 focus:ring-primary/20 resize-none"
+              onBlur={() => handleBlur('content')}
+              className={`min-h-[150px] bg-white/50 border-gray-200 focus:border-primary/50 focus:ring-primary/20 resize-none ${touched.content && !isContentValid ? 'border-red-500 focus:border-red-500' : ''}`}
             />
+            {touched.content && !isContentValid && (
+              <p className="text-xs text-red-500">Content is required</p>
+            )}
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="tags">Tags (comma separated)</Label>
+            <Label htmlFor="tags" className="flex gap-1">
+              Tags (comma separated) <span className="text-red-500">*</span>
+            </Label>
             <Input
               id="tags"
               placeholder="math, science, help..."
               value={tags}
               onChange={(e) => setTags(e.target.value)}
-              className="bg-white/50 border-gray-200 focus:border-primary/50 focus:ring-primary/20"
+              onBlur={() => handleBlur('tags')}
+              className={`bg-white/50 border-gray-200 focus:border-primary/50 focus:ring-primary/20 ${touched.tags && !isTagsValid ? 'border-red-500 focus:border-red-500' : ''}`}
             />
+            {touched.tags && !isTagsValid && (
+              <p className="text-xs text-red-500">At least one tag is required</p>
+            )}
           </div>
         </div>
 
@@ -149,8 +212,8 @@ export function CreatePostModal({ open, onOpenChange, onPostCreated }: CreatePos
           </Button>
           <Button 
             onClick={handleSubmit} 
-            disabled={loading}
-            className="bg-gradient-to-r from-primary to-purple-600 hover:from-primary/90 hover:to-purple-600/90 text-white shadow-lg shadow-primary/20"
+            disabled={loading || !isFormValid}
+            className="bg-gradient-to-r from-primary to-purple-600 hover:from-primary/90 hover:to-purple-600/90 text-white shadow-lg shadow-primary/20 disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
             Post Discussion
