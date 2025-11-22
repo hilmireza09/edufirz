@@ -4,6 +4,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { AuthProvider } from "@/hooks/useAuth";
+import { ProtectedRoute } from "@/components/ProtectedRoute";
 import Index from "./pages/Index";
 import Login from "./pages/Login";
 import Signup from "./pages/Signup";
@@ -29,19 +30,93 @@ const App = () => (
       <BrowserRouter>
         <AuthProvider>
           <Routes>
+            {/* Public Routes */}
             <Route path="/" element={<Index />} />
             <Route path="/login" element={<Login />} />
             <Route path="/signup" element={<Signup />} />
-            <Route path="/dashboard" element={<Dashboard />} />
-            <Route path="/flashcards" element={<Flashcards />} />
-            <Route path="/flashcards/new" element={<CreateDeck />} />
-            <Route path="/quizzes" element={<Quizzes />} />
-            <Route path="/quizzes/:id/take" element={<QuizTake />} />
-            <Route path="/quizzes/:id/review/:attemptId" element={<QuizReview />} />
-            <Route path="/classes" element={<Classes />} />
-            <Route path="/classes/:id/*" element={<ClassDetails />} />
-            <Route path="/forum/*" element={<Forum />} />
-            <Route path="/settings" element={<Settings />} />
+
+            {/* Protected Routes */}
+            <Route 
+              path="/dashboard" 
+              element={
+                <ProtectedRoute>
+                  <Dashboard />
+                </ProtectedRoute>
+              } 
+            />
+            <Route 
+              path="/flashcards" 
+              element={
+                <ProtectedRoute>
+                  <Flashcards />
+                </ProtectedRoute>
+              } 
+            />
+            <Route 
+              path="/flashcards/new" 
+              element={
+                <ProtectedRoute>
+                  <CreateDeck />
+                </ProtectedRoute>
+              } 
+            />
+            <Route 
+              path="/quizzes" 
+              element={
+                <ProtectedRoute>
+                  <Quizzes />
+                </ProtectedRoute>
+              } 
+            />
+            <Route 
+              path="/quizzes/:id/take" 
+              element={
+                <ProtectedRoute>
+                  <QuizTake />
+                </ProtectedRoute>
+              } 
+            />
+            <Route 
+              path="/quizzes/:id/review/:attemptId" 
+              element={
+                <ProtectedRoute>
+                  <QuizReview />
+                </ProtectedRoute>
+              } 
+            />
+            <Route 
+              path="/classes" 
+              element={
+                <ProtectedRoute>
+                  <Classes />
+                </ProtectedRoute>
+              } 
+            />
+            <Route 
+              path="/classes/:id/*" 
+              element={
+                <ProtectedRoute>
+                  <ClassDetails />
+                </ProtectedRoute>
+              } 
+            />
+            <Route 
+              path="/forum/*" 
+              element={
+                <ProtectedRoute>
+                  <Forum />
+                </ProtectedRoute>
+              } 
+            />
+            <Route 
+              path="/settings" 
+              element={
+                <ProtectedRoute>
+                  <Settings />
+                </ProtectedRoute>
+              } 
+            />
+
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
             <Route path="*" element={<NotFound />} />
           </Routes>
