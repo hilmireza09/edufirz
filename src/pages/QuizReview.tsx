@@ -127,6 +127,11 @@ const QuizReview = () => {
         return accepted.some((a: string) => a.toLowerCase() === userVal.toLowerCase());
       });
     }
+
+    if (question.question_type === 'true_false') {
+      // Case insensitive comparison for True/False
+      return (userAnswer || '').toString().toLowerCase() === (question.correct_answer || '').toLowerCase();
+    }
     
     if (question.question_type === 'essay') {
       // Essay questions might need manual grading, for now assume correct if not empty or handle differently
@@ -256,7 +261,7 @@ const QuizReview = () => {
                       <RadioGroup value={userAnswer || ''} className="grid grid-cols-2 gap-4">
                         {['true', 'false'].map((val) => {
                           const isSelected = userAnswer === val;
-                          const isCorrectAnswer = val === q.correct_answer;
+                          const isCorrectAnswer = val.toLowerCase() === (q.correct_answer || '').toLowerCase();
                           
                           let className = "flex items-center space-x-3 p-4 rounded-xl border transition-all ";
                           if (isCorrectAnswer) {
@@ -340,7 +345,7 @@ const QuizReview = () => {
                     )}
                   </div>
 
-                  {q.explanation && (
+                  {q.explanation && !correct && (
                     <div className="mt-4 p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-100 dark:border-blue-900/50">
                       <div className="flex items-start gap-2">
                         <AlertCircle className="h-5 w-5 text-blue-600 mt-0.5" />

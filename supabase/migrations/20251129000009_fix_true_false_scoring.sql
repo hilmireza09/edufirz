@@ -1,4 +1,4 @@
--- Fix submit_quiz_attempt to handle double-encoded JSON in text[] columns
+-- Fix True/False question scoring logic
 CREATE OR REPLACE FUNCTION submit_quiz_attempt(
   p_attempt_id UUID,
   p_answers JSONB
@@ -50,7 +50,7 @@ BEGIN
     v_user_answer := p_answers->(v_question.id::TEXT);
     v_is_correct := FALSE;
     v_question_score := 0;
-    
+
     -- Normalize options and correct_answers to JSONB
     IF v_question.correct_answers IS NULL THEN
       v_q_correct_answers := NULL;
@@ -72,14 +72,14 @@ BEGIN
             v_is_correct := TRUE;
             v_question_score := v_points;
           END IF;
-        
+
         WHEN 'true_false' THEN
           -- True/False comparison (case insensitive, handle boolean vs string)
           IF LOWER(TRIM(v_user_answer #>> '{}')) = LOWER(TRIM(v_question.correct_answer)) THEN
             v_is_correct := TRUE;
             v_question_score := v_points;
           END IF;
-        
+
         WHEN 'checkbox' THEN
           -- Array comparison
           IF v_q_correct_answers IS NOT NULL AND jsonb_typeof(v_q_correct_answers) = 'array' AND jsonb_typeof(v_user_answer) = 'array' THEN
@@ -96,11 +96,10 @@ BEGIN
           IF v_q_options IS NOT NULL AND jsonb_typeof(v_q_options) = 'array' THEN
              v_total_blanks := jsonb_array_length(v_q_options);
              v_correct_blanks := 0;
-             
+
              FOR v_blank_def IN SELECT * FROM jsonb_array_elements(v_q_options)
              LOOP
                -- Handle potential double-encoding if column was text[]
-               -- If v_blank_def is a string, try to parse it as JSON
                IF jsonb_typeof(v_blank_def) = 'string' THEN
                  BEGIN
                    v_blank_def := (v_blank_def #>> '{}')::jsonb;
@@ -111,7 +110,7 @@ BEGIN
 
                v_blank_idx := (v_blank_def->>'index')::INTEGER;
                v_accepted_answers := v_blank_def->'accepted_answers';
-               
+
                -- Get user answer for this blank
                IF jsonb_typeof(v_user_answer) = 'array' THEN
                  v_blank_user_val := v_user_answer->>v_blank_idx;
@@ -120,7 +119,7 @@ BEGIN
                END IF;
 
                v_blank_correct := FALSE;
-               
+
                IF v_blank_user_val IS NOT NULL THEN
                  -- Check against accepted answers
                  FOR v_accepted_answer IN SELECT * FROM jsonb_array_elements_text(v_accepted_answers)
@@ -136,11 +135,11 @@ BEGIN
                  v_correct_blanks := v_correct_blanks + 1;
                END IF;
              END LOOP;
-             
+
              -- Calculate score based on proportion of correct blanks
              IF v_total_blanks > 0 THEN
                v_question_score := (v_correct_blanks::NUMERIC / v_total_blanks::NUMERIC) * v_points;
-               
+
                -- If all blanks are correct, mark question as correct
                IF v_correct_blanks = v_total_blanks THEN
                  v_is_correct := TRUE;
@@ -161,7 +160,7 @@ BEGIN
 
   -- Update attempt
   UPDATE quiz_attempts
-  SET 
+  SET
     score = v_total_score,
     max_score = v_max_score,
     completed_at = NOW(),
