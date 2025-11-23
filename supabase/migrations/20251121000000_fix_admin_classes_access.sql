@@ -51,10 +51,10 @@ CREATE POLICY "Admins can view all enrollments"
   );
 
 -- Ensure admins can see all assignments
-DROP POLICY IF EXISTS "Admins can view all assignments" ON public.assignments;
+DROP POLICY IF EXISTS "Admins can view all assignments" ON public.class_assignments;
 
 CREATE POLICY "Admins can view all assignments"
-  ON public.assignments FOR SELECT
+  ON public.class_assignments FOR SELECT
   USING (
     EXISTS (
       SELECT 1 FROM public.user_roles
@@ -63,10 +63,10 @@ CREATE POLICY "Admins can view all assignments"
   );
 
 -- Ensure admins can see all announcements
-DROP POLICY IF EXISTS "Admins can view all announcements" ON public.announcements;
+DROP POLICY IF EXISTS "Admins can view all announcements" ON public.class_announcements;
 
 CREATE POLICY "Admins can view all announcements"
-  ON public.announcements FOR SELECT
+  ON public.class_announcements FOR SELECT
   USING (
     EXISTS (
       SELECT 1 FROM public.user_roles
