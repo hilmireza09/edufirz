@@ -12,12 +12,17 @@ const signupSchema = z.object({
   fullName: z.string().min(2, 'Name must be at least 2 characters').max(100),
   email: z.string().email('Invalid email address').max(255),
   password: z.string().min(6, 'Password must be at least 6 characters').max(100),
+  confirmPassword: z.string(),
+}).refine((data) => data.password === data.confirmPassword, {
+  message: "Passwords don't match",
+  path: ["confirmPassword"],
 });
 
 const Signup = () => {
   const [fullName, setFullName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [errors, setErrors] = useState<{ [key: string]: string }>({});
   const { signUp, signInWithGoogle } = useAuth();
@@ -35,7 +40,7 @@ const Signup = () => {
     e.preventDefault();
     setErrors({});
     
-    const result = signupSchema.safeParse({ fullName, email, password });
+    const result = signupSchema.safeParse({ fullName, email, password, confirmPassword });
     
     if (!result.success) {
       const fieldErrors: { [key: string]: string } = {};
@@ -147,10 +152,32 @@ const Signup = () => {
               )}
             </div>
 
+            <div>
+              <Label htmlFor="confirmPassword" className="text-foreground">Confirm Password</Label>
+              <div className="relative mt-1">
+                <Lock className="absolute left-3 top-3 h-5 w-5 text-muted-foreground" />
+                <Input
+                  id="confirmPassword"
+                  type="password"
+                  placeholder="••••••••"
+                  value={confirmPassword}
+                  onChange={(e) => setConfirmPassword(e.target.value)}
+                  className="pl-10 bg-background/50 border-border"
+                  required
+                />
+              </div>
+              {confirmPassword && password !== confirmPassword && (
+                <p className="text-destructive text-sm mt-1">Passwords do not match</p>
+              )}
+              {errors.confirmPassword && (
+                <p className="text-destructive text-sm mt-1">{errors.confirmPassword}</p>
+              )}
+            </div>
+
             <Button
               type="submit"
               className="w-full"
-              disabled={isLoading}
+              disabled={isLoading || (confirmPassword.length > 0 && password !== confirmPassword)}
             >
               {isLoading ? 'Creating Account...' : 'Sign Up'}
             </Button>
