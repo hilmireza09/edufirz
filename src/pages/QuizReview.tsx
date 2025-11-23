@@ -134,9 +134,17 @@ const QuizReview = () => {
     }
     
     if (question.question_type === 'essay') {
-      // Essay questions might need manual grading, for now assume correct if not empty or handle differently
-      // Or maybe we just don't show correct/incorrect for essay yet
-      return true; 
+      // Essay evaluation: normalize and compare against grading rubric/key points
+      if (!question.correct_answer || question.correct_answer.trim().length === 0) {
+        // If no rubric is defined, essays are considered manually graded (always correct for now)
+        return true;
+      }
+      
+      // Normalize both answers: trim, lowercase, clean whitespace
+      const userAnswerNormalized = (userAnswer || '').toString().toLowerCase().trim().replace(/\s+/g, ' ');
+      const correctAnswerNormalized = question.correct_answer.toLowerCase().trim().replace(/\s+/g, ' ');
+      
+      return userAnswerNormalized === correctAnswerNormalized;
     }
 
     return userAnswer === question.correct_answer;
@@ -176,21 +184,18 @@ const QuizReview = () => {
 
             return (
               <Card key={q.id} className={`overflow-hidden border shadow-lg ${
-                isEssay ? 'border-white/20' :
                 correct ? 'border-green-200 dark:border-green-900' : 'border-red-200 dark:border-red-900'
               }`}>
                 <CardHeader className={`pb-3 border-b ${
-                  isEssay ? 'bg-muted/30 border-border/50' :
                   correct ? 'bg-green-50/50 dark:bg-green-900/10 border-green-100 dark:border-green-900/30' : 'bg-red-50/50 dark:bg-red-900/10 border-red-100 dark:border-red-900/30'
                 }`}>
                   <div className="flex justify-between items-center">
                     <div className="flex items-center gap-2">
                       <h3 className="font-medium text-lg">Question {index + 1}</h3>
-                      {!isEssay && (
-                        correct ? 
+                      {correct ? 
                         <Badge variant="outline" className="bg-green-100 text-green-700 border-green-200">Correct</Badge> : 
                         <Badge variant="outline" className="bg-red-100 text-red-700 border-red-200">Incorrect</Badge>
-                      )}
+                      }
                     </div>
                     <span className="text-sm font-medium px-2 py-1 bg-primary/10 text-primary rounded-md">
                       {q.points ?? 1} pts
@@ -285,12 +290,32 @@ const QuizReview = () => {
                     )}
 
                     {q.question_type === 'essay' && (
-                      <div className="space-y-2">
-                        <Textarea 
-                          value={userAnswer || ''}
-                          readOnly
-                          className="bg-background/50 min-h-[100px] text-base"
-                        />
+                      <div className="space-y-4">
+                        <div className="space-y-2">
+                          <label className="text-sm font-medium">Your Answer:</label>
+                          <Textarea 
+                            value={userAnswer || ''}
+                            readOnly
+                            className={`min-h-[100px] text-base ${
+                              correct 
+                                ? 'bg-green-50/50 border-green-200 dark:bg-green-900/10 dark:border-green-900/30' 
+                                : 'bg-red-50/50 border-red-200 dark:bg-red-900/10 dark:border-red-900/30'
+                            }`}
+                          />
+                        </div>
+                        
+                        {q.correct_answer && q.correct_answer.trim().length > 0 && (
+                          <div className="space-y-2">
+                            <label className="text-sm font-medium">Expected Answer/Rubric:</label>
+                            <div className={`p-3 rounded-lg border ${
+                              correct 
+                                ? 'bg-green-50 border-green-200 dark:bg-green-900/20 dark:border-green-800' 
+                                : 'bg-red-50 border-red-200 dark:bg-red-900/20 dark:border-red-800'
+                            }`}>
+                              <p className="text-sm text-foreground/80 whitespace-pre-wrap">{q.correct_answer}</p>
+                            </div>
+                          </div>
+                        )}
                       </div>
                     )}
 
