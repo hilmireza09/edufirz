@@ -38,11 +38,11 @@ type Quiz = {
 type Mode = 'list' | 'edit' | 'attempt';
 
 const Quizzes = () => {
-  const { user, signOut } = useAuth();
+  const { user, profile, signOut } = useAuth();
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
-  const [userRole, setUserRole] = useState<string>('student');
-  const [loadingRole, setLoadingRole] = useState(true);
+  const userRole = profile?.role || 'student';
+  const [loadingRole, setLoadingRole] = useState(false);
   const [loading, setLoading] = useState(true);
   const [mode, setMode] = useState<Mode>('list');
   const [quizzes, setQuizzes] = useState<Quiz[]>([]);
@@ -74,51 +74,13 @@ const Quizzes = () => {
   const [quizToDelete, setQuizToDelete] = useState<{ id: string; title: string } | null>(null);
 
   /**
-   * Fetches the current user's role for RBAC UI.
-   */
-  useEffect(() => {
-    const fetchRole = async () => {
-      if (!user) return;
-      try {
-        // Get user roles
-        const { data: rolesData, error: rolesError } = await supabase
-          .from('user_roles')
-          .select('role')
-          .eq('user_id', user.id);
-
-        if (rolesError) {
-          console.error('Error fetching roles:', rolesError);
-          setUserRole('student'); // Default to student if no roles found
-        } else {
-          // Check if user has admin or teacher role
-          const hasAdmin = rolesData?.some(r => r.role === 'admin');
-          const hasTeacher = rolesData?.some(r => r.role === 'teacher');
-          
-          if (hasAdmin) {
-            setUserRole('admin');
-          } else if (hasTeacher) {
-            setUserRole('teacher');
-          } else {
-            setUserRole('student');
-          }
-        }
-      } catch (err) {
-        console.error('Error in fetchRole:', err);
-        setUserRole('student');
-      }
-      setLoadingRole(false);
-    };
-    fetchRole();
-  }, [user]);
-
-  /**
    * Loads quizzes according to role with soft-delete filtering.
    * SECURITY: Only fetches id and title for list view to prevent exposing sensitive quiz data.
    * Full quiz details are loaded only when editing (for teachers/admins) or taking (without answers).
    */
   useEffect(() => {
     const fetchQuizzes = async () => {
-      if (!user || loadingRole) return;
+      if (!user) return;
       setLoading(true);
       try {
         let query = supabase
@@ -132,7 +94,15 @@ const Quizzes = () => {
         if (userRole === 'student') {
           query = query.eq('status', 'published');
         } else if (userRole === 'teacher') {
-          query = query.eq('creator_id', user.id);
+          // Teachers: fetch quizzes they created OR quizzes assigned to their classes
+          // Note: RLS handles the "created by me" part, but we might want to be explicit or just let RLS do it.
+          // The RLS policy "quizzes_select_policy" allows: public OR created_by_me OR assigned_to_me
+          // So we don't strictly need to filter by creator_id here if we want them to see everything they have access to.
+          // However, to match the "My Quizzes" view, we might want to filter.
+          // But the requirement says "restrict edit/delete permissions so they may modify only the quizzes they personally created".
+          // It doesn't say they can't SEE other quizzes (e.g. public ones).
+          // Let's rely on RLS for security, but maybe filter for UI clarity if needed.
+          // For now, let's NOT filter by creator_id explicitly unless the user toggles "Created by Me".
         }
 
         const { data, error } = await query;
@@ -163,7 +133,7 @@ const Quizzes = () => {
       }
     };
     fetchQuizzes();
-  }, [user, userRole, loadingRole]);
+  }, [user, userRole]);
 
   /**
    * Enters edit mode for a quiz (new or existing).

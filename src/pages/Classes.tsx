@@ -83,9 +83,22 @@ const Classes = () => {
           }
 
           query = query.in('id', enrolledClassIds);
+        } else if (userRole === 'teacher') {
+          // Teachers: fetch classes they created OR joined
+          const { data: enrollments } = await supabase
+            .from('class_students')
+            .select('class_id')
+            .eq('student_id', user.id);
+
+          const enrolledClassIds = enrollments?.map(e => e.class_id) || [];
+          
+          if (enrolledClassIds.length > 0) {
+            query = query.or(`teacher_id.eq.${user.id},id.in.(${enrolledClassIds.join(',')})`);
+          } else {
+            query = query.eq('teacher_id', user.id);
+          }
         }
         // Admins: no additional filtering, fetch all classes
-        // Teachers: RLS policy handles filtering to their created classes
 
         const { data, error } = await query;
 
@@ -236,7 +249,7 @@ const Classes = () => {
               </div>
               
               <div className="flex gap-3">
-                {userRole === 'student' && (
+                {(userRole === 'student' || userRole === 'teacher') && (
                   <Button onClick={() => setIsJoinDialogOpen(true)} className="bg-white/10 hover:bg-white/20 text-foreground border border-primary/20 backdrop-blur-sm">
                     <Users className="mr-2 h-4 w-4" />
                     Join Class
