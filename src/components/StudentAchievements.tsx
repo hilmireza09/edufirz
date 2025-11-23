@@ -1,71 +1,83 @@
-import { Trophy, Star, Target, Zap } from "lucide-react";
+import { Star, BrainCircuit, GraduationCap, Users } from "lucide-react";
+import { Card } from "@/components/ui/card";
 
 const StudentAchievements = () => {
   const achievements = [
     {
-      icon: Trophy,
-      number: "50K+",
-      label: "Active Students",
-      color: "from-yellow-400 to-orange-500"
-    },
-    {
       icon: Star,
-      number: "95%",
-      label: "Satisfaction Rate",
-      color: "from-primary to-secondary"
+      number: "98%",
+      label: "Student Satisfaction Rate",
+      color: "text-yellow-500",
+      bg: "bg-yellow-500/10",
+      gradient: "from-yellow-500/20 to-orange-500/20"
     },
     {
-      icon: Target,
-      number: "200+",
-      label: "Courses Completed",
-      color: "from-green-400 to-emerald-500"
+      icon: BrainCircuit,
+      number: "500K+",
+      label: "Flashcards Created",
+      color: "text-purple-500",
+      bg: "bg-purple-500/10",
+      gradient: "from-purple-500/20 to-pink-500/20"
     },
     {
-      icon: Zap,
-      number: "10M+",
-      label: "Lessons Learned",
-      color: "from-purple-400 to-pink-500"
+      icon: GraduationCap,
+      number: "200K+",
+      label: "Quizzes Taken",
+      color: "text-blue-500",
+      bg: "bg-blue-500/10",
+      gradient: "from-blue-500/20 to-cyan-500/20"
+    },
+    {
+      icon: Users,
+      number: "30K+",
+      label: "Classes Managed",
+      color: "text-green-500",
+      bg: "bg-green-500/10",
+      gradient: "from-green-500/20 to-emerald-500/20"
     }
   ];
 
   return (
     <section className="py-24 px-4 relative overflow-hidden">
-      <div className="absolute inset-0">
-        <div className="absolute top-1/4 left-10 w-64 h-64 bg-primary/10 rounded-full blur-3xl animate-float" />
-        <div className="absolute bottom-1/4 right-10 w-80 h-80 bg-accent/10 rounded-full blur-3xl animate-float" style={{ animationDelay: "1.5s" }} />
-      </div>
+      {/* Background decorative elements */}
+      <div className="absolute top-0 left-1/4 w-96 h-96 bg-purple-500/10 rounded-full blur-3xl -z-10" />
+      <div className="absolute bottom-0 right-1/4 w-96 h-96 bg-blue-500/10 rounded-full blur-3xl -z-10" />
 
-      <div className="container mx-auto max-w-7xl relative z-10">
-        <div className="text-center mb-16 animate-fade-in">
-          <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full glass-card text-sm font-medium mb-4">
-            <Trophy className="w-4 h-4 text-accent animate-glow" />
+      <div className="container mx-auto max-w-7xl">
+        <div className="text-center mb-16 animate-fade-in-up">
+          <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full glass-card text-sm font-medium mb-4 border border-white/20 bg-white/10 backdrop-blur-md shadow-sm">
+            <Star className="w-4 h-4 text-purple-500" />
             <span>Student Success</span>
           </div>
-          <h2 className="text-4xl md:text-5xl font-bold mb-4">
-            Celebrating <span className="gradient-text">Achievements</span>
+          <h2 className="text-4xl md:text-5xl font-bold mb-4 text-slate-900 dark:text-white">
+            Celebrating <span className="text-transparent bg-clip-text bg-gradient-to-r from-purple-600 to-blue-600">Achievements</span>
           </h2>
           <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
             Join a thriving community of learners achieving their goals every day
           </p>
         </div>
 
-        <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
           {achievements.map((achievement, index) => (
-            <div
+            <Card
               key={index}
-              className="glass-card rounded-3xl p-8 text-center hover-lift animate-scale-in"
-              style={{ animationDelay: `${index * 0.1}s` }}
+              className="group relative overflow-hidden border-0 bg-white/40 dark:bg-slate-900/40 backdrop-blur-xl hover:bg-white/60 dark:hover:bg-slate-900/60 transition-all duration-300 hover:-translate-y-1 hover:shadow-xl hover:shadow-purple-500/10 animate-fade-in-up"
+              style={{ animationDelay: `${index * 0.05}s` }}
             >
-              <div className={`w-16 h-16 rounded-2xl bg-gradient-to-br ${achievement.color} flex items-center justify-center mx-auto mb-4`}>
-                <achievement.icon className="w-8 h-8 text-white" />
+              <div className={`absolute inset-0 bg-gradient-to-br ${achievement.gradient} opacity-0 group-hover:opacity-100 transition-opacity duration-500`} />
+              
+              <div className="relative p-6 flex flex-col items-center text-center space-y-4 z-10">
+                <div className={`p-4 rounded-2xl bg-white/50 dark:bg-slate-800/50 shadow-sm ring-1 ring-black/5 group-hover:scale-110 transition-transform duration-300`}>
+                  <achievement.icon className={`w-8 h-8 ${achievement.color}`} />
+                </div>
+                <div>
+                  <h3 className="font-bold text-lg mb-1 text-slate-800 dark:text-slate-100">{achievement.number}</h3>
+                  <p className="text-sm text-muted-foreground font-medium">
+                    {achievement.label}
+                  </p>
+                </div>
               </div>
-              <div className="text-4xl font-bold gradient-text mb-2">
-                {achievement.number}
-              </div>
-              <div className="text-muted-foreground font-medium">
-                {achievement.label}
-              </div>
-            </div>
+            </Card>
           ))}
         </div>
       </div>
