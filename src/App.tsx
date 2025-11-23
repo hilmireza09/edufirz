@@ -110,7 +110,7 @@ const App = () => (
               } 
             />
             <Route 
-              path="/classes/:id" 
+              path="/classes/:id/*" 
               element={
                 <ProtectedRoute>
                   <ClassDetails />
