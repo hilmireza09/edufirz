@@ -622,19 +622,23 @@ const Quizzes = () => {
                   <>
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                       {filteredQuizzes.slice((currentPage - 1) * quizzesPerPage, currentPage * quizzesPerPage).map((quiz) => (
-                        <div key={quiz.id} className="bg-card/80 backdrop-blur-sm rounded-2xl border border-border shadow-sm p-6 cursor-pointer hover:shadow-md transition-all duration-300" onClick={() => navigate(`/quizzes/${quiz.id}/take`)}>
-                          <div className="flex justify-between items-start mb-2">
-                            <h3 className="font-semibold truncate">{quiz.title}</h3>
-                            <div className="flex gap-1">
+                        <div 
+                          key={quiz.id} 
+                          className="group relative bg-white/40 dark:bg-slate-900/40 backdrop-blur-md rounded-2xl border border-white/20 dark:border-slate-800/50 shadow-sm p-5 cursor-pointer hover:shadow-lg hover:-translate-y-1 transition-all duration-300 flex flex-col h-full" 
+                          onClick={() => navigate(`/quizzes/${quiz.id}/take`)}
+                        >
+                          <div className="flex justify-between items-start gap-4 mb-3">
+                            <h3 className="font-bold text-lg leading-tight line-clamp-2 group-hover:text-primary transition-colors">{quiz.title}</h3>
+                            <div className="flex gap-1 shrink-0 -mr-2 -mt-2">
                               {(userRole === 'admin' || quiz.creator_id === user?.id) && (
                                 <>
-                                  <Button size="icon" variant="ghost" className="h-8 w-8" onClick={(e) => { e.stopPropagation(); handleEditQuiz(quiz); }}>
+                                  <Button size="icon" variant="ghost" className="h-8 w-8 text-muted-foreground hover:text-primary" onClick={(e) => { e.stopPropagation(); handleEditQuiz(quiz); }}>
                                     <Edit className="h-4 w-4" />
                                   </Button>
                                   <Button 
                                     size="icon" 
                                     variant="ghost" 
-                                    className="h-8 w-8 text-destructive hover:text-destructive hover:bg-destructive/10" 
+                                    className="h-8 w-8 text-muted-foreground hover:text-destructive hover:bg-destructive/10" 
                                     onClick={(e) => { 
                                       e.stopPropagation(); 
                                       handleDeleteQuiz(quiz.id as string); 
@@ -646,24 +650,29 @@ const Quizzes = () => {
                               )}
                             </div>
                           </div>
-                          <p className="text-sm text-muted-foreground line-clamp-3 mb-3">{quiz.description || 'No description'}</p>
-                          <div className="flex items-center gap-2 text-xs text-muted-foreground mb-4">
+                          
+                          <p className="text-sm text-muted-foreground line-clamp-2 mb-4 flex-grow">{quiz.description || 'No description available'}</p>
+                          
+                          <div className="flex flex-wrap items-center gap-2 text-xs font-medium mt-auto pt-3 border-t border-white/10 dark:border-slate-800/50">
                             {quiz.difficulty && (
-                              <span className="px-2 py-0.5 rounded bg-primary/10 text-primary">{quiz.difficulty}</span>
-                            )}
-                            {quiz.due_date && (
-                              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-secondary/10 text-secondary">
-                                <Clock className="h-3 w-3" /> {new Date(quiz.due_date).toLocaleDateString()}
+                              <span className={`px-2.5 py-1 rounded-full capitalize ${
+                                quiz.difficulty === 'easy' ? 'bg-green-500/10 text-green-600 dark:text-green-400' :
+                                quiz.difficulty === 'medium' ? 'bg-yellow-500/10 text-yellow-600 dark:text-yellow-400' :
+                                'bg-red-500/10 text-red-600 dark:text-red-400'
+                              }`}>
+                                {quiz.difficulty}
                               </span>
                             )}
                             {quiz.category && (
-                              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-accent/10 text-accent-foreground">
+                              <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-primary/10 text-primary">
                                 <Tag className="h-3 w-3" /> {quiz.category}
                               </span>
                             )}
-                          </div>
-                          <div className="text-xs text-muted-foreground mt-2">
-                            {(quiz.quiz_questions?.length || 0)} questions
+                            {quiz.due_date && (
+                              <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-slate-500/10 text-muted-foreground ml-auto">
+                                <Clock className="h-3 w-3" /> {new Date(quiz.due_date).toLocaleDateString()}
+                              </span>
+                            )}
                           </div>
                         </div>
                       ))}
