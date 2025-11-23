@@ -1,4 +1,3 @@
-import { Card } from "@/components/ui/card";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Star } from "lucide-react";
 
@@ -109,9 +108,9 @@ const Testimonials = () => {
         
         <div className="flex gap-6 animate-marquee w-max px-4 hover:[animation-play-state:paused]">
           {[...testimonials, ...testimonials].map((testimonial, index) => (
-            <Card
+            <div
               key={`${testimonial.name}-${index}`}
-              className="glass-card border-0 p-8 hover-lift w-[400px] flex-shrink-0 backdrop-blur-xl bg-white/40 dark:bg-slate-900/40"
+              className="p-8 w-[400px] flex-shrink-0 rounded-3xl bg-white/10 dark:bg-slate-900/10 backdrop-blur-sm shadow-[inset_0_0_20px_rgba(255,255,255,0.05)] hover:bg-white/20 dark:hover:bg-slate-900/20 transition-all duration-500"
             >
               <div className="flex gap-1 mb-4">
                 {[...Array(testimonial.rating)].map((_, i) => (
@@ -124,7 +123,7 @@ const Testimonials = () => {
               </p>
               
               <div className="flex items-center gap-3">
-                <Avatar className="h-12 w-12 ring-2 ring-white/50">
+                <Avatar className="h-12 w-12 ring-0">
                   <AvatarFallback className={`${testimonial.color} text-white font-semibold`}>
                     {testimonial.avatar}
                   </AvatarFallback>
@@ -134,7 +133,7 @@ const Testimonials = () => {
                   <div className="text-sm text-muted-foreground">{testimonial.role}</div>
                 </div>
               </div>
-            </Card>
+            </div>
           ))}
         </div>
       </div>
