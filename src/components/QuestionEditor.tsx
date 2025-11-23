@@ -29,7 +29,7 @@ export type QuizQuestion = {
 type QuestionEditorProps = {
   question: QuizQuestion;
   index: number;
-  onUpdate: (index: number, field: keyof QuizQuestion, value: string | string[] | number | null | undefined | BlankDefinition[]) => void;
+  onUpdate: (index: number, field: keyof QuizQuestion, value: string | string[] | number | null | undefined) => void;
   onRemove: (index: number) => void;
 };
 
@@ -374,13 +374,12 @@ export const QuestionEditor = ({ question, index, onUpdate, onRemove }: Question
               <Textarea
                 value={question.correct_answer}
                 onChange={(e) => onUpdate(index, 'correct_answer', e.target.value)}
-                placeholder="Enter the expected answer or key points..."
+                placeholder="Enter the expected answer for auto-grading, or key points for manual review..."
                 rows={4}
                 className="resize-none bg-background/50 border-border/50 focus:border-primary/50"
               />
               <p className="text-xs text-muted-foreground mt-2">
-                If provided, student answers will be automatically compared against this text (ignoring case and extra whitespace).
-                Leave empty for manual grading only.
+                If provided, the system will attempt to auto-grade by comparing the student's answer (normalized) with this text.
               </p>
             </div>
           )}

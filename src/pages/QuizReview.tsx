@@ -15,7 +15,7 @@ import { Loader2, CheckCircle, XCircle, ArrowLeft, AlertCircle } from 'lucide-re
 type Question = {
   id: string;
   question_text: string;
-  question_type: 'multiple_choice' | 'checkbox' | 'true_false' | 'essay' | 'fill_in_blank';
+  question_type: 'multiple_choice' | 'checkbox' | 'true_false' | 'essay' | 'fill_in_blank' | 'multiple_answers';
   options: string[] | any[] | null;
   points: number;
   order_index: number;
@@ -106,10 +106,17 @@ const QuizReview = () => {
   const isCorrect = (question: Question) => {
     const userAnswer = attempt.answers[question.id];
     
-    if (question.question_type === 'checkbox') {
+    if (question.question_type === 'checkbox' || question.question_type === 'multiple_answers') {
       const correct = question.correct_answers || [];
       const user = userAnswer || [];
       if (!Array.isArray(user)) return false;
+      
+      // Check for partial correctness (at least one correct answer selected and no incorrect ones, or some correct ones)
+      // But for the "Correct" badge, we usually want 100%.
+      // Let's stick to strict equality for the main "Correct" badge, 
+      // but we can add a "Partial" badge if needed.
+      // For now, let's keep it simple: Correct if all correct answers are selected and no incorrect ones.
+      // The server handles partial scoring.
       return user.length === correct.length && user.every(a => correct.includes(a));
     }
 
@@ -180,7 +187,6 @@ const QuizReview = () => {
           {questions.map((q, index) => {
             const userAnswer = attempt.answers[q.id];
             const correct = isCorrect(q);
-            const isEssay = q.question_type === 'essay';
 
             return (
               <Card key={q.id} className={`overflow-hidden border shadow-lg ${
@@ -235,11 +241,12 @@ const QuizReview = () => {
                       </RadioGroup>
                     )}
 
-                    {q.question_type === 'checkbox' && q.options && (
+                    {(q.question_type === 'checkbox' || q.question_type === 'multiple_answers') && q.options && (
                       <div className="space-y-3">
                         {q.options.map((opt, i) => {
-                          const isChecked = (userAnswer || []).includes(opt);
-                          const isCorrectOption = (q.correct_answers || []).includes(opt);
+                          const optionText = typeof opt === 'string' ? opt : String(opt);
+                          const isChecked = (userAnswer || []).includes(optionText);
+                          const isCorrectOption = (q.correct_answers || []).includes(optionText);
                           
                           let className = "flex items-center space-x-3 p-3 rounded-xl border transition-all ";
                           if (isCorrectOption) {
@@ -253,7 +260,7 @@ const QuizReview = () => {
                           return (
                             <div key={i} className={className}>
                               <Checkbox id={`${q.id}-${i}`} checked={isChecked} />
-                              <Label htmlFor={`${q.id}-${i}`} className="flex-1 font-normal text-base">{opt}</Label>
+                              <Label htmlFor={`${q.id}-${i}`} className="flex-1 font-normal text-base">{optionText}</Label>
                               {isCorrectOption && <CheckCircle className="h-5 w-5 text-green-600" />}
                               {isChecked && !isCorrectOption && <XCircle className="h-5 w-5 text-red-600" />}
                             </div>
@@ -290,19 +297,12 @@ const QuizReview = () => {
                     )}
 
                     {q.question_type === 'essay' && (
-                      <div className="space-y-4">
-                        <div className="space-y-2">
-                          <label className="text-sm font-medium">Your Answer:</label>
-                          <Textarea 
-                            value={userAnswer || ''}
-                            readOnly
-                            className={`min-h-[100px] text-base ${
-                              correct 
-                                ? 'bg-green-50/50 border-green-200 dark:bg-green-900/10 dark:border-green-900/30' 
-                                : 'bg-red-50/50 border-red-200 dark:bg-red-900/10 dark:border-red-900/30'
-                            }`}
-                          />
-                        </div>
+                      <div className="space-y-2">
+                        <Textarea 
+                          value={userAnswer || ''}
+                          readOnly
+                          className="bg-background/50 min-h-[100px] text-base"
+                        />
                         
                         {q.correct_answer && q.correct_answer.trim().length > 0 && (
                           <div className="space-y-2">

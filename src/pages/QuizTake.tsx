@@ -17,7 +17,7 @@ import { Loader2, CheckCircle, ArrowLeft, AlertCircle, Clock } from 'lucide-reac
 type Question = {
   id: string;
   question_text: string;
-  question_type: 'multiple_choice' | 'checkbox' | 'true_false' | 'essay' | 'fill_in_blank';
+  question_type: 'multiple_choice' | 'checkbox' | 'true_false' | 'essay' | 'fill_in_blank' | 'multiple_answers';
   options: string[] | any[] | null;
   points: number;
   order_index: number;
@@ -472,10 +472,12 @@ const QuizTake = () => {
                     </RadioGroup>
                   )}
 
-                  {q.question_type === 'checkbox' && q.options && (
+                  {(q.question_type === 'checkbox' || q.question_type === 'multiple_answers') && q.options && (
                     <div className="space-y-3">
                       {q.options.map((opt, i) => {
-                        const isChecked = (answers[q.id] || []).includes(opt);
+                        // Handle both string and object formats for options
+                        const optionText = typeof opt === 'string' ? opt : String(opt);
+                        const isChecked = (answers[q.id] || []).includes(optionText);
                         return (
                           <div key={i} className={`flex items-center space-x-3 p-3 rounded-xl border transition-all ${
                             isChecked
@@ -487,18 +489,18 @@ const QuizTake = () => {
                               checked={isChecked}
                               onCheckedChange={(checked) => {
                                 if (!canAnswer) return;
-                                const currentAnswers = answers[q.id] || [];
+                                const currentAnswers = Array.isArray(answers[q.id]) ? answers[q.id] as string[] : [];
                                 let newAnswers;
                                 if (checked) {
-                                  newAnswers = [...currentAnswers, opt];
+                                  newAnswers = [...currentAnswers, optionText];
                                 } else {
-                                  newAnswers = (currentAnswers as string[]).filter((a: string) => a !== opt);
+                                  newAnswers = currentAnswers.filter((a: string) => a !== optionText);
                                 }
                                 handleAnswerChange(q.id, newAnswers);
                               }}
                               disabled={!canAnswer}
                             />
-                            <Label htmlFor={`${q.id}-${i}`} className="flex-1 cursor-pointer font-normal text-base">{opt}</Label>
+                            <Label htmlFor={`${q.id}-${i}`} className="flex-1 cursor-pointer font-normal text-base">{optionText}</Label>
                           </div>
                         );
                       })}
@@ -507,7 +509,7 @@ const QuizTake = () => {
 
                   {q.question_type === 'true_false' && (
                     <RadioGroup 
-                      value={answers[q.id] || ''} 
+                      value={(answers[q.id] as string) || ''} 
                       onValueChange={(val) => handleAnswerChange(q.id, val)}
                       disabled={!canAnswer}
                       className="grid grid-cols-2 gap-4"
