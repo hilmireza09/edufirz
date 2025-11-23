@@ -5,6 +5,8 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
+import { Switch } from '@/components/ui/switch';
+import { Label } from '@/components/ui/label';
 import { BookOpen, CreditCard, Users, LogOut, MessageSquare, Settings, Home, Calendar, FileText, Search, ChevronDown, User, Plus, ChevronLeft, ChevronRight, Edit, Trash, Tag, RotateCcw, CheckCircle, XCircle, X, Lightbulb } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
@@ -54,6 +56,7 @@ const Flashcards = () => {
   // New state for search and pagination
   const [flashcardsSearchQuery, setFlashcardsSearchQuery] = useState('');
   const [selectedTag, setSelectedTag] = useState('');
+  const [showMyDecks, setShowMyDecks] = useState(false);
   const currentPage = parseInt(searchParams.get('page') || '1', 10);
   const [searchQuery, setSearchQuery] = useState('');
   const decksPerPage = 9;
@@ -164,7 +167,9 @@ const Flashcards = () => {
       const matchesTag = selectedTag === '' || selectedTag === 'all' ||
         (deck.tags && deck.tags.includes(selectedTag));
 
-      return matchesSearch && matchesTag;
+      const matchesMyDecks = !showMyDecks || deck.user_id === user?.id;
+
+      return matchesSearch && matchesTag && matchesMyDecks;
     });
 
     // Extract all unique tags
@@ -182,7 +187,7 @@ const Flashcards = () => {
     const currentDecks = filtered.slice(startIndex, startIndex + decksPerPage);
 
     return { filteredDecks: filtered, allTags, totalPages, currentDecks };
-  }, [decks, flashcardsSearchQuery, selectedTag, currentPage, decksPerPage]);
+  }, [decks, flashcardsSearchQuery, selectedTag, currentPage, decksPerPage, showMyDecks, user?.id]);
 
   const handleDeckSelect = (deck: Deck) => {
     setSelectedDeck(deck);
@@ -315,8 +320,8 @@ const Flashcards = () => {
 
             {/* Filters - Always Visible */}
             <div className="bg-card/80 backdrop-blur-sm rounded-2xl p-4 border border-border shadow-sm mb-6">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="relative">
+              <div className="flex flex-col md:flex-row gap-4 items-center">
+                <div className="relative flex-1 w-full">
                   <Input
                     type="text"
                     placeholder="Search decks..."
@@ -324,7 +329,7 @@ const Flashcards = () => {
                     onChange={(e) => setFlashcardsSearchQuery(e.target.value)}
                   />
                 </div>
-                <div>
+                <div className="w-full md:w-64">
                   <Select value={selectedTag} onValueChange={setSelectedTag}>
                     <SelectTrigger className="w-full px-3 py-2 rounded-md bg-background border border-border">
                       <SelectValue placeholder="Filter by tag" />
@@ -336,6 +341,10 @@ const Flashcards = () => {
                       ))}
                     </SelectContent>
                   </Select>
+                </div>
+                <div className="flex items-center space-x-2 bg-background/50 px-4 py-2 rounded-lg border border-border h-10">
+                  <Switch id="my-decks" checked={showMyDecks} onCheckedChange={setShowMyDecks} />
+                  <Label htmlFor="my-decks" className="text-sm font-medium cursor-pointer whitespace-nowrap">Created by Me</Label>
                 </div>
               </div>
             </div>

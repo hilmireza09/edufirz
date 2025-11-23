@@ -3,6 +3,8 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Sidebar } from '@/components/Sidebar';
 import { Header } from '@/components/Header';
+import { Switch } from '@/components/ui/switch';
+import { Label } from '@/components/ui/label';
 import { BookOpen, CreditCard, Users, LogOut, MessageSquare, Settings, Home, Calendar, FileText, Search, ChevronDown, User, Plus, Edit, Trash, Clock, Tag, CheckCircle, XCircle, GraduationCap, ChevronLeft, ChevronRight, Sparkles } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
@@ -61,6 +63,7 @@ const Quizzes = () => {
   const [dueDateFrom, setDueDateFrom] = useState('');
   const [dueDateTo, setDueDateTo] = useState('');
   const [availableCategories, setAvailableCategories] = useState<string[]>([]);
+  const [showMyQuizzes, setShowMyQuizzes] = useState(false);
 
   // Pagination
   const currentPage = parseInt(searchParams.get('page') || '1', 10);
@@ -201,7 +204,8 @@ const Quizzes = () => {
 
   /**
    * Opens a quiz in the editor for CRUD operations.
-   * SECURITY: Loads full question details with answers only for authorized users (teachers/admins).
+   * SECURITY: Loads full question details with correct_answer and explanation for editing
+   *          only for authorized users (teachers/admins).
    */
   const handleEditQuiz = async (quiz: Quiz) => {
     setEditingQuiz(quiz);
@@ -505,9 +509,10 @@ const Quizzes = () => {
       const matchesCategory = categoryFilter === '' || q.category === categoryFilter;
       const matchesDueFrom = dueDateFrom === '' || (q.due_date && q.due_date.substring(0,10) >= dueDateFrom);
       const matchesDueTo = dueDateTo === '' || (q.due_date && q.due_date.substring(0,10) <= dueDateTo);
-      return matchesSearch && matchesStatus && matchesDifficulty && matchesCategory && matchesDueFrom && matchesDueTo;
+      const matchesCreator = showMyQuizzes ? q.creator_id === user?.id : true;
+      return matchesSearch && matchesStatus && matchesDifficulty && matchesCategory && matchesDueFrom && matchesDueTo && matchesCreator;
     });
-  }, [quizzes, searchQuery, statusFilter, difficultyFilter, categoryFilter, dueDateFrom, dueDateTo]);
+  }, [quizzes, searchQuery, statusFilter, difficultyFilter, categoryFilter, dueDateFrom, dueDateTo, showMyQuizzes, user?.id]);
 
   return (
     <div className="h-screen w-full flex bg-gradient-to-br from-slate-50 via-purple-50 to-slate-100 dark:from-slate-950 dark:via-slate-900 dark:to-slate-950 overflow-hidden">
@@ -537,48 +542,59 @@ const Quizzes = () => {
 
                 {/* Filters - Always Visible */}
                 <div className="bg-card/80 backdrop-blur-sm rounded-2xl p-4 border border-border shadow-sm mb-6">
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                    <div className="relative">
-                      <Input
-                        type="text"
-                        placeholder="Search quizzes..."
-                        value={searchQuery}
-                        onChange={(e) => setSearchQuery(e.target.value)}
-                      />
+                  <div className="flex flex-col gap-4">
+                    <div className="flex flex-col md:flex-row gap-4 items-center">
+                      <div className="relative flex-1 w-full">
+                        <Input
+                          type="text"
+                          placeholder="Search quizzes..."
+                          value={searchQuery}
+                          onChange={(e) => setSearchQuery(e.target.value)}
+                        />
+                      </div>
+                      <div className="flex items-center space-x-2 bg-background/50 px-4 py-2 rounded-lg border border-border whitespace-nowrap">
+                        <Switch
+                          id="show-my-quizzes"
+                          checked={showMyQuizzes}
+                          onCheckedChange={setShowMyQuizzes}
+                        />
+                        <Label htmlFor="show-my-quizzes" className="cursor-pointer">Created by Me</Label>
+                      </div>
                     </div>
-                    <div>
-                      <select className="w-full px-3 py-2 rounded-md bg-background border border-border" value={statusFilter} onChange={(e) => setStatusFilter(e.target.value as "all" | "draft" | "published" | "private")}>
-                        <option value="all">All Status</option>
-                        <option value="draft">Draft</option>
-                        <option value="published">Published</option>
-                        <option value="private">Private</option>
-                      </select>
-                    </div>
-                    <div>
-                      <select className="w-full px-3 py-2 rounded-md bg-background border border-border" value={difficultyFilter} onChange={(e) => setDifficultyFilter(e.target.value as "all" | "easy" | "medium" | "hard")}>
-                        <option value="all">All Difficulty</option>
-                        <option value="easy">Easy</option>
-                        <option value="medium">Medium</option>
-                        <option value="hard">Hard</option>
-                      </select>
-                    </div>
-                    <div>
-                      <select className="w-full px-3 py-2 rounded-md bg-background border border-border" value={categoryFilter} onChange={(e) => setCategoryFilter(e.target.value)}>
-                        <option value="">All Categories</option>
-                        {availableCategories.map((c) => (
-                          <option key={c} value={c}>{c}</option>
-                        ))}
-                      </select>
-                    </div>
-                  </div>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
-                    <div>
-                      <label className="text-xs text-muted-foreground mb-1 block">Due From</label>
-                      <Input type="date" value={dueDateFrom} onChange={(e) => setDueDateFrom(e.target.value)} />
-                    </div>
-                    <div>
-                      <label className="text-xs text-muted-foreground mb-1 block">Due To</label>
-                      <Input type="date" value={dueDateTo} onChange={(e) => setDueDateTo(e.target.value)} />
+                    
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
+                      <div>
+                        <select className="w-full px-3 py-2 rounded-md bg-background border border-border h-10" value={statusFilter} onChange={(e) => setStatusFilter(e.target.value as "all" | "draft" | "published" | "private")}>
+                          <option value="all">All Status</option>
+                          <option value="draft">Draft</option>
+                          <option value="published">Published</option>
+                          <option value="private">Private</option>
+                        </select>
+                      </div>
+                      <div>
+                        <select className="w-full px-3 py-2 rounded-md bg-background border border-border h-10" value={difficultyFilter} onChange={(e) => setDifficultyFilter(e.target.value as "all" | "easy" | "medium" | "hard")}>
+                          <option value="all">All Difficulty</option>
+                          <option value="easy">Easy</option>
+                          <option value="medium">Medium</option>
+                          <option value="hard">Hard</option>
+                        </select>
+                      </div>
+                      <div>
+                        <select className="w-full px-3 py-2 rounded-md bg-background border border-border h-10" value={categoryFilter} onChange={(e) => setCategoryFilter(e.target.value)}>
+                          <option value="">All Categories</option>
+                          {availableCategories.map((c) => (
+                            <option key={c} value={c}>{c}</option>
+                          ))}
+                        </select>
+                      </div>
+                      <div className="relative">
+                        <Input type="date" value={dueDateFrom} onChange={(e) => setDueDateFrom(e.target.value)} className="h-10" title="Due From" />
+                        <span className="absolute -top-2 left-2 bg-background px-1 text-[10px] text-muted-foreground">Due From</span>
+                      </div>
+                      <div className="relative">
+                        <Input type="date" value={dueDateTo} onChange={(e) => setDueDateTo(e.target.value)} className="h-10" title="Due To" />
+                        <span className="absolute -top-2 left-2 bg-background px-1 text-[10px] text-muted-foreground">Due To</span>
+                      </div>
                     </div>
                   </div>
                 </div>
