@@ -34,13 +34,44 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         return;
       }
       
-      const { data } = await supabase
-        .from('profiles')
-        .select('id, role, full_name')
-        .eq('id', user.id)
-        .single();
-      
-      setProfile(data);
+      try {
+        // Fetch profile data
+        const { data: profileData, error: profileError } = await supabase
+          .from('profiles')
+          .select('id, role, full_name')
+          .eq('id', user.id)
+          .single();
+        
+        if (profileError) {
+          console.error('Error fetching profile:', profileError);
+        }
+
+        // Fetch user roles for RBAC
+        const { data: rolesData, error: rolesError } = await supabase
+          .from('user_roles')
+          .select('role')
+          .eq('user_id', user.id);
+
+        if (rolesError) {
+          console.error('Error fetching user roles:', rolesError);
+        }
+
+        // Determine effective role (Admin > Teacher > Student)
+        let effectiveRole = profileData?.role || 'student';
+        
+        if (rolesData && rolesData.length > 0) {
+          const roles = rolesData.map(r => r.role);
+          if (roles.includes('admin')) {
+            effectiveRole = 'admin';
+          } else if (roles.includes('teacher')) {
+            effectiveRole = 'teacher';
+          }
+        }
+        
+        setProfile(profileData ? { ...profileData, role: effectiveRole } : null);
+      } catch (error) {
+        console.error('Error in fetchProfile:', error);
+      }
     };
     
     fetchProfile();

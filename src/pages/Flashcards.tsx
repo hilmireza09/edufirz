@@ -38,7 +38,7 @@ type Profile = {
 };
 
 const Flashcards = () => {
-  const { user, signOut } = useAuth();
+  const { user, signOut, profile } = useAuth();
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const [decks, setDecks] = useState<Deck[]>([]);
@@ -48,7 +48,6 @@ const Flashcards = () => {
   const [showHint, setShowHint] = useState(false);
   const [userRole, setUserRole] = useState<string>('student');
   const [loading, setLoading] = useState(true);
-  const [profile, setProfile] = useState<Profile | null>(null);
   const [isProfileMenuOpen, setIsProfileMenuOpen] = useState(false);
   const profileMenuRef = useRef<HTMLDivElement>(null);
 
@@ -72,11 +71,10 @@ const Flashcards = () => {
     { id: 'settings', title: 'Settings', icon: Settings },
   ];
 
-  // Use profile from useAuth instead of fetching
+  // Use profile from useAuth
   useEffect(() => {
     if (profile) {
       setUserRole(profile.role || 'student');
-      setProfile(profile);
     }
   }, [profile]);
 
@@ -501,13 +499,35 @@ const Flashcards = () => {
                   <span className="text-sm text-muted-foreground">of {selectedDeck.flashcards.length}</span>
                 </div>
               </div>
-              <Button 
-                variant="ghost" 
-                onClick={() => setSelectedDeck(null)} 
-                className="h-10 w-10 p-0 rounded-full hover:bg-red-50 hover:text-red-500 transition-colors"
-              >
-                <X className="h-5 w-5" />
-              </Button>
+              <div className="flex items-center gap-2">
+                {(userRole === 'admin' || selectedDeck.user_id === user?.id || (userRole === 'teacher' && selectedDeck.user_id === user?.id)) && (
+                  <>
+                    <Button
+                      size="icon"
+                      variant="ghost"
+                      className="h-10 w-10 rounded-full hover:bg-white/80 hover:text-primary"
+                      onClick={() => handleEditDeck(selectedDeck)}
+                    >
+                      <Edit className="h-5 w-5" />
+                    </Button>
+                    <Button
+                      size="icon"
+                      variant="ghost"
+                      className="h-10 w-10 rounded-full hover:bg-red-50 hover:text-red-500"
+                      onClick={() => handleDeleteDeck(selectedDeck.id)}
+                    >
+                      <Trash className="h-5 w-5" />
+                    </Button>
+                  </>
+                )}
+                <Button 
+                  variant="ghost" 
+                  onClick={() => setSelectedDeck(null)} 
+                  className="h-10 w-10 p-0 rounded-full hover:bg-red-50 hover:text-red-500 transition-colors"
+                >
+                  <X className="h-5 w-5" />
+                </Button>
+              </div>
             </div>
 
             {/* Modal Content */}

@@ -51,6 +51,8 @@ const CreateDeck = () => {
   useEffect(() => {
     const fetchDeck = async () => {
       if (!id) return;
+      // Wait for user and profile to be loaded to check permissions
+      if (!user || !profile) return;
       
       try {
         const { data: deckData, error: deckError } = await supabase
@@ -65,6 +67,16 @@ const CreateDeck = () => {
         if (deckError) throw deckError;
 
         if (deckData) {
+          // Check permissions
+          const role = profile.role || 'student';
+          const canEdit = role === 'admin' || deckData.user_id === user.id;
+
+          if (!canEdit) {
+            toast.error("You don't have permission to edit this deck");
+            navigate('/flashcards');
+            return;
+          }
+
           // Sort flashcards by position or created_at
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
           const sortedCards = (deckData.flashcards || []).sort((a: any, b: any) => {
@@ -98,7 +110,7 @@ const CreateDeck = () => {
     };
 
     fetchDeck();
-  }, [id, navigate]);
+  }, [id, navigate, user, profile]);
 
   const handleSave = (updatedDeck: Deck) => {
     navigate('/flashcards');
