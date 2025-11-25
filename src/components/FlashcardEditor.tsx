@@ -237,7 +237,7 @@ const FlashcardEditor = ({ deck, onSave, onCancel, userRole = 'student' }: Flash
   return (
     <div className="space-y-10">
       <div className="flex justify-between items-center">
-        <h2 className="text-2xl md:text-3xl font-bold bg-gradient-to-r from-primary to-purple-600 bg-clip-text text-transparent">
+        <h2 className="text-2xl md:text-3xl font-bold text-foreground">
           {deck.id ? 'Edit Deck' : 'Create New Deck'}
         </h2>
         <div className="flex gap-3">
@@ -294,24 +294,22 @@ const FlashcardEditor = ({ deck, onSave, onCancel, userRole = 'student' }: Flash
             />
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div className={`flex items-center space-x-4 p-6 glass-card backdrop-blur-sm bg-white/40 dark:bg-slate-700/40 border-white/20 rounded-xl ${userRole === 'student' ? 'opacity-50 cursor-not-allowed' : ''}`}>
-              <input
-                type="checkbox"
-                id="public"
-                checked={isPublic}
-                onChange={(e) => userRole !== 'student' && setIsPublic(e.target.checked)}
-                disabled={userRole === 'student'}
-                className="h-6 w-6 rounded-lg border-2 border-primary/30 text-primary focus:ring-2 focus:ring-primary/20 transition-all cursor-pointer disabled:cursor-not-allowed"
-              />
-              <label htmlFor="public" className={`text-base font-medium text-foreground ${userRole === 'student' ? 'cursor-not-allowed' : 'cursor-pointer'}`}>
-                Make this deck public {userRole === 'student' && '(Teachers only)'}
-              </label>
-            </div>
+          <div className={`flex items-center space-x-3 p-4 rounded-lg ${userRole === 'student' ? 'opacity-50 cursor-not-allowed' : ''}`}>
+            <input
+              type="checkbox"
+              id="public"
+              checked={isPublic}
+              onChange={(e) => userRole !== 'student' && setIsPublic(e.target.checked)}
+              disabled={userRole === 'student'}
+              className="h-5 w-5 rounded border-2 border-border text-primary focus:ring-2 focus:ring-primary/20 transition-all cursor-pointer disabled:cursor-not-allowed"
+            />
+            <label htmlFor="public" className={`text-sm font-medium text-foreground ${userRole === 'student' ? 'cursor-not-allowed' : 'cursor-pointer'}`}>
+              Make this deck public {userRole === 'student' && '(Teachers only)'}
+            </label>
           </div>
 
-          {/* Tags Section - Replaced with selection chips */}
-          <div className="space-y-4">
+          {/* Tags Section */}
+          <div className="space-y-3">
             <label className="text-sm font-semibold text-foreground flex items-center gap-2">
               <Tag className="h-4 w-4 text-primary" />
               Select Tag <span className="text-red-500">*</span>
@@ -319,7 +317,7 @@ const FlashcardEditor = ({ deck, onSave, onCancel, userRole = 'student' }: Flash
                 (Choose one)
               </span>
             </label>
-            <div className={`flex flex-wrap gap-3 p-6 glass-card backdrop-blur-sm bg-white/40 dark:bg-slate-700/40 border-white/20 rounded-xl ${errors.tags ? 'border-red-500/50 bg-red-500/5' : ''}`}>
+            <div className={`flex flex-wrap gap-2 p-4 bg-background border border-border rounded-lg ${errors.tags ? 'border-red-500' : ''}`}>
               {AVAILABLE_TAGS.map((tag) => {
                 const isSelected = tags.includes(tag);
                 return (
@@ -328,12 +326,11 @@ const FlashcardEditor = ({ deck, onSave, onCancel, userRole = 'student' }: Flash
                     type="button"
                     onClick={() => toggleTag(tag)}
                     className={`
-                      px-5 py-2.5 rounded-full text-sm font-medium transition-all duration-300 
+                      px-4 py-2 rounded-lg text-sm font-medium transition-all
                       ${isSelected 
-                        ? 'bg-gradient-to-r from-primary to-purple-600 text-white shadow-lg shadow-primary/30 scale-105' 
-                        : 'glass-card bg-white/50 dark:bg-slate-700/50 border border-white/20 text-foreground hover:bg-white/70 dark:hover:bg-slate-700/70 hover:shadow-[0_0_15px_rgba(124,58,237,0.3)] hover:border-primary/30'
+                        ? 'bg-primary text-white' 
+                        : 'bg-muted text-foreground hover:bg-muted/80 border border-border'
                       }
-                      active:scale-95
                     `}
                   >
                     {tag}
@@ -341,9 +338,9 @@ const FlashcardEditor = ({ deck, onSave, onCancel, userRole = 'student' }: Flash
                 );
               })}
             </div>
-            {errors.tags && <p className="text-xs text-red-500 pl-1">{errors.tags}</p>}
+            {errors.tags && <p className="text-xs text-red-500 mt-1">{errors.tags}</p>}
             {tags.length === 0 && !errors.tags && (
-              <p className="text-xs text-muted-foreground pl-1">
+              <p className="text-xs text-muted-foreground mt-1">
                 Click on tags above to categorize your deck
               </p>
             )}
