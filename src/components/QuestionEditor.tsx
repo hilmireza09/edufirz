@@ -67,9 +67,16 @@ const questionTypeConfig = {
 };
 
 export const QuestionEditor = ({ question, index, onUpdate, onRemove }: QuestionEditorProps) => {
-  const [selectedOptions, setSelectedOptions] = useState<Set<number>>(
-    new Set(question.correct_answers?.map(ans => (question.options as string[])?.indexOf(ans) || -1).filter(i => i !== -1) || [])
-  );
+  const [selectedOptions, setSelectedOptions] = useState<Set<number>>(() => {
+    const options = question.options as string[] | null;
+    const correctAnswers = question.correct_answers || [];
+    if (!options || !correctAnswers.length) return new Set();
+    
+    const indices = correctAnswers
+      .map(ans => options.indexOf(ans))
+      .filter(i => i !== -1);
+    return new Set(indices);
+  });
 
   const handleOptionChange = (optionIndex: number, value: string) => {
     const newOptions = [...(question.options || [])];

@@ -16,6 +16,7 @@ type Question = {
   id: string;
   question_text: string;
   question_type: 'multiple_choice' | 'checkbox' | 'true_false' | 'essay' | 'fill_in_blank' | 'multiple_answers';
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   options: string[] | any[] | null;
   points: number;
   order_index: number;
@@ -28,6 +29,7 @@ type QuizAttempt = {
   id: string;
   score: number | null;
   completed_at: string | null;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   answers: Record<string, any>;
   attempt_number?: number;
 };
@@ -42,6 +44,23 @@ const QuizReview = () => {
   const [questions, setQuestions] = useState<Question[]>([]);
   const [attempt, setAttempt] = useState<QuizAttempt | null>(null);
   const [maxScore, setMaxScore] = useState(0);
+
+  // Helper function to get correct answers for checkbox questions
+  // Falls back to parsing correct_answer if correct_answers is empty
+  const getCorrectAnswers = (question: Question): string[] => {
+    if (question.correct_answers && question.correct_answers.length > 0) {
+      return question.correct_answers;
+    }
+    // Fallback: parse correct_answer field (format: "A|||B|||C")
+    if (question.correct_answer && question.correct_answer.includes('|||')) {
+      return question.correct_answer.split('|||').map(a => a.trim()).filter(Boolean);
+    }
+    // Single answer fallback
+    if (question.correct_answer && question.correct_answer.trim()) {
+      return [question.correct_answer.trim()];
+    }
+    return [];
+  };
 
   useEffect(() => {
     const fetchData = async () => {
@@ -67,7 +86,8 @@ const QuizReview = () => {
           .single();
 
         if (attemptError) throw attemptError;
-        setAttempt(attemptData);
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        setAttempt(attemptData as any);
 
         // 3. Fetch Questions with correct answers
         const { data: questionsData, error: questionsError } = await supabase
@@ -77,10 +97,19 @@ const QuizReview = () => {
           .order('order_index');
 
         if (questionsError) throw questionsError;
-        setQuestions(questionsData || []);
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const typedQuestions = (questionsData || []) as any[];
+        setQuestions(typedQuestions);
 
         // Calculate max score
-        const totalPoints = (questionsData || []).reduce((sum, q) => sum + (q.points || 1), 0);
+        const totalPoints = typedQuestions.reduce((sum, q) => {
+          // Check for valid correct answers for checkbox questions
+          if (q.question_type === 'checkbox' || q.question_type === 'multiple_answers') {
+             const correct = getCorrectAnswers(q);
+             if (correct.length === 0) return sum; // Ignore invalid questions
+          }
+          return sum + (q.points || 1);
+        }, 0);
         setMaxScore(totalPoints);
 
       } catch (error) {
@@ -103,58 +132,103 @@ const QuizReview = () => {
     return <div className="flex justify-center py-12">Attempt not found</div>;
   }
 
-  const isCorrect = (question: Question) => {
+  const calculateScore = (question: Question) => {
     const userAnswer = attempt.answers[question.id];
+    const maxPoints = question.points || 1;
     
     if (question.question_type === 'checkbox' || question.question_type === 'multiple_answers') {
-      const correct = question.correct_answers || [];
-      const user = userAnswer || [];
-      if (!Array.isArray(user)) return false;
+      const correct = getCorrectAnswers(question);
+      const user = Array.isArray(userAnswer) ? userAnswer : [];
       
-      // Check for partial correctness (at least one correct answer selected and no incorrect ones, or some correct ones)
-      // But for the "Correct" badge, we usually want 100%.
-      // Let's stick to strict equality for the main "Correct" badge, 
-      // but we can add a "Partial" badge if needed.
-      // For now, let's keep it simple: Correct if all correct answers are selected and no incorrect ones.
-      // The server handles partial scoring.
-      return user.length === correct.length && user.every(a => correct.includes(a));
+      // If no correct answers defined, treat as incorrect (data error)
+      if (correct.length === 0) {
+        return { score: 0, isCorrect: false, isPartial: false, isError: true };
+      }
+      
+      let userCorrect = 0;
+      let userIncorrect = 0;
+      
+      user.forEach((ans: unknown) => {
+        const ansStr = String(ans);
+        if (correct.includes(ansStr)) {
+          userCorrect++;
+        } else {
+          userIncorrect++;
+        }
+      });
+      
+      // Strict scoring: any incorrect answer results in 0
+      if (userIncorrect > 0) {
+        return { score: 0, isCorrect: false, isPartial: false, isError: false };
+      }
+      
+      // If no incorrect answers, calculate score based on correct selections
+      const score = (userCorrect / correct.length) * maxPoints;
+      // Only mark as "Correct" if ALL correct answers were selected
+      const isCorrect = userCorrect === correct.length;
+      // Partial credit only if some correct answers selected but not all
+      const isPartial = userCorrect > 0 && userCorrect < correct.length;
+      
+      return { score, isCorrect, isPartial, isError: false };
     }
 
     if (question.question_type === 'fill_in_blank') {
-      if (!Array.isArray(userAnswer)) return false;
-      const blankDefs = (question.options as any[]) || [];
-      // If number of answers doesn't match blanks, it's incorrect (or partially correct, but we mark as incorrect for now)
-      // Actually, let's check if every blank is correct
-      return blankDefs.every((def, index) => {
+      if (!Array.isArray(userAnswer)) return { score: 0, isCorrect: false, isPartial: false, isError: false };
+      
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      let blankDefs = (question.options as any[]) || [];
+      // Handle potential stringified JSON in options
+      if (blankDefs.length > 0 && typeof blankDefs[0] === 'string') {
+        try {
+          blankDefs = blankDefs.map(d => typeof d === 'string' ? JSON.parse(d) : d);
+        } catch (e) {
+          console.error('Failed to parse options', e);
+        }
+      }
+
+      let correctBlanks = 0;
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      blankDefs.forEach((def: any, index: number) => {
         const userVal = (userAnswer[index] || '').trim();
         const accepted = def.accepted_answers || [];
-        if (def.case_sensitive) {
-          return accepted.includes(userVal);
-        }
-        return accepted.some((a: string) => a.toLowerCase() === userVal.toLowerCase());
+        const isBlankCorrect = def.case_sensitive 
+          ? accepted.includes(userVal)
+          : accepted.some((a: string) => a.toLowerCase() === userVal.toLowerCase());
+        
+        if (isBlankCorrect) correctBlanks++;
       });
-    }
 
-    if (question.question_type === 'true_false') {
-      // Case insensitive comparison for True/False
-      return (userAnswer || '').toString().toLowerCase() === (question.correct_answer || '').toLowerCase();
-    }
-    
-    if (question.question_type === 'essay') {
-      // Essay evaluation: normalize and compare against grading rubric/key points
-      if (!question.correct_answer || question.correct_answer.trim().length === 0) {
-        // If no rubric is defined, essays are considered manually graded (always correct for now)
-        return true;
+      if (blankDefs.length > 0) {
+        const score = (correctBlanks / blankDefs.length) * maxPoints;
+        const isCorrect = correctBlanks === blankDefs.length;
+        const isPartial = score > 0 && !isCorrect;
+        return { score, isCorrect, isPartial, isError: false };
       }
-      
-      // Normalize both answers: trim, lowercase, clean whitespace
-      const userAnswerNormalized = (userAnswer || '').toString().toLowerCase().trim().replace(/\s+/g, ' ');
-      const correctAnswerNormalized = question.correct_answer.toLowerCase().trim().replace(/\s+/g, ' ');
-      
-      return userAnswerNormalized === correctAnswerNormalized;
+      return { score: 0, isCorrect: false, isPartial: false, isError: false };
     }
 
-    return userAnswer === question.correct_answer;
+    let correct = false;
+    if (question.question_type === 'true_false') {
+      correct = (userAnswer || '').toString().toLowerCase() === (question.correct_answer || '').toLowerCase();
+    } else if (question.question_type === 'essay') {
+      if (!question.correct_answer || question.correct_answer.trim().length === 0) {
+        correct = true;
+      } else {
+        const userAnswerNormalized = (userAnswer || '').toString().toLowerCase().trim().replace(/\s+/g, ' ');
+        const correctAnswerNormalized = question.correct_answer.toLowerCase().trim().replace(/\s+/g, ' ');
+        correct = userAnswerNormalized === correctAnswerNormalized;
+      }
+    } else {
+      // Multiple choice
+      correct = userAnswer === question.correct_answer;
+    }
+
+    return { 
+      score: correct ? maxPoints : 0, 
+      isCorrect: correct, 
+      isPartial: false,
+      isError: false
+    };
   };
 
   return (
@@ -186,25 +260,31 @@ const QuizReview = () => {
         <div className="space-y-6">
           {questions.map((q, index) => {
             const userAnswer = attempt.answers[q.id];
-            const correct = isCorrect(q);
+            const { score, isCorrect, isPartial, isError } = calculateScore(q);
 
             return (
               <Card key={q.id} className={`overflow-hidden border shadow-lg ${
-                correct ? 'border-green-200 dark:border-green-900' : 'border-red-200 dark:border-red-900'
+                isError ? 'border-gray-200 dark:border-gray-800' :
+                isCorrect ? 'border-green-200 dark:border-green-900' : isPartial ? 'border-yellow-200 dark:border-yellow-900' : 'border-red-200 dark:border-red-900'
               }`}>
                 <CardHeader className={`pb-3 border-b ${
-                  correct ? 'bg-green-50/50 dark:bg-green-900/10 border-green-100 dark:border-green-900/30' : 'bg-red-50/50 dark:bg-red-900/10 border-red-100 dark:border-red-900/30'
+                  isError ? 'bg-gray-50/50 dark:bg-gray-900/10 border-gray-100 dark:border-gray-900/30' :
+                  isCorrect ? 'bg-green-50/50 dark:bg-green-900/10 border-green-100 dark:border-green-900/30' : isPartial ? 'bg-yellow-50/50 dark:bg-yellow-900/10 border-yellow-100 dark:border-yellow-900/30' : 'bg-red-50/50 dark:bg-red-900/10 border-red-100 dark:border-red-900/30'
                 }`}>
                   <div className="flex justify-between items-center">
                     <div className="flex items-center gap-2">
                       <h3 className="font-medium text-lg">Question {index + 1}</h3>
-                      {correct ? 
+                      {isError ? (
+                        <Badge variant="outline" className="bg-gray-100 text-gray-700 border-gray-200">Not Scored</Badge>
+                      ) : isCorrect ? 
                         <Badge variant="outline" className="bg-green-100 text-green-700 border-green-200">Correct</Badge> : 
+                        isPartial ?
+                        <Badge variant="outline" className="bg-yellow-100 text-yellow-700 border-yellow-200">Partially Correct</Badge> :
                         <Badge variant="outline" className="bg-red-100 text-red-700 border-red-200">Incorrect</Badge>
                       }
                     </div>
                     <span className="text-sm font-medium px-2 py-1 bg-primary/10 text-primary rounded-md">
-                      {q.points ?? 1} pts
+                      {parseFloat(score.toFixed(2))} / {q.points ?? 1} pts
                     </span>
                   </div>
                 </CardHeader>
@@ -246,7 +326,8 @@ const QuizReview = () => {
                         {q.options.map((opt, i) => {
                           const optionText = typeof opt === 'string' ? opt : String(opt);
                           const isChecked = (userAnswer || []).includes(optionText);
-                          const isCorrectOption = (q.correct_answers || []).includes(optionText);
+                          const correctAnswers = getCorrectAnswers(q);
+                          const isCorrectOption = correctAnswers.includes(optionText);
                           
                           let className = "flex items-center space-x-3 p-3 rounded-xl border transition-all ";
                           if (isCorrectOption) {
@@ -308,7 +389,7 @@ const QuizReview = () => {
                           <div className="space-y-2">
                             <label className="text-sm font-medium">Expected Answer/Rubric:</label>
                             <div className={`p-3 rounded-lg border ${
-                              correct 
+                              isCorrect 
                                 ? 'bg-green-50 border-green-200 dark:bg-green-900/20 dark:border-green-800' 
                                 : 'bg-red-50 border-red-200 dark:bg-red-900/20 dark:border-red-800'
                             }`}>
@@ -326,6 +407,7 @@ const QuizReview = () => {
                           const userAnswers = (userAnswer as string[]) || [];
                           
                           // Handle potential stringified JSON in options (if column is text[])
+                          // eslint-disable-next-line @typescript-eslint/no-explicit-any
                           let blankDefs = (q.options as any[]) || [];
                           if (blankDefs.length > 0 && typeof blankDefs[0] === 'string') {
                             try {
@@ -339,6 +421,7 @@ const QuizReview = () => {
                             if (i >= parts.length - 1) return <span key={i}>{part}</span>;
 
                             const userVal = userAnswers[i] || '';
+                            // eslint-disable-next-line @typescript-eslint/no-explicit-any
                             const def = blankDefs.find((d: any) => d.index === i);
                             const accepted = def?.accepted_answers || [];
                             const isBlankCorrect = def?.case_sensitive 
@@ -370,7 +453,7 @@ const QuizReview = () => {
                     )}
                   </div>
 
-                  {q.explanation && !correct && (
+                  {q.explanation && !isCorrect && (
                     <div className="mt-4 p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-100 dark:border-blue-900/50">
                       <div className="flex items-start gap-2">
                         <AlertCircle className="h-5 w-5 text-blue-600 mt-0.5" />
