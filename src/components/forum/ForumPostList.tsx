@@ -237,7 +237,8 @@ export default function ForumPostList() {
   }, [searchQuery, selectedFilter, currentPage, setSearchParams]);
 
   return (
-    <div className="gap-6 animate-in fade-in duration-500 flex flex-col min-h-full">
+    <div className="glass-card p-6 md:p-8 rounded-2xl min-h-full flex flex-col animate-in fade-in duration-500">
+      <div className="flex-1 space-y-6">
       {/* Header & Actions */}
       <div className="flex flex-col md:flex-row gap-4 items-center justify-between">
         <div className="flex gap-2 w-full md:w-auto flex-1 max-w-xl">
@@ -435,6 +436,7 @@ export default function ForumPostList() {
           ))}
         </div>
       )}
+      </div>
 
       {/* Pagination Controls */}
       {!loading && filteredPosts.length > 0 && totalPages > 1 && (

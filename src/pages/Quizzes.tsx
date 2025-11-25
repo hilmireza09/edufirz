@@ -505,9 +505,10 @@ const Quizzes = () => {
 
         {/* Content Area */}
         <main className="flex-1 p-6 overflow-y-auto custom-scrollbar bg-gradient-to-br from-background to-muted">
-          <div className="space-y-6">
+          <>
             {mode === 'list' && (
               <div className="glass-card p-6 md:p-8 rounded-2xl flex flex-col min-h-full">
+                <div className="flex-1">
                 {/* Header - Always Visible */}
                 <div className="flex items-center justify-between mb-6">
                   <div className="flex items-center gap-3">
@@ -674,6 +675,7 @@ const Quizzes = () => {
                       ))}
                     </div>
                 )}
+                </div>
 
                 {!loading && filteredQuizzes.length > 0 && Math.ceil(filteredQuizzes.length / quizzesPerPage) > 1 && (
                   <div className="sticky bottom-0 pt-4 mt-auto bg-white/5 dark:bg-slate-900/5 backdrop-blur-sm border-t border-white/10 dark:border-slate-800/50 -mx-6 -mb-6 md:-mx-8 md:-mb-8 p-4 md:p-6 z-10">
@@ -990,7 +992,7 @@ const Quizzes = () => {
           </div>
         )}
 
-          </div>
+          </>
         </main>
       </div>
 

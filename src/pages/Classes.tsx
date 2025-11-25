@@ -248,7 +248,8 @@ const Classes = () => {
         <Header />
 
         <main className="flex-1 p-6 overflow-y-auto custom-scrollbar bg-gradient-to-br from-background to-muted">
-          <div className="max-w-7xl mx-auto gap-8 flex flex-col min-h-full">
+          <div className="glass-card p-6 md:p-8 rounded-2xl min-h-full flex flex-col">
+            <div className="flex-1 space-y-8">
             <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
               <div>
                 <h1 className="text-3xl font-bold bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent">
@@ -406,6 +407,7 @@ const Classes = () => {
                   ))}
                 </div>
             )}
+            </div>
 
             {/* Pagination Controls */}
             {!loading && filteredClasses.length > 0 && totalPages > 1 && (
