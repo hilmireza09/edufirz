@@ -14,6 +14,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Card as UICard, CardContent } from '@/components/ui/card';
 import { QuestionEditor, QuizQuestion as QuestionEditorType } from '@/components/QuestionEditor';
 import { ConfirmationDialog } from '@/components/ui/confirmation-dialog';
+import { getPageNumbers } from '@/lib/utils';
 
 type QuizQuestion = QuestionEditorType & {
   id?: string;
@@ -72,6 +73,16 @@ const Quizzes = () => {
   // Delete confirmation dialog
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [quizToDelete, setQuizToDelete] = useState<{ id: string; title: string } | null>(null);
+
+  const [windowStart, setWindowStart] = useState(1);
+
+  useEffect(() => {
+    if (currentPage < windowStart) {
+      setWindowStart(currentPage);
+    } else if (currentPage >= windowStart + 5) {
+      setWindowStart(currentPage - 4);
+    }
+  }, [currentPage, windowStart]);
 
   /**
    * Loads quizzes according to role with soft-delete filtering.
@@ -496,7 +507,7 @@ const Quizzes = () => {
         <main className="flex-1 p-6 overflow-y-auto custom-scrollbar bg-gradient-to-br from-background to-muted">
           <div className="space-y-6">
             {mode === 'list' && (
-              <div className="glass-card p-6 md:p-8 rounded-2xl">
+              <div className="glass-card p-6 md:p-8 rounded-2xl flex flex-col min-h-full">
                 {/* Header - Always Visible */}
                 <div className="flex items-center justify-between mb-6">
                   <div className="flex items-center gap-3">
@@ -605,7 +616,6 @@ const Quizzes = () => {
                     <p className="text-muted-foreground">Create your first quiz to get started</p>
                   </div>
                 ) : (
-                  <>
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                       {filteredQuizzes.slice((currentPage - 1) * quizzesPerPage, currentPage * quizzesPerPage).map((quiz) => (
                         <div 
@@ -663,44 +673,53 @@ const Quizzes = () => {
                         </div>
                       ))}
                     </div>
-                    {Math.ceil(filteredQuizzes.length / quizzesPerPage) > 1 && (
-                      <div className="flex items-center justify-center mt-8 gap-2">
+                )}
+
+                {!loading && filteredQuizzes.length > 0 && Math.ceil(filteredQuizzes.length / quizzesPerPage) > 1 && (
+                  <div className="sticky bottom-0 pt-4 mt-auto bg-white/5 dark:bg-slate-900/5 backdrop-blur-sm border-t border-white/10 dark:border-slate-800/50 -mx-6 -mb-6 md:-mx-8 md:-mb-8 p-4 md:p-6 z-10">
+                      <div className="flex items-center justify-center gap-2">
                         <Button 
                           onClick={() => setSearchParams({ page: Math.max(1, currentPage - 1).toString() })} 
                           disabled={currentPage === 1}
                           variant="outline"
                           size="sm"
-                          className="glass-card border-white/20 hover:bg-white/50 dark:hover:bg-slate-800/50 backdrop-blur-sm rounded-xl flex items-center gap-2"
+                          className="glass-card border-white/20 hover:bg-white/50 dark:hover:bg-slate-800/50 backdrop-blur-sm rounded-xl flex items-center gap-2 w-24 justify-center"
                         >
                           <ChevronLeft className="h-4 w-4" />
                           Previous
                         </Button>
                         <div className="flex items-center gap-1">
-                          {Array.from({ length: Math.ceil(filteredQuizzes.length / quizzesPerPage) }, (_, i) => i + 1).map(page => (
-                            <Button
-                              key={page}
-                              onClick={() => setSearchParams({ page: page.toString() })}
-                              variant={currentPage === page ? "default" : "ghost"}
-                              size="sm"
-                              className={`w-10 h-10 rounded-xl p-0 ${currentPage === page ? 'bg-gradient-to-r from-primary to-purple-600 text-white shadow-lg shadow-primary/25' : 'glass-card hover:bg-white/50 dark:hover:bg-slate-800/50 backdrop-blur-sm border-white/20'}`}
-                            >
-                              {page}
-                            </Button>
-                          ))}
+                          {Array.from({ length: 5 }).map((_, i) => {
+                            const page = windowStart + i;
+                            const totalPages = Math.ceil(filteredQuizzes.length / quizzesPerPage);
+                            if (page > totalPages) {
+                              return <div key={`empty-${i}`} className="w-10 h-10" />;
+                            }
+                            return (
+                              <Button
+                                key={page}
+                                onClick={() => setSearchParams({ page: page.toString() })}
+                                variant={currentPage === page ? "default" : "ghost"}
+                                size="sm"
+                                className={`w-10 h-10 rounded-xl p-0 transition-all duration-300 ${currentPage === page ? 'bg-gradient-to-r from-primary to-purple-600 text-white shadow-lg shadow-primary/25 scale-105' : 'glass-card hover:bg-white/50 dark:hover:bg-slate-800/50 backdrop-blur-sm border-white/20'}`}
+                              >
+                                {page}
+                              </Button>
+                            );
+                          })}
                         </div>
                         <Button 
                           onClick={() => setSearchParams({ page: Math.min(Math.ceil(filteredQuizzes.length / quizzesPerPage), currentPage + 1).toString() })} 
                           disabled={currentPage === Math.ceil(filteredQuizzes.length / quizzesPerPage)}
                           variant="outline"
                           size="sm"
-                          className="glass-card border-white/20 hover:bg-white/50 dark:hover:bg-slate-800/50 backdrop-blur-sm rounded-xl flex items-center gap-2"
+                          className="glass-card border-white/20 hover:bg-white/50 dark:hover:bg-slate-800/50 backdrop-blur-sm rounded-xl flex items-center gap-2 w-24 justify-center"
                         >
                           Next
                           <ChevronRight className="h-4 w-4" />
                         </Button>
                       </div>
-                    )}
-                  </>
+                  </div>
                 )}
               </div>
             )}

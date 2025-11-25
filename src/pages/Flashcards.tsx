@@ -14,6 +14,7 @@ import FlashcardEditor from '@/components/FlashcardEditor';
 import { Sidebar } from '@/components/Sidebar';
 import { Header } from '@/components/Header';
 import { ConfirmationDialog } from '@/components/ui/confirmation-dialog';
+import { getPageNumbers } from '@/lib/utils';
 
 type Card = {
   id: string;
@@ -294,6 +295,16 @@ const Flashcards = () => {
     setShowHint(false);
   };
 
+  const [windowStart, setWindowStart] = useState(1);
+
+  useEffect(() => {
+    if (currentPage < windowStart) {
+      setWindowStart(currentPage);
+    } else if (currentPage >= windowStart + 5) {
+      setWindowStart(currentPage - 4);
+    }
+  }, [currentPage, windowStart]);
+
   return (
     <div className="h-screen w-full flex bg-gradient-to-br from-slate-50 via-purple-50 to-slate-100 dark:from-slate-950 dark:via-slate-900 dark:to-slate-950 overflow-hidden">
       <Sidebar />
@@ -304,9 +315,10 @@ const Flashcards = () => {
 
         {/* Content Area */}
         <main className="flex-1 p-6 overflow-y-auto custom-scrollbar bg-gradient-to-br from-background to-muted">
-          <div className="glass-card p-6 md:p-8 rounded-2xl">
-            {/* Header - Always Visible */}
-            <div className="flex items-center justify-between mb-6">
+          <div className="glass-card p-6 md:p-8 rounded-2xl min-h-full flex flex-col">
+            <div className="flex-1">
+              {/* Header - Always Visible */}
+              <div className="flex items-center justify-between mb-6">
               <div className="flex items-center gap-3">
                 <h1 className="text-2xl md:text-3xl font-bold">Flashcards</h1>
               </div>
@@ -385,7 +397,6 @@ const Flashcards = () => {
                 <p className="text-muted-foreground">Create your first deck to get started</p>
               </div>
             ) : (
-              <>
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                   {currentDecks.map((deck) => (
                     <div
@@ -450,47 +461,55 @@ const Flashcards = () => {
                     </div>
                   ))}
                 </div>
-
-                {/* Pagination */}
-                {totalPages > 1 && (
-                  <div className="flex items-center justify-center mt-8 gap-2">
-                    <Button 
-                      onClick={() => handlePageChange(Math.max(1, currentPage - 1))} 
-                      disabled={currentPage === 1}
-                      variant="outline"
-                      size="sm"
-                      className="glass-card border-white/20 hover:bg-white/50 dark:hover:bg-slate-800/50 backdrop-blur-sm rounded-xl flex items-center gap-2"
-                    >
-                      <ChevronLeft className="h-4 w-4" />
-                      Previous
-                    </Button>
-                    <div className="flex items-center gap-1">
-                      {Array.from({ length: totalPages }, (_, i) => i + 1).map(page => (
-                        <Button
-                          key={page}
-                          onClick={() => handlePageChange(page)}
-                          variant={currentPage === page ? "default" : "ghost"}
-                          size="sm"
-                          className={`w-10 h-10 rounded-xl p-0 ${currentPage === page ? 'bg-gradient-to-r from-primary to-purple-600 text-white shadow-lg shadow-primary/25' : 'glass-card hover:bg-white/50 dark:hover:bg-slate-800/50 backdrop-blur-sm border-white/20'}`}
-                        >
-                          {page}
-                        </Button>
-                      ))}
-                    </div>
-                    <Button 
-                      onClick={() => handlePageChange(Math.min(totalPages, currentPage + 1))} 
-                      disabled={currentPage === totalPages}
-                      variant="outline"
-                      size="sm"
-                      className="glass-card border-white/20 hover:bg-white/50 dark:hover:bg-slate-800/50 backdrop-blur-sm rounded-xl flex items-center gap-2"
-                    >
-                      Next
-                      <ChevronRight className="h-4 w-4" />
-                    </Button>
-                  </div>
-                )}
-              </>
             )}
+          </div>
+
+          {/* Pagination */}
+          {!loading && filteredDecks.length > 0 && totalPages > 1 && (
+            <div className="sticky bottom-0 pt-4 mt-auto bg-white/5 dark:bg-slate-900/5 backdrop-blur-sm border-t border-white/10 dark:border-slate-800/50 -mx-6 -mb-6 md:-mx-8 md:-mb-8 p-4 md:p-6 z-10">
+              <div className="flex items-center justify-center gap-2">
+                <Button 
+                  onClick={() => handlePageChange(Math.max(1, currentPage - 1))} 
+                  disabled={currentPage === 1}
+                  variant="outline"
+                  size="sm"
+                  className="glass-card border-white/20 hover:bg-white/50 dark:hover:bg-slate-800/50 backdrop-blur-sm rounded-xl flex items-center gap-2 w-24 justify-center"
+                >
+                  <ChevronLeft className="h-4 w-4" />
+                  Previous
+                </Button>
+                <div className="flex items-center gap-1">
+                  {Array.from({ length: 5 }).map((_, i) => {
+                    const page = windowStart + i;
+                    if (page > totalPages) {
+                      return <div key={`empty-${i}`} className="w-10 h-10" />;
+                    }
+                    return (
+                      <Button
+                        key={page}
+                        onClick={() => handlePageChange(page)}
+                        variant={currentPage === page ? "default" : "ghost"}
+                        size="sm"
+                        className={`w-10 h-10 rounded-xl p-0 transition-all duration-300 ${currentPage === page ? 'bg-gradient-to-r from-primary to-purple-600 text-white shadow-lg shadow-primary/25 scale-105' : 'glass-card hover:bg-white/50 dark:hover:bg-slate-800/50 backdrop-blur-sm border-white/20'}`}
+                      >
+                        {page}
+                      </Button>
+                    );
+                  })}
+                </div>
+                <Button 
+                  onClick={() => handlePageChange(Math.min(totalPages, currentPage + 1))} 
+                  disabled={currentPage === totalPages}
+                  variant="outline"
+                  size="sm"
+                  className="glass-card border-white/20 hover:bg-white/50 dark:hover:bg-slate-800/50 backdrop-blur-sm rounded-xl flex items-center gap-2 w-24 justify-center"
+                >
+                  Next
+                  <ChevronRight className="h-4 w-4" />
+                </Button>
+              </div>
+            </div>
+          )}
           </div>
         </main>
       </div>

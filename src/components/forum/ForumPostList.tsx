@@ -24,7 +24,7 @@ import {
 } from '@/components/ui/popover';
 import { MessageSquare, ThumbsUp, Search, Plus, Filter, Clock, Check, ChevronsUpDown, ChevronLeft, ChevronRight } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
-import { cn } from '@/lib/utils';
+import { cn, getPageNumbers } from '@/lib/utils';
 import { CreatePostModal } from './CreatePostModal';
 
 type Post = {
@@ -55,9 +55,19 @@ export default function ForumPostList() {
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [open, setOpen] = useState(false);
 
+  const [windowStart, setWindowStart] = useState(1);
+
   // Pagination - 10 posts per page
   const postsPerPage = 10;
   const currentPage = parseInt(searchParams.get('page') || '1', 10);
+
+  useEffect(() => {
+    if (currentPage < windowStart) {
+      setWindowStart(currentPage);
+    } else if (currentPage >= windowStart + 5) {
+      setWindowStart(currentPage - 4);
+    }
+  }, [currentPage, windowStart]);
 
   useEffect(() => {
     fetchPosts();
@@ -227,7 +237,7 @@ export default function ForumPostList() {
   }, [searchQuery, selectedFilter, currentPage, setSearchParams]);
 
   return (
-    <div className="space-y-6 animate-in fade-in duration-500">
+    <div className="gap-6 animate-in fade-in duration-500 flex flex-col min-h-full">
       {/* Header & Actions */}
       <div className="flex flex-col md:flex-row gap-4 items-center justify-between">
         <div className="flex gap-2 w-full md:w-auto flex-1 max-w-xl">
@@ -341,141 +351,139 @@ export default function ForumPostList() {
       </div>
 
       {/* Posts Grid */}
-      <div className="grid gap-4">
-        {loading ? (
+      {loading ? (
+        <div className="grid gap-4">
           <div className="text-center py-12 text-muted-foreground">Loading discussions...</div>
-        ) : filteredPosts.length === 0 ? (
+        </div>
+      ) : filteredPosts.length === 0 ? (
+        <div className="grid gap-4">
           <div className="text-center py-12 text-muted-foreground bg-white/30 rounded-xl border border-white/20">
             No discussions found. Be the first to start one!
           </div>
-        ) : (
-          <>
-            {paginatedPosts.map((post) => (
-              <Card 
-                key={post.id}
-                onClick={() => navigate(`/forum/${post.id}`)}
-                className="group cursor-pointer border-white/20 bg-white/40 backdrop-blur-sm hover:bg-white/60 transition-all duration-300 hover:shadow-[0_0_30px_-5px_rgba(124,58,237,0.15)] hover:-translate-y-1"
-              >
-                <CardHeader className="pb-2">
-                  <div className="flex justify-between items-start">
-                    <div className="space-y-1">
-                      <div className="flex items-center gap-2">
-                        <Badge variant="outline" className="bg-primary/5 text-primary border-primary/20">
-                          {post.category || 'General'}
+        </div>
+      ) : (
+        <div className="grid gap-4">
+          {paginatedPosts.map((post) => (
+            <Card 
+              key={post.id}
+              onClick={() => navigate(`/forum/${post.id}`)}
+              className="group cursor-pointer border-white/20 bg-white/40 backdrop-blur-sm hover:bg-white/60 transition-all duration-300 hover:shadow-[0_0_30px_-5px_rgba(124,58,237,0.15)] hover:-translate-y-1"
+            >
+              <CardHeader className="pb-2">
+                <div className="flex justify-between items-start">
+                  <div className="space-y-1">
+                    <div className="flex items-center gap-2">
+                      <Badge variant="outline" className="bg-primary/5 text-primary border-primary/20">
+                        {post.category || 'General'}
+                      </Badge>
+                      {post.is_solved && (
+                        <Badge variant="secondary" className="bg-green-500/10 text-green-600 border-green-500/20">
+                          Solved
                         </Badge>
-                        {post.is_solved && (
-                          <Badge variant="secondary" className="bg-green-500/10 text-green-600 border-green-500/20">
-                            Solved
-                          </Badge>
-                        )}
-                        <span className="text-xs text-muted-foreground flex items-center gap-1">
-                          <Clock className="h-3 w-3" />
-                          {formatDistanceToNow(new Date(post.created_at), { addSuffix: true })}
-                        </span>
-                      </div>
-                      <CardTitle className="text-xl group-hover:text-primary transition-colors">
-                        {post.title}
-                      </CardTitle>
+                      )}
+                      <span className="text-xs text-muted-foreground flex items-center gap-1">
+                        <Clock className="h-3 w-3" />
+                        {formatDistanceToNow(new Date(post.created_at), { addSuffix: true })}
+                      </span>
                     </div>
+                    <CardTitle className="text-xl group-hover:text-primary transition-colors">
+                      {post.title}
+                    </CardTitle>
                   </div>
-                </CardHeader>
-                <CardContent>
-                  <p className="text-muted-foreground line-clamp-2 text-sm">
-                    {post.content}
-                  </p>
-                  {post.tags && post.tags.length > 0 && (
-                    <div className="flex gap-2 mt-3">
-                      {post.tags.map(tag => (
-                        <span key={tag} className="text-xs text-muted-foreground bg-black/5 px-2 py-1 rounded-full">
-                          #{tag}
-                        </span>
-                      ))}
-                    </div>
-                  )}
-                </CardContent>
-                <CardFooter className="pt-0 flex justify-between items-center text-sm text-muted-foreground">
-                  <div className="flex items-center gap-2">
-                    <Avatar className="h-6 w-6">
-                      <AvatarFallback className="text-[10px] bg-primary/10 text-primary">
-                        {post.author?.full_name?.substring(0, 2).toUpperCase() || 'U'}
-                      </AvatarFallback>
-                    </Avatar>
-                    <span>{post.author?.full_name || 'Unknown User'}</span>
-                  </div>
-                  <div className="flex items-center gap-4">
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className={cn("gap-1 px-2 h-8", post.user_vote === 'up' && "text-primary bg-primary/10")}
-                      onClick={(e) => handleVote(e, post.id)}
-                    >
-                      <ThumbsUp className={cn("h-4 w-4", post.user_vote === 'up' && "fill-current")} />
-                      <span>{post.upvotes}</span>
-                    </Button>
-                    <div className="flex items-center gap-1 px-2">
-                      <MessageSquare className="h-4 w-4" />
-                      <span>{post.reply_count || 0}</span>
-                    </div>
-                  </div>
-                </CardFooter>
-              </Card>
-            ))}
-
-            {/* Pagination Controls */}
-            {totalPages > 1 && (
-              <div className="flex justify-center items-center gap-3 mt-6">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => handlePageChange(Math.max(1, currentPage - 1))}
-                  disabled={currentPage === 1}
-                  className="glass-card border-white/20 hover:bg-white/50 dark:hover:bg-slate-800/50 backdrop-blur-sm rounded-xl"
-                >
-                  <ChevronLeft className="h-4 w-4" />
-                  Previous
-                </Button>
-
-                <div className="flex gap-2">
-                  {Array.from({ length: Math.min(totalPages, 7) }, (_, i) => {
-                    let page;
-                    if (totalPages <= 7) {
-                      page = i + 1;
-                    } else if (currentPage <= 4) {
-                      page = i + 1;
-                    } else if (currentPage >= totalPages - 3) {
-                      page = totalPages - 6 + i;
-                    } else {
-                      page = currentPage - 3 + i;
-                    }
-                    return (
-                      <Button
-                        key={page}
-                        variant={page === currentPage ? "default" : "ghost"}
-                        size="sm"
-                        onClick={() => handlePageChange(page)}
-                        className={`w-10 h-10 rounded-xl p-0 ${page === currentPage ? 'bg-gradient-to-r from-primary to-purple-600 text-white shadow-lg shadow-primary/25' : 'glass-card hover:bg-white/50 dark:hover:bg-slate-800/50 backdrop-blur-sm border-white/20'}`}
-                      >
-                        {page}
-                      </Button>
-                    );
-                  })}
                 </div>
+              </CardHeader>
+              <CardContent>
+                <p className="text-muted-foreground line-clamp-2 text-sm">
+                  {post.content}
+                </p>
+                {post.tags && post.tags.length > 0 && (
+                  <div className="flex gap-2 mt-3">
+                    {post.tags.map(tag => (
+                      <span key={tag} className="text-xs text-muted-foreground bg-black/5 px-2 py-1 rounded-full">
+                        #{tag}
+                      </span>
+                    ))}
+                  </div>
+                )}
+              </CardContent>
+              <CardFooter className="pt-0 flex justify-between items-center text-sm text-muted-foreground">
+                <div className="flex items-center gap-2">
+                  <Avatar className="h-6 w-6">
+                    <AvatarFallback className="text-[10px] bg-primary/10 text-primary">
+                      {post.author?.full_name?.substring(0, 2).toUpperCase() || 'U'}
+                    </AvatarFallback>
+                  </Avatar>
+                  <span>{post.author?.full_name || 'Unknown User'}</span>
+                </div>
+                <div className="flex items-center gap-4">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className={cn("gap-1 px-2 h-8", post.user_vote === 'up' && "text-primary bg-primary/10")}
+                    onClick={(e) => handleVote(e, post.id)}
+                  >
+                    <ThumbsUp className={cn("h-4 w-4", post.user_vote === 'up' && "fill-current")} />
+                    <span>{post.upvotes}</span>
+                  </Button>
+                  <div className="flex items-center gap-1 px-2">
+                    <MessageSquare className="h-4 w-4" />
+                    <span>{post.reply_count || 0}</span>
+                  </div>
+                </div>
+              </CardFooter>
+            </Card>
+          ))}
+        </div>
+      )}
 
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => handlePageChange(Math.min(totalPages, currentPage + 1))}
-                  disabled={currentPage === totalPages}
-                  className="glass-card border-white/20 hover:bg-white/50 dark:hover:bg-slate-800/50 backdrop-blur-sm rounded-xl"
-                >
-                  Next
-                  <ChevronRight className="h-4 w-4" />
-                </Button>
+      {/* Pagination Controls */}
+      {!loading && filteredPosts.length > 0 && totalPages > 1 && (
+        <div className="sticky bottom-0 pt-4 mt-auto bg-white/5 dark:bg-slate-900/5 backdrop-blur-sm border-t border-white/10 dark:border-slate-800/50 -mx-6 -mb-6 md:-mx-8 md:-mb-8 p-4 md:p-6 z-10">
+            <div className="flex justify-center items-center gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => handlePageChange(Math.max(1, currentPage - 1))}
+                disabled={currentPage === 1}
+                className="glass-card border-white/20 hover:bg-white/50 dark:hover:bg-slate-800/50 backdrop-blur-sm rounded-xl w-24 justify-center"
+              >
+                <ChevronLeft className="h-4 w-4" />
+                Previous
+              </Button>
+
+              <div className="flex gap-1">
+                {Array.from({ length: 5 }).map((_, i) => {
+                  const page = windowStart + i;
+                  if (page > totalPages) {
+                    return <div key={`empty-${i}`} className="w-10 h-10" />;
+                  }
+                  return (
+                    <Button
+                      key={page}
+                      variant={page === currentPage ? "default" : "ghost"}
+                      size="sm"
+                      onClick={() => handlePageChange(page)}
+                      className={`w-10 h-10 rounded-xl p-0 transition-all duration-300 ${page === currentPage ? 'bg-gradient-to-r from-primary to-purple-600 text-white shadow-lg shadow-primary/25 scale-105' : 'glass-card hover:bg-white/50 dark:hover:bg-slate-800/50 backdrop-blur-sm border-white/20'}`}
+                    >
+                      {page}
+                    </Button>
+                  );
+                })}
               </div>
-            )}
-          </>
-        )}
-      </div>
+
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => handlePageChange(Math.min(totalPages, currentPage + 1))}
+                disabled={currentPage === totalPages}
+                className="glass-card border-white/20 hover:bg-white/50 dark:hover:bg-slate-800/50 backdrop-blur-sm rounded-xl w-24 justify-center"
+              >
+                Next
+                <ChevronRight className="h-4 w-4" />
+              </Button>
+            </div>
+        </div>
+      )}
 
       <CreatePostModal 
         open={isCreateOpen} 

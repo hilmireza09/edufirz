@@ -11,6 +11,7 @@ import { BookOpen, CreditCard, Users, LogOut, MessageSquare, Settings, Home, Sea
 import { supabase } from '@/integrations/supabase/client';
 import { Database } from '@/integrations/supabase/types';
 import { toast } from 'sonner';
+import { getPageNumbers } from '@/lib/utils';
 
 type ClassItem = {
   id: string;
@@ -46,6 +47,16 @@ const Classes = () => {
   const [newClassName, setNewClassName] = useState('');
   const [newClassDescription, setNewClassDescription] = useState('');
   const [creating, setCreating] = useState(false);
+
+  const [windowStart, setWindowStart] = useState(1);
+
+  useEffect(() => {
+    if (currentPage < windowStart) {
+      setWindowStart(currentPage);
+    } else if (currentPage >= windowStart + 5) {
+      setWindowStart(currentPage - 4);
+    }
+  }, [currentPage, windowStart]);
 
   // Fetch classes
   useEffect(() => {
@@ -237,7 +248,7 @@ const Classes = () => {
         <Header />
 
         <main className="flex-1 p-6 overflow-y-auto custom-scrollbar bg-gradient-to-br from-background to-muted">
-          <div className="max-w-7xl mx-auto space-y-8">
+          <div className="max-w-7xl mx-auto gap-8 flex flex-col min-h-full">
             <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
               <div>
                 <h1 className="text-3xl font-bold bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent">
@@ -318,7 +329,6 @@ const Classes = () => {
                 )}
               </div>
             ) : (
-              <>
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                   {paginatedClasses.map((cls) => (
                     <Card 
@@ -395,33 +405,41 @@ const Classes = () => {
                     </Card>
                   ))}
                 </div>
+            )}
 
-                {/* Pagination Controls */}
-                {totalPages > 1 && (
-                  <div className="flex justify-center items-center gap-3 mt-8">
+            {/* Pagination Controls */}
+            {!loading && filteredClasses.length > 0 && totalPages > 1 && (
+              <div className="sticky bottom-0 pt-4 mt-auto bg-white/5 dark:bg-slate-900/5 backdrop-blur-sm border-t border-white/10 dark:border-slate-800/50 -mx-6 -mb-6 md:-mx-8 md:-mb-8 p-4 md:p-6 z-10">
+                  <div className="flex justify-center items-center gap-2">
                     <Button
                       variant="outline"
                       size="sm"
                       onClick={() => handlePageChange(Math.max(1, currentPage - 1))}
                       disabled={currentPage === 1}
-                      className="glass-card border-white/20 hover:bg-white/50 dark:hover:bg-slate-800/50 backdrop-blur-sm rounded-xl"
+                      className="glass-card border-white/20 hover:bg-white/50 dark:hover:bg-slate-800/50 backdrop-blur-sm rounded-xl w-24 justify-center"
                     >
                       <ChevronRight className="h-4 w-4 rotate-180" />
                       Previous
                     </Button>
 
-                    <div className="flex gap-2">
-                      {Array.from({ length: totalPages }, (_, i) => i + 1).map(page => (
-                        <Button
-                          key={page}
-                          variant={page === currentPage ? "default" : "ghost"}
-                          size="sm"
-                          onClick={() => handlePageChange(page)}
-                          className={`w-10 h-10 rounded-xl p-0 ${page === currentPage ? 'bg-gradient-to-r from-primary to-purple-600 text-white shadow-lg shadow-primary/25' : 'glass-card hover:bg-white/50 dark:hover:bg-slate-800/50 backdrop-blur-sm border-white/20'}`}
-                        >
-                          {page}
-                        </Button>
-                      ))}
+                    <div className="flex gap-1">
+                      {Array.from({ length: 5 }).map((_, i) => {
+                        const page = windowStart + i;
+                        if (page > totalPages) {
+                          return <div key={`empty-${i}`} className="w-10 h-10" />;
+                        }
+                        return (
+                          <Button
+                            key={page}
+                            variant={page === currentPage ? "default" : "ghost"}
+                            size="sm"
+                            onClick={() => handlePageChange(page)}
+                            className={`w-10 h-10 rounded-xl p-0 transition-all duration-300 ${page === currentPage ? 'bg-gradient-to-r from-primary to-purple-600 text-white shadow-lg shadow-primary/25 scale-105' : 'glass-card hover:bg-white/50 dark:hover:bg-slate-800/50 backdrop-blur-sm border-white/20'}`}
+                          >
+                            {page}
+                          </Button>
+                        );
+                      })}
                     </div>
 
                     <Button
@@ -429,14 +447,13 @@ const Classes = () => {
                       size="sm"
                       onClick={() => handlePageChange(Math.min(totalPages, currentPage + 1))}
                       disabled={currentPage === totalPages}
-                      className="glass-card border-white/20 hover:bg-white/50 dark:hover:bg-slate-800/50 backdrop-blur-sm rounded-xl"
+                      className="glass-card border-white/20 hover:bg-white/50 dark:hover:bg-slate-800/50 backdrop-blur-sm rounded-xl w-24 justify-center"
                     >
                       Next
                       <ChevronRight className="h-4 w-4" />
                     </Button>
                   </div>
-                )}
-              </>
+              </div>
             )}
           </div>
         </main>
