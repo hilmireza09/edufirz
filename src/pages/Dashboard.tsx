@@ -28,6 +28,7 @@ const Dashboard = () => {
     averageScore: 0,
     classesJoined: 0
   });
+  const [flashcardTrend, setFlashcardTrend] = useState("+0% this week");
   const [recentActivity, setRecentActivity] = useState<any[]>([]);
   const [chartData, setChartData] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -40,12 +41,50 @@ const Dashboard = () => {
         // Profile is now available from useAuth, no need to fetch again
         setProfile(profile);
 
-        // Fetch Flashcards Count (via Decks)
-        const { data: decks } = await supabase
-          .from('decks')
-          .select('flashcard_count')
-          .eq('user_id', user.id);
-        const totalFlashcards = decks?.reduce((acc, deck) => acc + (deck.flashcard_count || 0), 0) || 0;
+        // Fetch Flashcards Count - Count flashcards from decks owned by the user
+        const { count: totalFlashcards } = await supabase
+          .from('flashcards')
+          .select('*, decks!inner(user_id)', { count: 'exact', head: true })
+          .eq('decks.user_id', user.id);
+        
+        // Calculate this week's flashcards (starting from Monday)
+        const now = new Date();
+        const dayOfWeek = now.getDay();
+        const startOfThisWeek = new Date(now);
+        startOfThisWeek.setDate(now.getDate() - (dayOfWeek === 0 ? 6 : dayOfWeek - 1));
+        startOfThisWeek.setHours(0, 0, 0, 0);
+        
+        const startOfLastWeek = new Date(startOfThisWeek);
+        startOfLastWeek.setDate(startOfThisWeek.getDate() - 7);
+        
+        const { count: thisWeekCount } = await supabase
+          .from('flashcards')
+          .select('*, decks!inner(user_id)', { count: 'exact', head: true })
+          .eq('decks.user_id', user.id)
+          .gte('created_at', startOfThisWeek.toISOString());
+        
+        const { count: lastWeekCount } = await supabase
+          .from('flashcards')
+          .select('*, decks!inner(user_id)', { count: 'exact', head: true })
+          .eq('decks.user_id', user.id)
+          .gte('created_at', startOfLastWeek.toISOString())
+          .lt('created_at', startOfThisWeek.toISOString());
+        
+        // Calculate percentage change
+        let trendText = "+0% this week";
+        if (lastWeekCount && lastWeekCount > 0) {
+          const percentChange = Math.round(((thisWeekCount || 0) - lastWeekCount) / lastWeekCount * 100);
+          if (percentChange > 0) {
+            trendText = `+${percentChange}% this week`;
+          } else if (percentChange < 0) {
+            trendText = `${percentChange}% this week`;
+          } else {
+            trendText = "No change";
+          }
+        } else if (thisWeekCount && thisWeekCount > 0) {
+          trendText = "New this week!";
+        }
+        setFlashcardTrend(trendText);
 
         // Fetch Quiz Attempts
         const { data: attempts } = await supabase
@@ -71,7 +110,7 @@ const Dashboard = () => {
           .eq('student_id', user.id);
 
         setStats({
-          flashcardsCreated: totalFlashcards,
+          flashcardsCreated: totalFlashcards || 0,
           quizzesAttempted: totalAttempts,
           averageScore: Math.round(avgScore),
           classesJoined: classesCount || 0
@@ -183,7 +222,7 @@ const Dashboard = () => {
               icon={CreditCard} 
               color="text-blue-600" 
               bg="bg-blue-100"
-              trend="+12% this week"
+              trend={flashcardTrend}
             />
             <StatCard 
               title="Quizzes Attempted" 
