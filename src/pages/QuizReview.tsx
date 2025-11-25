@@ -157,17 +157,12 @@ const QuizReview = () => {
         }
       });
       
-      // Strict scoring: any incorrect answer results in 0
-      if (userIncorrect > 0) {
-        return { score: 0, isCorrect: false, isPartial: false, isError: false };
-      }
-      
-      // If no incorrect answers, calculate score based on correct selections
-      const score = (userCorrect / correct.length) * maxPoints;
-      // Only mark as "Correct" if ALL correct answers were selected
-      const isCorrect = userCorrect === correct.length;
-      // Partial credit only if some correct answers selected but not all
-      const isPartial = userCorrect > 0 && userCorrect < correct.length;
+      // Strict Exact Matching:
+      // Must select ALL correct answers AND NO incorrect answers.
+      // Any deviation results in 0 points.
+      const isCorrect = userCorrect === correct.length && userIncorrect === 0;
+      const score = isCorrect ? maxPoints : 0;
+      const isPartial = false; // No partial credit allowed
       
       return { score, isCorrect, isPartial, isError: false };
     }
