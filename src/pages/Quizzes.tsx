@@ -389,9 +389,24 @@ const Quizzes = () => {
           qErrors.correct_answer = 'Please select True or False';
         }
       } else if (q.type === 'fill_in_blank') {
-        // Check if correct answer is provided
-        if (!q.correct_answer?.trim()) {
-          qErrors.correct_answer = 'Expected answer is required';
+        // Check if blank definitions exist with accepted answers
+        const blankDefs = q.options as { index: number; accepted_answers: string[]; case_sensitive?: boolean }[] | null;
+        const blankCount = (q.question.match(/\[blank\]/g) || []).length;
+        
+        if (blankCount === 0) {
+          qErrors.correct_answer = 'Question must contain at least one [blank] marker';
+        } else if (!blankDefs || blankDefs.length === 0) {
+          qErrors.correct_answer = 'Expected answer is required for each blank';
+        } else {
+          // Check if all blanks have at least one accepted answer
+          const missingAnswers = blankDefs.some(def => 
+            !def.accepted_answers || 
+            def.accepted_answers.length === 0 || 
+            def.accepted_answers.every(ans => !ans.trim())
+          );
+          if (missingAnswers) {
+            qErrors.correct_answer = 'Expected answer is required for each blank';
+          }
         }
       } else if (q.type === 'essay') {
         // For essay, we can optionally validate if a sample answer exists

@@ -201,9 +201,13 @@ export const QuestionEditor = ({ question, index, onUpdate, onRemove, errors }: 
                       if (type === 'true_false') {
                         onUpdate(index, 'options', ['True', 'False']);
                         onUpdate(index, 'correct_answer', '');
-                      } else if (type === 'essay' || type === 'fill_in_blank') {
-                        // Essay and Fill-in-blank don't need options
+                      } else if (type === 'essay') {
+                        // Essay doesn't need options
                         onUpdate(index, 'options', null);
+                        onUpdate(index, 'correct_answer', '');
+                      } else if (type === 'fill_in_blank') {
+                        // Fill-in-blank uses options for BlankDefinition[]
+                        onUpdate(index, 'options', []);
                         onUpdate(index, 'correct_answer', '');
                       } else if (type === 'multiple_choice' || type === 'checkbox') {
                         // Ensure options array exists for multiple choice and checkbox
