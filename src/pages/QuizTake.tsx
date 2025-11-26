@@ -49,6 +49,29 @@ const QuizTake = () => {
   const [attemptsCount, setAttemptsCount] = useState(0);
   const [maxAttemptsReached, setMaxAttemptsReached] = useState(false);
 
+  // Normalize answers to ensure valid JSON structure
+  const normalizeAnswersForSubmission = useCallback((rawAnswers: Record<string, string | string[]>) => {
+    const normalized: Record<string, unknown> = {};
+    
+    Object.entries(rawAnswers).forEach(([questionId, answer]) => {
+      // Skip null, undefined, or empty values
+      if (answer === null || answer === undefined || answer === '') {
+        return;
+      }
+
+      // Ensure arrays are properly formatted
+      if (Array.isArray(answer)) {
+        // Filter out empty values and ensure strings
+        normalized[questionId] = answer.filter(v => v !== null && v !== undefined && v !== '').map(String);
+      } else {
+        // Convert primitive to string
+        normalized[questionId] = String(answer);
+      }
+    });
+
+    return normalized;
+  }, []);
+
   // Handle quiz submission (must be defined before useQuizTimer)
   const handleSubmit = useCallback(async (isAutoSubmit = false) => {
     if (!attempt || !quizId) return;
@@ -64,24 +87,53 @@ const QuizTake = () => {
 
     setSubmitting(true);
     try {
-      // Use server-side scoring function
-      const { data, error } = await supabase
-        .rpc('submit_quiz_attempt', {
-          p_attempt_id: attempt.id,
-          p_answers: answers
-        });
+      // Debug: Log what we're sending
+      console.log('=== SUBMITTING QUIZ ===');
+      console.log('Answers object (raw):', answers);
+      console.log('Attempt ID:', attempt.id);
 
-      if (error) {
-        console.error('RPC error:', error);
-        throw error;
+      // Normalize answers to valid JSON structure
+      const normalizedAnswers = normalizeAnswersForSubmission(answers);
+      console.log('Answers object (normalized):', normalizedAnswers);
+
+      // Use direct fetch with properly formatted answers to avoid RPC serialization issues
+      const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || "https://qvwnmpgkaugmbtvxlvlv.supabase.co";
+      const supabaseKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY || "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InF2d25tcGdrYXVnbWJ0dnhsdmx2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTIwNTA1MTQsImV4cCI6MjA2NzYyNjUxNH0.BMrQMQhj2HimcAA59yD8Vy1ddJzg69GKdyyn-KRGTjo";
+      
+      const { data: { session } } = await supabase.auth.getSession();
+      const accessToken = session?.access_token;
+
+      const requestBody = {
+        p_attempt_id: attempt.id,
+        p_answers: normalizedAnswers
+      };
+      
+      console.log('Request body:', requestBody);
+
+      const response = await fetch(`${supabaseUrl}/rest/v1/rpc/submit_quiz_attempt`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'apikey': supabaseKey,
+          'Authorization': `Bearer ${accessToken || supabaseKey}`,
+        },
+        body: JSON.stringify(requestBody)
+      });
+
+      const result = await response.json();
+      console.log('RPC response:', result);
+
+      if (!response.ok) {
+        console.error('RPC error:', result);
+        throw new Error(result.message || result.error || 'Failed to submit quiz');
       }
 
-      if (!data || !data.success) {
-        throw new Error(data?.error || 'Failed to submit quiz');
+      if (!result || !result.success) {
+        throw new Error(result?.error || 'Failed to submit quiz');
       }
 
-      const totalScore = data.score;
-      const maxScore = data.max_score;
+      const totalScore = result.score;
+      const maxScore = result.max_score;
 
       toast.success(`Quiz submitted! Score: ${totalScore}/${maxScore}`);
       
@@ -95,7 +147,7 @@ const QuizTake = () => {
     } finally {
       setSubmitting(false);
     }
-  }, [attempt, quizId, answers, navigate]);
+  }, [attempt, quizId, answers, navigate, normalizeAnswersForSubmission]);
 
   // Quiz timer hook
   const {
