@@ -29,8 +29,14 @@ export type QuizQuestion = {
 type QuestionEditorProps = {
   question: QuizQuestion;
   index: number;
-  onUpdate: (index: number, field: keyof QuizQuestion, value: string | string[] | number | null | undefined) => void;
+  onUpdate: (index: number, field: keyof QuizQuestion, value: string | string[] | number | null | undefined | BlankDefinition[]) => void;
   onRemove: (index: number) => void;
+  errors?: {
+    question?: string;
+    options?: string;
+    correct_answer?: string;
+    points?: string;
+  };
 };
 
 const questionTypeConfig = {
@@ -66,7 +72,7 @@ const questionTypeConfig = {
   },
 };
 
-export const QuestionEditor = ({ question, index, onUpdate, onRemove }: QuestionEditorProps) => {
+export const QuestionEditor = ({ question, index, onUpdate, onRemove, errors }: QuestionEditorProps) => {
   const [selectedOptions, setSelectedOptions] = useState<Set<number>>(() => {
     const options = question.options as string[] | null;
     const correctAnswers = question.correct_answers || [];
@@ -79,7 +85,7 @@ export const QuestionEditor = ({ question, index, onUpdate, onRemove }: Question
   });
 
   const handleOptionChange = (optionIndex: number, value: string) => {
-    const newOptions = [...(question.options || [])];
+    const newOptions = [...(question.options || [])] as string[];
     const oldValue = newOptions[optionIndex];
     
     // Update correct_answer if it matches the old value (for multiple choice)
@@ -100,12 +106,14 @@ export const QuestionEditor = ({ question, index, onUpdate, onRemove }: Question
   };
 
   const addOption = () => {
-    const newOptions = [...(question.options || []), ''];
+    const currentOptions = question.options as string[] | null;
+    const newOptions = [...(currentOptions || []), ''];
     onUpdate(index, 'options', newOptions);
   };
 
   const removeOption = (optionIndex: number) => {
-    const newOptions = (question.options || []).filter((_, i) => i !== optionIndex);
+    const currentOptions = question.options as string[] | null;
+    const newOptions = (currentOptions || []).filter((_, i) => i !== optionIndex);
     onUpdate(index, 'options', newOptions);
     
     // Update selected options for checkbox
@@ -134,7 +142,8 @@ export const QuestionEditor = ({ question, index, onUpdate, onRemove }: Question
       newSelected.add(optionIndex);
     }
     setSelectedOptions(newSelected);
-    updateCheckboxAnswers(newSelected, question.options || []);
+    const currentOptions = question.options as string[] | null;
+    updateCheckboxAnswers(newSelected, currentOptions || []);
   };
 
   const config = questionTypeConfig[question.type] || questionTypeConfig.multiple_choice;
@@ -223,7 +232,9 @@ export const QuestionEditor = ({ question, index, onUpdate, onRemove }: Question
         <div className="mb-6">
           <div className="flex justify-between items-center mb-2">
             <div className="flex items-center gap-2">
-              <label className="text-sm font-medium">Question Text</label>
+              <label className="text-sm font-medium">
+                Question Text <span className="text-red-500">*</span>
+              </label>
               {question.type === 'fill_in_blank' && (
                 <Button
                   type="button"
@@ -253,13 +264,17 @@ export const QuestionEditor = ({ question, index, onUpdate, onRemove }: Question
               )}
             </div>
             <div className="flex items-center gap-2 bg-muted/30 px-3 py-1 rounded-lg border border-border/50">
-              <label className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Points</label>
+              <label className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
+                Points <span className="text-red-500">*</span>
+              </label>
               <Input
                 type="number"
-                min={0}
+                min={1}
                 value={question.points ?? 1}
                 onChange={(e) => onUpdate(index, 'points', parseInt(e.target.value) || 0)}
-                className="w-16 h-7 text-center bg-background border-border/50 focus:border-primary/50"
+                className={`w-16 h-7 text-center bg-background focus:border-primary/50 ${
+                  errors?.points ? 'border-red-500 focus:border-red-500 focus:ring-red-500' : 'border-border/50'
+                }`}
               />
             </div>
           </div>
@@ -269,8 +284,14 @@ export const QuestionEditor = ({ question, index, onUpdate, onRemove }: Question
             onChange={(e) => onUpdate(index, 'question', e.target.value)}
             placeholder="Enter your question here..."
             rows={3}
-            className="resize-none bg-background/50 border-border/50 focus:border-primary/50 transition-all"
+            className={`resize-none bg-background/50 transition-all ${
+              errors?.question 
+                ? 'border-red-500 focus:border-red-500 focus:ring-red-500' 
+                : 'border-border/50 focus:border-primary/50'
+            }`}
           />
+          {errors?.question && <p className="text-xs text-red-500 mt-1">{errors.question}</p>}
+          {errors?.points && <p className="text-xs text-red-500 mt-1">{errors.points}</p>}
         </div>
 
         {/* Dynamic Content Based on Question Type */}
@@ -279,9 +300,14 @@ export const QuestionEditor = ({ question, index, onUpdate, onRemove }: Question
           {(question.type === 'multiple_choice' || question.type === 'checkbox') && (
             <div className="space-y-3">
               <div className="flex justify-between items-center">
-                <label className="text-sm font-medium">
-                  Answer Options {question.type === 'checkbox' && <Badge variant="secondary" className="ml-2">Select all correct</Badge>}
-                </label>
+                <div>
+                  <label className="text-sm font-medium">
+                    Answer Options <span className="text-red-500">*</span>
+                    {question.type === 'checkbox' && <Badge variant="secondary" className="ml-2">Select all correct</Badge>}
+                  </label>
+                  {errors?.options && <p className="text-xs text-red-500 mt-1">{errors.options}</p>}
+                  {errors?.correct_answer && <p className="text-xs text-red-500 mt-1">{errors.correct_answer}</p>}
+                </div>
                 <Button
                   type="button"
                   onClick={addOption}
@@ -354,7 +380,12 @@ export const QuestionEditor = ({ question, index, onUpdate, onRemove }: Question
           {/* True/False */}
           {question.type === 'true_false' && (
             <div>
-              <label className="text-sm font-medium mb-3 block">Correct Answer</label>
+              <div>
+                <label className="text-sm font-medium mb-3 block">
+                  Correct Answer <span className="text-red-500">*</span>
+                </label>
+                {errors?.correct_answer && <p className="text-xs text-red-500 mb-2">{errors.correct_answer}</p>}
+              </div>
               <div className="grid grid-cols-2 gap-3">
                 {['True', 'False'].map((answer) => (
                   <button
@@ -377,7 +408,12 @@ export const QuestionEditor = ({ question, index, onUpdate, onRemove }: Question
           {/* Essay */}
           {question.type === 'essay' && (
             <div>
-              <label className="text-sm font-medium mb-2 block">Expected Answer / Grading Rubric</label>
+              <div>
+                <label className="text-sm font-medium mb-2 block">
+                  Expected Answer / Grading Rubric <span className="text-red-500">*</span>
+                </label>
+                {errors?.correct_answer && <p className="text-xs text-red-500 mb-2">{errors.correct_answer}</p>}
+              </div>
               <Textarea
                 value={question.correct_answer}
                 onChange={(e) => onUpdate(index, 'correct_answer', e.target.value)}
@@ -394,6 +430,9 @@ export const QuestionEditor = ({ question, index, onUpdate, onRemove }: Question
           {/* Fill in the Blank */}
           {question.type === 'fill_in_blank' && (
             <div className="space-y-4">
+              <div>
+                {errors?.correct_answer && <p className="text-xs text-red-500 mb-2">{errors.correct_answer}</p>}
+              </div>
               <div className="bg-muted/30 p-4 rounded-lg border border-border/50">
                 <h5 className="text-sm font-medium mb-3 flex items-center gap-2">
                   <Type className="h-4 w-4" />

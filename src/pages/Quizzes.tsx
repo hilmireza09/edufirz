@@ -12,7 +12,7 @@ import { toast } from 'sonner';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Card as UICard, CardContent } from '@/components/ui/card';
-import { QuestionEditor, QuizQuestion as QuestionEditorType } from '@/components/QuestionEditor';
+import { QuestionEditor, QuizQuestion as QuestionEditorType, QuestionType } from '@/components/QuestionEditor';
 import { ConfirmationDialog } from '@/components/ui/confirmation-dialog';
 import { getPageNumbers } from '@/lib/utils';
 
@@ -51,6 +51,19 @@ const Quizzes = () => {
   const [editingQuiz, setEditingQuiz] = useState<Quiz | null>(null);
   const [questionDrafts, setQuestionDrafts] = useState<QuizQuestion[]>([]);
   const originalQuestionIdsRef = useRef<string[]>([]);
+  const [quizErrors, setQuizErrors] = useState<{
+    title?: string;
+    category?: string;
+    attempts_allowed?: string;
+    time_limit?: string;
+    questions?: string;
+  }>({});
+  const [questionErrors, setQuestionErrors] = useState<Record<number, {
+    question?: string;
+    options?: string;
+    correct_answer?: string;
+    points?: string;
+  }>>({});
 
   // Attempt states per quiz
   type AttemptState = { idx: number; selected: string | null; score: number; startTs: number | null; answersMap: Record<number, string> };
@@ -207,7 +220,7 @@ const Quizzes = () => {
         const drafts = (questions || []).map((qq) => ({
           ...qq,
           question: qq.question_text,
-          type: qq.question_type,
+          type: qq.question_type as QuestionType,
         }));
         setQuestionDrafts(drafts);
         originalQuestionIdsRef.current = drafts
@@ -292,7 +305,7 @@ const Quizzes = () => {
   /**
    * Updates a field of a question at index.
    */
-  const updateQuestion = (index: number, field: keyof QuizQuestion, value: string | number | string[] | boolean | undefined) => {
+  const updateQuestion = (index: number, field: keyof QuizQuestion, value: string | number | string[] | boolean | undefined | null | import('@/components/QuestionEditor').BlankDefinition[]) => {
     setQuestionDrafts(prev => {
       const next = [...prev];
       next[index] = { ...next[index], [field]: value };
@@ -305,6 +318,118 @@ const Quizzes = () => {
    */
   const handleSaveQuiz = async () => {
     if (!editingQuiz || !user) return;
+
+    // Comprehensive Quiz-Level Validation
+    const newQuizErrors: typeof quizErrors = {};
+    
+    if (!editingQuiz.title.trim()) {
+      newQuizErrors.title = 'Quiz title is required';
+    }
+    
+    if (!editingQuiz.category) {
+      newQuizErrors.category = 'Category is required';
+    }
+    
+    if (!editingQuiz.attempts_allowed || editingQuiz.attempts_allowed < 1) {
+      newQuizErrors.attempts_allowed = 'Attempts allowed must be at least 1';
+    }
+    
+    if (editingQuiz.time_limit !== null && editingQuiz.time_limit < 0) {
+      newQuizErrors.time_limit = 'Time limit cannot be negative';
+    }
+    
+    if (questionDrafts.length === 0) {
+      newQuizErrors.questions = 'At least one question is required';
+    }
+
+    // Question-Level Validation
+    const newQuestionErrors: typeof questionErrors = {};
+    let hasQuestionErrors = false;
+
+    questionDrafts.forEach((q, idx) => {
+      const qErrors: typeof questionErrors[0] = {};
+
+      // Validate question text
+      if (!q.question.trim()) {
+        qErrors.question = 'Question text is required';
+      }
+
+      // Validate points
+      if (!q.points || q.points < 1) {
+        qErrors.points = 'Points must be at least 1';
+      }
+
+      // Type-specific validation
+      if (q.type === 'multiple_choice') {
+        // Check if options exist and have at least 2 non-empty options
+        const opts = q.options as string[] | null;
+        const validOptions = (opts || []).filter(opt => typeof opt === 'string' && opt.trim());
+        if (validOptions.length < 2) {
+          qErrors.options = 'At least 2 answer options are required';
+        }
+        // Check if a correct answer is selected
+        if (!q.correct_answer || !validOptions.includes(q.correct_answer)) {
+          qErrors.correct_answer = 'Please select the correct answer';
+        }
+      } else if (q.type === 'checkbox') {
+        // Check if options exist and have at least 2 non-empty options
+        const opts = q.options as string[] | null;
+        const validOptions = (opts || []).filter(opt => typeof opt === 'string' && opt.trim());
+        if (validOptions.length < 2) {
+          qErrors.options = 'At least 2 answer options are required';
+        }
+        // Check if at least one correct answer is selected
+        const correctAnswers = q.correct_answers || [];
+        if (correctAnswers.length === 0) {
+          qErrors.correct_answer = 'Please select at least one correct answer';
+        }
+      } else if (q.type === 'true_false') {
+        // Check if a correct answer is selected (True or False)
+        if (!q.correct_answer || !['True', 'False'].includes(q.correct_answer)) {
+          qErrors.correct_answer = 'Please select True or False';
+        }
+      } else if (q.type === 'fill_in_blank') {
+        // Check if correct answer is provided
+        if (!q.correct_answer?.trim()) {
+          qErrors.correct_answer = 'Expected answer is required';
+        }
+      } else if (q.type === 'essay') {
+        // For essay, we can optionally validate if a sample answer exists
+        // No strict validation needed, but we can check
+        if (!q.correct_answer?.trim()) {
+          qErrors.correct_answer = 'Sample/expected answer is recommended';
+        }
+      }
+
+      if (Object.keys(qErrors).length > 0) {
+        newQuestionErrors[idx] = qErrors;
+        hasQuestionErrors = true;
+      }
+    });
+
+    // Set errors and show toast if validation fails
+    if (Object.keys(newQuizErrors).length > 0 || hasQuestionErrors) {
+      setQuizErrors(newQuizErrors);
+      setQuestionErrors(newQuestionErrors);
+      
+      const errorMessages: string[] = [];
+      if (newQuizErrors.title) errorMessages.push('Quiz title is required');
+      if (newQuizErrors.category) errorMessages.push('Category is required');
+      if (newQuizErrors.attempts_allowed) errorMessages.push('Valid attempts allowed is required');
+      if (newQuizErrors.time_limit) errorMessages.push('Valid time limit is required');
+      if (newQuizErrors.questions) errorMessages.push('At least one question is required');
+      if (hasQuestionErrors) {
+        const invalidQuestions = Object.keys(newQuestionErrors).map(idx => `Question ${parseInt(idx) + 1}`).join(', ');
+        errorMessages.push(`Invalid fields in: ${invalidQuestions}`);
+      }
+      
+      toast.error(errorMessages.join('. '));
+      return;
+    }
+
+    // Clear errors if validation passes
+    setQuizErrors({});
+    setQuestionErrors({});
     try {
       // Ensure difficulty has a valid value (never null or empty)
       const validDifficulty = editingQuiz.difficulty && ['easy', 'medium', 'hard'].includes(editingQuiz.difficulty) 
@@ -752,8 +877,16 @@ const Quizzes = () => {
                         Cancel
                       </Button>
                       <Button 
-                        onClick={handleSaveQuiz} 
-                        className="bg-gradient-to-r from-primary to-secondary hover:opacity-90 shadow-md"
+                        onClick={handleSaveQuiz}
+                        disabled={
+                          !editingQuiz.title.trim() ||
+                          !editingQuiz.category ||
+                          !editingQuiz.attempts_allowed ||
+                          editingQuiz.attempts_allowed < 1 ||
+                          (editingQuiz.time_limit !== null && editingQuiz.time_limit < 0) ||
+                          questionDrafts.length === 0
+                        }
+                        className="bg-gradient-to-r from-primary to-secondary hover:opacity-90 shadow-md disabled:opacity-50 disabled:cursor-not-allowed"
                       >
                         <CheckCircle className="h-4 w-4 mr-2" />
                         Save Quiz
@@ -771,13 +904,21 @@ const Quizzes = () => {
                     </h3>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                       <div className="md:col-span-2">
-                        <label className="text-sm font-medium mb-2 block">Quiz Title</label>
+                        <label className="text-sm font-medium mb-2 block">
+                          Quiz Title <span className="text-red-500">*</span>
+                        </label>
                         <Input 
                           value={editingQuiz.title} 
-                          onChange={(e) => setEditingQuiz({ ...(editingQuiz as Quiz), title: e.target.value })} 
+                          onChange={(e) => {
+                            setEditingQuiz({ ...(editingQuiz as Quiz), title: e.target.value });
+                            if (quizErrors.title) setQuizErrors(prev => ({ ...prev, title: undefined }));
+                          }} 
                           placeholder="Enter an engaging quiz title..."
-                          className="text-lg h-12 bg-background/50 border-border/50 focus:border-primary/50"
+                          className={`text-lg h-12 bg-background/50 border-border/50 focus:border-primary/50 ${
+                            quizErrors.title ? 'border-red-500 focus:border-red-500 focus:ring-red-500' : ''
+                          }`}
                         />
+                        {quizErrors.title && <p className="text-xs text-red-500 mt-1">{quizErrors.title}</p>}
                       </div>
                       <div className="md:col-span-2">
                         <label className="text-sm font-medium mb-2 block">Description</label>
@@ -790,7 +931,9 @@ const Quizzes = () => {
                         />
                       </div>
                       <div>
-                        <label className="text-sm font-medium mb-2 block">Status</label>
+                        <label className="text-sm font-medium mb-2 block">
+                          Status <span className="text-red-500">*</span>
+                        </label>
                         <select
                           className="w-full h-10 px-3 py-2 rounded-md bg-background/50 border border-border/50 focus:border-primary/50 focus:outline-none focus:ring-2 focus:ring-primary/30 transition-all"
                           value={editingQuiz.status}
@@ -802,7 +945,9 @@ const Quizzes = () => {
                         </select>
                       </div>
                       <div>
-                        <label className="text-sm font-medium mb-2 block">Difficulty</label>
+                        <label className="text-sm font-medium mb-2 block">
+                          Difficulty <span className="text-red-500">*</span>
+                        </label>
                         <select
                           className="w-full h-10 px-3 py-2 rounded-md bg-background/50 border border-border/50 focus:border-primary/50 focus:outline-none focus:ring-2 focus:ring-primary/30 transition-all"
                           value={editingQuiz.difficulty || 'easy'}
@@ -814,11 +959,20 @@ const Quizzes = () => {
                         </select>
                       </div>
                       <div>
-                        <label className="text-sm font-medium mb-2 block">Category</label>
+                        <label className="text-sm font-medium mb-2 block">
+                          Category <span className="text-red-500">*</span>
+                        </label>
                         <select
-                          className="w-full h-10 px-3 py-2 rounded-md bg-background/50 border border-border/50 focus:border-primary/50 focus:outline-none focus:ring-2 focus:ring-primary/30 transition-all"
+                          className={`w-full h-10 px-3 py-2 rounded-md bg-background/50 border focus:outline-none focus:ring-2 transition-all ${
+                            quizErrors.category
+                              ? 'border-red-500 focus:border-red-500 focus:ring-red-500'
+                              : 'border-border/50 focus:border-primary/50 focus:ring-primary/30'
+                          }`}
                           value={editingQuiz.category || ''}
-                          onChange={(e) => setEditingQuiz({ ...(editingQuiz as Quiz), category: e.target.value })}
+                          onChange={(e) => {
+                            setEditingQuiz({ ...(editingQuiz as Quiz), category: e.target.value });
+                            if (quizErrors.category) setQuizErrors(prev => ({ ...prev, category: undefined }));
+                          }}
                         >
                           <option value="">Select a category</option>
                           <option value="Mathematics">Mathematics</option>
@@ -835,27 +989,44 @@ const Quizzes = () => {
                           <option value="English">English</option>
                           <option value="Others">Others</option>
                         </select>
+                        {quizErrors.category && <p className="text-xs text-red-500 mt-1">{quizErrors.category}</p>}
                       </div>
                       <div>
-                        <label className="text-sm font-medium mb-2 block">Attempts Allowed</label>
+                        <label className="text-sm font-medium mb-2 block">
+                          Attempts Allowed <span className="text-red-500">*</span>
+                        </label>
                         <Input 
                           type="number" 
                           value={editingQuiz.attempts_allowed ?? 1} 
-                          onChange={(e) => setEditingQuiz({ ...(editingQuiz as Quiz), attempts_allowed: Number(e.target.value) })} 
+                          onChange={(e) => {
+                            setEditingQuiz({ ...(editingQuiz as Quiz), attempts_allowed: Number(e.target.value) });
+                            if (quizErrors.attempts_allowed) setQuizErrors(prev => ({ ...prev, attempts_allowed: undefined }));
+                          }} 
                           min={1}
-                          className="bg-background/50 border-border/50 focus:border-primary/50"
+                          className={`bg-background/50 border-border/50 focus:border-primary/50 ${
+                            quizErrors.attempts_allowed ? 'border-red-500 focus:border-red-500 focus:ring-red-500' : ''
+                          }`}
                         />
+                        {quizErrors.attempts_allowed && <p className="text-xs text-red-500 mt-1">{quizErrors.attempts_allowed}</p>}
                       </div>
                       <div>
-                        <label className="text-sm font-medium mb-2 block">Time Limit (minutes)</label>
+                        <label className="text-sm font-medium mb-2 block">
+                          Time Limit (minutes) <span className="text-red-500">*</span>
+                        </label>
                         <Input 
                           type="number" 
                           value={editingQuiz.time_limit ?? 0} 
-                          onChange={(e) => setEditingQuiz({ ...(editingQuiz as Quiz), time_limit: Number(e.target.value) })} 
+                          onChange={(e) => {
+                            setEditingQuiz({ ...(editingQuiz as Quiz), time_limit: Number(e.target.value) });
+                            if (quizErrors.time_limit) setQuizErrors(prev => ({ ...prev, time_limit: undefined }));
+                          }} 
                           min={0}
                           placeholder="0 = No limit"
-                          className="bg-background/50 border-border/50 focus:border-primary/50"
+                          className={`bg-background/50 border-border/50 focus:border-primary/50 ${
+                            quizErrors.time_limit ? 'border-red-500 focus:border-red-500 focus:ring-red-500' : ''
+                          }`}
                         />
+                        {quizErrors.time_limit && <p className="text-xs text-red-500 mt-1">{quizErrors.time_limit}</p>}
                       </div>
                       <div>
                         <label className="text-sm font-medium mb-2 block">Due Date</label>
@@ -872,10 +1043,15 @@ const Quizzes = () => {
 
                 <div className="space-y-4">
                   <div className="flex justify-between items-center">
-                    <h3 className="text-lg font-semibold flex items-center gap-2">
-                      <Sparkles className="h-5 w-5 text-primary" />
-                      Questions
-                    </h3>
+                    <div>
+                      <h3 className="text-lg font-semibold flex items-center gap-2">
+                        <Sparkles className="h-5 w-5 text-primary" />
+                        Questions <span className="text-red-500">*</span>
+                      </h3>
+                      {quizErrors.questions && (
+                        <p className="text-xs text-red-500 mt-1">{quizErrors.questions}</p>
+                      )}
+                    </div>
                     <Button type="button" onClick={addQuestion} className="flex items-center gap-2 bg-gradient-to-r from-primary to-secondary hover:opacity-90">
                       <Plus className="h-4 w-4" />
                       Add Question
@@ -883,10 +1059,19 @@ const Quizzes = () => {
                   </div>
 
                   {questionDrafts.length === 0 && (
-                    <div className="text-center py-12 bg-card/50 rounded-2xl border-2 border-dashed border-border">
-                      <Sparkles className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+                    <div className={`text-center py-12 bg-card/50 rounded-2xl border-2 border-dashed ${
+                      quizErrors.questions ? 'border-red-500' : 'border-border'
+                    }`}>
+                      <Sparkles className={`h-12 w-12 mx-auto mb-4 ${
+                        quizErrors.questions ? 'text-red-500' : 'text-muted-foreground'
+                      }`} />
                       <h3 className="text-lg font-semibold mb-2">No questions yet</h3>
-                      <p className="text-muted-foreground mb-4">Get started by adding your first question</p>
+                      <p className="text-muted-foreground mb-4">
+                        {quizErrors.questions
+                          ? 'You must add at least one question to save the quiz'
+                          : 'Get started by adding your first question'
+                        }
+                      </p>
                       <Button type="button" onClick={addQuestion} className="bg-gradient-to-r from-primary to-secondary hover:opacity-90">
                         <Plus className="h-4 w-4 mr-2" />
                         Add Your First Question
@@ -899,8 +1084,19 @@ const Quizzes = () => {
                       key={index}
                       question={question}
                       index={index}
-                      onUpdate={updateQuestion}
+                      onUpdate={(idx, field, value) => {
+                        updateQuestion(idx, field, value);
+                        // Clear errors for this question when user makes changes
+                        if (questionErrors[idx]) {
+                          setQuestionErrors(prev => {
+                            const next = { ...prev };
+                            delete next[idx];
+                            return next;
+                          });
+                        }
+                      }}
                       onRemove={removeQuestion}
+                      errors={questionErrors[index]}
                     />
                   ))}
                 </div>
