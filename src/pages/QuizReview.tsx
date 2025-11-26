@@ -194,10 +194,10 @@ const QuizReview = () => {
       });
 
       if (blankDefs.length > 0) {
-        const score = (correctBlanks / blankDefs.length) * maxPoints;
+        // All-or-nothing scoring: Must get ALL blanks correct to earn points
         const isCorrect = correctBlanks === blankDefs.length;
-        const isPartial = score > 0 && !isCorrect;
-        return { score, isCorrect, isPartial, isError: false };
+        const score = isCorrect ? maxPoints : 0;
+        return { score, isCorrect, isPartial: false, isError: false };
       }
       return { score: 0, isCorrect: false, isPartial: false, isError: false };
     }
@@ -207,7 +207,8 @@ const QuizReview = () => {
       correct = (userAnswer || '').toString().toLowerCase() === (question.correct_answer || '').toLowerCase();
     } else if (question.question_type === 'essay') {
       if (!question.correct_answer || question.correct_answer.trim().length === 0) {
-        correct = true;
+        // Essay without defined answer requires manual grading - show as incorrect (0 points)
+        correct = false;
       } else {
         const userAnswerNormalized = (userAnswer || '').toString().toLowerCase().trim().replace(/\s+/g, ' ');
         const correctAnswerNormalized = question.correct_answer.toLowerCase().trim().replace(/\s+/g, ' ');
