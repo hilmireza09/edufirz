@@ -55,7 +55,7 @@ const FlashcardEditor = ({ deck, onSave, onCancel, userRole = 'student' }: Flash
   const [cards, setCards] = useState<Card[]>(deck.flashcards || []);
   const [newCard, setNewCard] = useState({ front: '', back: '', hint: '' });
   const [tags, setTags] = useState<string[]>(deck.tags || []);
-  const [errors, setErrors] = useState<{ title?: string; tags?: string }>({});
+  const [errors, setErrors] = useState<{ title?: string; tags?: string; flashcards?: string }>({});
   const originalCardIdsRef = useRef<string[]>([]);
 
   // Toggle tag selection (Single selection mode)
@@ -117,18 +117,35 @@ const FlashcardEditor = ({ deck, onSave, onCancel, userRole = 'student' }: Flash
    * - Inserts new cards
    */
   const handleSave = async () => {
-    // Validation
-    const newErrors: { title?: string; tags?: string } = {};
+    // Comprehensive validation
+    const newErrors: { title?: string; tags?: string; flashcards?: string } = {};
+    
+    // Validate title
     if (!title.trim()) {
       newErrors.title = 'Deck title is required';
     }
+    
+    // Validate category
     if (tags.length === 0) {
-      newErrors.tags = 'Please select exactly one tag';
+      newErrors.tags = 'Please select a category';
+    }
+    
+    // Validate flashcards: at least one card with both front and back filled
+    const validCards = cards.filter(card => card.front.trim() && card.back.trim());
+    if (validCards.length === 0) {
+      newErrors.flashcards = 'At least one flashcard with both front and back is required';
     }
 
     if (Object.keys(newErrors).length > 0) {
       setErrors(newErrors);
-      toast.error('Please fill in all required fields');
+      
+      // Show specific error messages
+      const errorMessages = [];
+      if (newErrors.title) errorMessages.push('Deck title is required');
+      if (newErrors.tags) errorMessages.push('Category is required');
+      if (newErrors.flashcards) errorMessages.push('At least one complete flashcard is required');
+      
+      toast.error(errorMessages.join('. '));
       return;
     }
 
@@ -257,8 +274,12 @@ const FlashcardEditor = ({ deck, onSave, onCancel, userRole = 'student' }: Flash
             </Button>
             <Button 
               onClick={handleSave} 
-              disabled={!title.trim() || tags.length === 0}
-              className="bg-gradient-to-r from-primary to-secondary hover:opacity-90 shadow-md"
+              disabled={
+                !title.trim() || 
+                tags.length === 0 || 
+                cards.filter(card => card.front.trim() && card.back.trim()).length === 0
+              }
+              className="bg-gradient-to-r from-primary to-secondary hover:opacity-90 shadow-md disabled:opacity-50 disabled:cursor-not-allowed"
             >
               <Save className="h-4 w-4 mr-2" />
               Save Deck
@@ -276,7 +297,9 @@ const FlashcardEditor = ({ deck, onSave, onCancel, userRole = 'student' }: Flash
           </h3>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div className="md:col-span-2">
-              <label className="text-sm font-medium mb-2 block">Deck Title</label>
+              <label className="text-sm font-medium mb-2 block">
+                Deck Title <span className="text-red-500">*</span>
+              </label>
               <Input
                 value={title}
                 onChange={(e) => {
@@ -284,7 +307,7 @@ const FlashcardEditor = ({ deck, onSave, onCancel, userRole = 'student' }: Flash
                   if (errors.title) setErrors(prev => ({ ...prev, title: undefined }));
                 }}
                 placeholder="Enter an engaging deck title..."
-                className={`text-lg h-12 bg-background/50 border-border/50 focus:border-primary/50 ${errors.title ? 'border-red-500' : ''}`}
+                className={`text-lg h-12 bg-background/50 border-border/50 focus:border-primary/50 ${errors.title ? 'border-red-500 focus:border-red-500 focus:ring-red-500' : ''}`}
               />
               {errors.title && <p className="text-xs text-red-500 mt-1">{errors.title}</p>}
             </div>
@@ -299,9 +322,15 @@ const FlashcardEditor = ({ deck, onSave, onCancel, userRole = 'student' }: Flash
               />
             </div>
             <div>
-              <label className="text-sm font-medium mb-2 block">Category</label>
+              <label className="text-sm font-medium mb-2 block">
+                Category <span className="text-red-500">*</span>
+              </label>
               <select
-                className="w-full h-10 px-3 py-2 rounded-md bg-background/50 border border-border/50 focus:border-primary/50 focus:outline-none focus:ring-2 focus:ring-primary/30 transition-all"
+                className={`w-full h-10 px-3 py-2 rounded-md bg-background/50 border focus:outline-none focus:ring-2 transition-all ${
+                  errors.tags 
+                    ? 'border-red-500 focus:border-red-500 focus:ring-red-500' 
+                    : 'border-border/50 focus:border-primary/50 focus:ring-primary/30'
+                }`}
                 value={tags[0] || ''}
                 onChange={(e) => {
                   setTags(e.target.value ? [e.target.value] : []);
@@ -334,10 +363,15 @@ const FlashcardEditor = ({ deck, onSave, onCancel, userRole = 'student' }: Flash
 
       <div className="space-y-4">
         <div className="flex justify-between items-center">
-          <h3 className="text-lg font-semibold flex items-center gap-2">
-            <CreditCard className="h-5 w-5 text-primary" />
-            Flashcards
-          </h3>
+          <div>
+            <h3 className="text-lg font-semibold flex items-center gap-2">
+              <CreditCard className="h-5 w-5 text-primary" />
+              Flashcards <span className="text-red-500">*</span>
+            </h3>
+            {errors.flashcards && (
+              <p className="text-xs text-red-500 mt-1">{errors.flashcards}</p>
+            )}
+          </div>
           <Button 
             type="button" 
             onClick={addCard}
@@ -390,10 +424,19 @@ const FlashcardEditor = ({ deck, onSave, onCancel, userRole = 'student' }: Flash
 
         {/* Existing Cards List */}
         {cards.length === 0 ? (
-          <div className="text-center py-12 bg-card/50 rounded-2xl border-2 border-dashed border-border">
-            <CreditCard className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+          <div className={`text-center py-12 bg-card/50 rounded-2xl border-2 border-dashed ${
+            errors.flashcards ? 'border-red-500' : 'border-border'
+          }`}>
+            <CreditCard className={`h-12 w-12 mx-auto mb-4 ${
+              errors.flashcards ? 'text-red-500' : 'text-muted-foreground'
+            }`} />
             <h3 className="text-lg font-semibold mb-2">No flashcards yet</h3>
-            <p className="text-muted-foreground mb-4">Get started by adding your first flashcard</p>
+            <p className="text-muted-foreground mb-4">
+              {errors.flashcards 
+                ? 'You must add at least one flashcard with both front and back filled' 
+                : 'Get started by adding your first flashcard'
+              }
+            </p>
             <Button 
               type="button" 
               onClick={addCard}
