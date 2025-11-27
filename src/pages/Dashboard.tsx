@@ -28,7 +28,6 @@ const Dashboard = () => {
     averageScore: 0,
     classesJoined: 0
   });
-  const [flashcardTrend, setFlashcardTrend] = useState("+0% this week");
   const [recentActivity, setRecentActivity] = useState<any[]>([]);
   const [chartData, setChartData] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -69,22 +68,6 @@ const Dashboard = () => {
           .eq('decks.user_id', user.id)
           .gte('created_at', startOfLastWeek.toISOString())
           .lt('created_at', startOfThisWeek.toISOString());
-        
-        // Calculate percentage change
-        let trendText = "+0% this week";
-        if (lastWeekCount && lastWeekCount > 0) {
-          const percentChange = Math.round(((thisWeekCount || 0) - lastWeekCount) / lastWeekCount * 100);
-          if (percentChange > 0) {
-            trendText = `+${percentChange}% this week`;
-          } else if (percentChange < 0) {
-            trendText = `${percentChange}% this week`;
-          } else {
-            trendText = "No change";
-          }
-        } else if (thisWeekCount && thisWeekCount > 0) {
-          trendText = "New this week!";
-        }
-        setFlashcardTrend(trendText);
 
         // Fetch Quiz Attempts
         const { data: attempts } = await supabase
@@ -222,7 +205,7 @@ const Dashboard = () => {
               icon={CreditCard} 
               color="text-blue-600" 
               bg="bg-blue-100"
-              trend={flashcardTrend}
+              trend="New this week!"
             />
             <StatCard 
               title="Quizzes Attempted" 
