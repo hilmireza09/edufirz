@@ -27,6 +27,13 @@ type Assignment = {
 type Quiz = {
   id: string;
   title: string;
+  description?: string | null;
+  status?: string | null;
+  difficulty?: string | null;
+  category?: string | null;
+  attempts_allowed?: number | null;
+  time_limit?: number | null;
+  creator_id?: string;
 };
 
 const ClassworkTab = () => {
@@ -81,18 +88,28 @@ const ClassworkTab = () => {
   }, [classId, user, fetchAssignments]);
 
   const fetchTeacherQuizzes = async () => {
-    if (!user) return;
+    if (!user || !profile) return;
     try {
-      const { data, error } = await supabase
+      let query = supabase
         .from('quizzes')
-        .select('id, title')
-        .eq('creator_id', user.id)
-        .eq('status', 'private'); // Only private quizzes
+        .select('id, title, description, status, difficulty, category, attempts_allowed, time_limit, creator_id');
+
+      // Teachers see only their own quizzes
+      if (profile.role === 'teacher') {
+        query = query.eq('creator_id', user.id);
+      }
+      // Admins see all quizzes (no filter)
+      
+      // Order by most recent first
+      query = query.order('created_at', { ascending: false });
+
+      const { data, error } = await query;
 
       if (error) throw error;
       setTeacherQuizzes(data || []);
     } catch (error) {
       console.error('Error fetching quizzes:', error);
+      toast.error('Failed to load quizzes');
     }
   };
 
@@ -104,6 +121,13 @@ const ClassworkTab = () => {
   const handleCreate = async () => {
     if (!newTitle.trim() || !selectedQuizId) {
       toast.error('Please provide a title and select a quiz');
+      return;
+    }
+
+    // Validate that the selected quiz exists in the available quizzes
+    const selectedQuiz = teacherQuizzes.find(q => q.id === selectedQuizId);
+    if (!selectedQuiz) {
+      toast.error('Selected quiz is not valid');
       return;
     }
 
@@ -121,7 +145,7 @@ const ClassworkTab = () => {
 
       if (error) throw error;
 
-      toast.success('Assignment created');
+      toast.success('Assignment created successfully');
       setIsCreateOpen(false);
       setNewTitle('');
       setNewDescription('');
@@ -234,11 +258,19 @@ const ClassworkTab = () => {
                     <SelectValue placeholder="Choose a quiz..." />
                   </SelectTrigger>
                   <SelectContent>
-                    {teacherQuizzes.map((quiz) => (
-                      <SelectItem key={quiz.id} value={quiz.id}>
-                        {quiz.title}
-                      </SelectItem>
-                    ))}
+                    {teacherQuizzes.length === 0 ? (
+                      <div className="px-2 py-6 text-sm text-muted-foreground text-center">
+                        No quizzes available. Create a quiz first.
+                      </div>
+                    ) : (
+                      teacherQuizzes.map((quiz) => (
+                        <SelectItem key={quiz.id} value={quiz.id}>
+                          {quiz.title}
+                          {quiz.category && ` • ${quiz.category}`}
+                          {quiz.difficulty && ` • ${quiz.difficulty}`}
+                        </SelectItem>
+                      ))
+                    )}
                   </SelectContent>
                 </Select>
               </div>

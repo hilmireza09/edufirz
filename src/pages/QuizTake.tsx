@@ -126,6 +126,44 @@ const QuizTake = () => {
       const totalScore = result.score;
       const maxScore = result.max_score;
 
+      // Check if this quiz was taken through a class assignment
+      const assignmentContext = sessionStorage.getItem('quiz_assignment_context');
+      if (assignmentContext) {
+        try {
+          const { assignmentId, classId } = JSON.parse(assignmentContext);
+          
+          // Update or create assignment submission
+          const { data: existingSub } = await supabase
+            .from('assignment_submissions')
+            .select('id')
+            .eq('assignment_id', assignmentId)
+            .eq('student_id', user?.id)
+            .maybeSingle();
+
+          if (!existingSub) {
+            await supabase.from('assignment_submissions').insert({
+              assignment_id: assignmentId,
+              student_id: user?.id,
+              status: 'submitted',
+              grade: totalScore,
+              submitted_at: new Date().toISOString()
+            });
+          } else {
+            await supabase.from('assignment_submissions').update({
+              status: 'submitted',
+              grade: totalScore,
+              submitted_at: new Date().toISOString()
+            }).eq('id', existingSub.id);
+          }
+          
+          // Clear the assignment context after successful submission
+          sessionStorage.removeItem('quiz_assignment_context');
+        } catch (err) {
+          console.error('Error updating assignment submission:', err);
+          // Don't fail the entire submission if assignment update fails
+        }
+      }
+
       toast.success(`Quiz submitted! Score: ${totalScore}/${maxScore}`);
       
       // Navigate to review page
@@ -347,11 +385,25 @@ const QuizTake = () => {
   // Show timer start screen if timer exists but hasn't started
   const showTimerStartScreen = timeLimit && timeLimit > 0 && !hasTimerStarted && !isCompleted;
 
+  // Determine back navigation based on context
+  const getBackPath = () => {
+    const assignmentContext = sessionStorage.getItem('quiz_assignment_context');
+    if (assignmentContext) {
+      try {
+        const { classId } = JSON.parse(assignmentContext);
+        return `/classes/${classId}`;
+      } catch (err) {
+        // Fall through to default
+      }
+    }
+    return '/quizzes';
+  };
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-purple-50 to-slate-100 dark:from-slate-950 dark:via-slate-900 dark:to-slate-950 p-4 md:p-8">
       <div className="max-w-3xl mx-auto space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
-        <Button variant="ghost" onClick={() => navigate('/quizzes')} className="mb-4">
-          <ArrowLeft className="mr-2 h-4 w-4" /> Back to Quizzes
+        <Button variant="ghost" onClick={() => navigate(getBackPath())} className="mb-4">
+          <ArrowLeft className="mr-2 h-4 w-4" /> Back
         </Button>
 
         <Card className="border-primary/20 bg-white/80 dark:bg-slate-900/80 backdrop-blur-xl shadow-xl">
