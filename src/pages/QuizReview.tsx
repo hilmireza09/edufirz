@@ -170,36 +170,58 @@ const QuizReview = () => {
     if (question.question_type === 'fill_in_blank') {
       if (!Array.isArray(userAnswer)) return { score: 0, isCorrect: false, isPartial: false, isError: false };
       
+      // Count actual blanks in question text
+      const blankCount = (question.question_text.match(/\[blank\]/g) || []).length;
+      
+      if (blankCount === 0) {
+        return { score: 0, isCorrect: false, isPartial: false, isError: false };
+      }
+      
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       let blankDefs = (question.options as any[]) || [];
+      
       // Handle potential stringified JSON in options
       if (blankDefs.length > 0 && typeof blankDefs[0] === 'string') {
         try {
           blankDefs = blankDefs.map(d => typeof d === 'string' ? JSON.parse(d) : d);
         } catch (e) {
           console.error('Failed to parse options', e);
+          return { score: 0, isCorrect: false, isPartial: false, isError: true };
         }
       }
 
       let correctBlanks = 0;
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      blankDefs.forEach((def: any, index: number) => {
-        const userVal = (userAnswer[index] || '').trim();
-        const accepted = def.accepted_answers || [];
-        const isBlankCorrect = def.case_sensitive 
-          ? accepted.includes(userVal)
-          : accepted.some((a: string) => a.toLowerCase() === userVal.toLowerCase());
+      const seenIndices = new Set<number>();
+      
+      // Process only the actual number of blanks (handles duplicates in options array)
+      for (let arrayIndex = 0; arrayIndex < blankCount && arrayIndex < blankDefs.length; arrayIndex++) {
+        const def = blankDefs[arrayIndex];
         
-        if (isBlankCorrect) correctBlanks++;
-      });
-
-      if (blankDefs.length > 0) {
-        // All-or-nothing scoring: Must get ALL blanks correct to earn points
-        const isCorrect = correctBlanks === blankDefs.length;
-        const score = isCorrect ? maxPoints : 0;
-        return { score, isCorrect, isPartial: false, isError: false };
+        // Skip if we've already processed this index (handles duplicates)
+        const blankIdx = typeof def?.index === 'number' ? def.index : arrayIndex;
+        if (seenIndices.has(blankIdx)) {
+          continue;
+        }
+        seenIndices.add(blankIdx);
+        
+        // Get user's answer at this array position
+        const userVal = (userAnswer[arrayIndex] || '').toString().trim();
+        const accepted = def?.accepted_answers || [];
+        
+        // Check if answer is correct (respecting case_sensitive flag)
+        const isBlankCorrect = def?.case_sensitive 
+          ? accepted.includes(userVal)
+          : accepted.some((a: string) => a.toString().toLowerCase() === userVal.toLowerCase());
+        
+        if (isBlankCorrect) {
+          correctBlanks++;
+        }
       }
-      return { score: 0, isCorrect: false, isPartial: false, isError: false };
+
+      // All-or-nothing scoring: Must get ALL blanks correct to earn points
+      const isCorrect = correctBlanks === blankCount;
+      const score = isCorrect ? maxPoints : 0;
+      return { score, isCorrect, isPartial: false, isError: false };
     }
 
     let correct = false;
