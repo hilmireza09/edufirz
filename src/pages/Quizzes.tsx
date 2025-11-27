@@ -188,7 +188,6 @@ const Quizzes = () => {
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
     // Handle search logic here - could search across quizzes, questions, etc.
-    console.log('Searching for:', searchQuery);
   };
 
   const getAttempt = (quizId: string): AttemptState => attemptStates[quizId] || { idx: 0, selected: null, score: 0, startTs: Date.now(), answersMap: {} };

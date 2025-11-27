@@ -87,14 +87,8 @@ const QuizTake = () => {
 
     setSubmitting(true);
     try {
-      // Debug: Log what we're sending
-      console.log('=== SUBMITTING QUIZ ===');
-      console.log('Answers object (raw):', answers);
-      console.log('Attempt ID:', attempt.id);
-
       // Normalize answers to valid JSON structure
       const normalizedAnswers = normalizeAnswersForSubmission(answers);
-      console.log('Answers object (normalized):', normalizedAnswers);
 
       // Use direct fetch with properly formatted answers to avoid RPC serialization issues
       const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || "https://qvwnmpgkaugmbtvxlvlv.supabase.co";
@@ -107,8 +101,6 @@ const QuizTake = () => {
         p_attempt_id: attempt.id,
         p_answers: normalizedAnswers
       };
-      
-      console.log('Request body:', requestBody);
 
       const response = await fetch(`${supabaseUrl}/rest/v1/rpc/submit_quiz_attempt`, {
         method: 'POST',
@@ -121,7 +113,6 @@ const QuizTake = () => {
       });
 
       const result = await response.json();
-      console.log('RPC response:', result);
 
       if (!response.ok) {
         console.error('RPC error:', result);
