@@ -201,11 +201,19 @@ const QuizTake = () => {
       // 1. Get Quiz details
       const { data: quiz, error: quizError } = await supabase
         .from('quizzes')
-        .select('title, creator_id, attempts_allowed, time_limit')
+        .select('title, creator_id, attempts_allowed, time_limit, status')
         .eq('id', quizId)
         .single();
 
       if (quizError) throw quizError;
+      // Block taking drafts or non-published quizzes
+      const isOwner = quiz.creator_id === user.id;
+      const isAdmin = userRole === 'admin';
+      if (quiz.status !== 'published' && !isAdmin) {
+        toast.error('This quiz is not published yet.');
+        navigate('/quizzes');
+        return;
+      }
       setQuizTitle(quiz.title);
       setCreatorId(quiz.creator_id);
       setAttemptsAllowed(quiz.attempts_allowed);

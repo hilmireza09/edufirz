@@ -92,13 +92,14 @@ const ClassworkTab = () => {
     try {
       let query = supabase
         .from('quizzes')
-        .select('id, title, description, status, difficulty, category, attempts_allowed, time_limit, creator_id');
+        .select('id, title, description, status, difficulty, category, attempts_allowed, time_limit, creator_id')
+        .eq('status', 'published'); // Only publishable quizzes can be assigned
 
-      // Teachers see only their own quizzes
       if (profile.role === 'teacher') {
+        // Teachers only see their own published quizzes
         query = query.eq('creator_id', user.id);
       }
-      // Admins see all quizzes (no filter)
+      // Admins see all published quizzes
       
       // Order by most recent first
       query = query.order('created_at', { ascending: false });

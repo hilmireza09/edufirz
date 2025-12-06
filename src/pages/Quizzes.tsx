@@ -115,18 +115,16 @@ const Quizzes = () => {
           .is('deleted_at', null)
           .order('created_at', { ascending: false });
 
-        if (userRole === 'student') {
+        if (userRole === 'admin') {
+          // Admins can see all (including drafts)
+        } else if (userRole === 'student') {
+          // Students only see published quizzes
           query = query.eq('status', 'published');
-        } else if (userRole === 'teacher') {
-          // Teachers: fetch quizzes they created OR quizzes assigned to their classes
-          // Note: RLS handles the "created by me" part, but we might want to be explicit or just let RLS do it.
-          // The RLS policy "quizzes_select_policy" allows: public OR created_by_me OR assigned_to_me
-          // So we don't strictly need to filter by creator_id here if we want them to see everything they have access to.
-          // However, to match the "My Quizzes" view, we might want to filter.
-          // But the requirement says "restrict edit/delete permissions so they may modify only the quizzes they personally created".
-          // It doesn't say they can't SEE other quizzes (e.g. public ones).
-          // Let's rely on RLS for security, but maybe filter for UI clarity if needed.
-          // For now, let's NOT filter by creator_id explicitly unless the user toggles "Created by Me".
+        } else {
+          // Teachers and other non-admin roles: see published/private; drafts only if creator
+          query = query.or(
+            `status.eq.published,status.eq.private,and(status.eq.draft,creator_id.eq.${user?.id})`
+          );
         }
 
         const { data, error } = await query;
