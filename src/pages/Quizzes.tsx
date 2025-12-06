@@ -216,11 +216,39 @@ const Quizzes = () => {
         
         if (error) throw error;
         
-        const drafts = (questions || []).map((qq) => ({
-          ...qq,
-          question: qq.question_text,
-          type: qq.question_type as QuestionType,
-        }));
+        const drafts = (questions || []).map((qq) => {
+          // Normalize options: Supabase JSONB may return parsed JSON or string-encoded values.
+          let parsedOptions = qq.options;
+
+          // Helper to decide if a string looks like JSON before parsing
+          const looksJson = (s: string) => s.trim().startsWith('{') || s.trim().startsWith('[');
+
+          if (typeof qq.options === 'string') {
+            const opt = qq.options as string;
+            if (looksJson(opt)) {
+              try {
+                parsedOptions = JSON.parse(opt);
+              } catch (e) {
+                console.error('Failed to parse options string for question', qq.id, e);
+              }
+            }
+          } else if (Array.isArray(qq.options) && qq.options.length > 0 && typeof qq.options[0] === 'string') {
+            // Only parse elements that look like JSON; otherwise leave as-is (e.g., 'True', 'Square')
+            try {
+              parsedOptions = qq.options.map((opt: string) => (looksJson(opt) ? JSON.parse(opt) : opt));
+            } catch (e) {
+              console.error('Failed to parse options array for question', qq.id, e);
+              parsedOptions = qq.options; // fallback to raw
+            }
+          }
+
+          return {
+            ...qq,
+            question: qq.question_text,
+            type: qq.question_type as QuestionType,
+            options: parsedOptions,
+          };
+        });
         setQuestionDrafts(drafts);
         originalQuestionIdsRef.current = drafts
           .map((d) => d.id)

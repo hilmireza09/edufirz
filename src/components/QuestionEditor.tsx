@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -73,7 +73,7 @@ const questionTypeConfig = {
 };
 
 export const QuestionEditor = ({ question, index, onUpdate, onRemove, errors }: QuestionEditorProps) => {
-  const [selectedOptions, setSelectedOptions] = useState<Set<number>>(() => {
+  const buildSelected = () => {
     const options = question.options as string[] | null;
     let correctAnswers = question.correct_answers;
 
@@ -82,13 +82,20 @@ export const QuestionEditor = ({ question, index, onUpdate, onRemove, errors }: 
       correctAnswers = question.correct_answer.split('|');
     }
 
-    if (!options || !correctAnswers || !correctAnswers.length) return new Set();
-    
+    if (!options || !correctAnswers || !correctAnswers.length) return new Set<number>();
     const indices = correctAnswers
       .map(ans => options.indexOf(ans))
       .filter(i => i !== -1);
-    return new Set(indices);
-  });
+    return new Set<number>(indices);
+  };
+
+  const [selectedOptions, setSelectedOptions] = useState<Set<number>>(buildSelected);
+
+  // Re-hydrate selection when question/options change (e.g., after load)
+  useEffect(() => {
+    setSelectedOptions(buildSelected());
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [question.id, question.options, question.correct_answer, question.correct_answers]);
 
   const handleOptionChange = (optionIndex: number, value: string) => {
     const newOptions = [...(question.options || [])] as string[];
@@ -463,7 +470,7 @@ export const QuestionEditor = ({ question, index, onUpdate, onRemove, errors }: 
 
                   return Array.from({ length: blankCount }).map((_, blankIndex) => {
                     const currentOptions = (question.options as BlankDefinition[]) || [];
-                    const blankDef = currentOptions.find(o => o.index === blankIndex) || {
+                    const blankDef = currentOptions.find(o => Number(o.index) === blankIndex) || {
                       index: blankIndex,
                       accepted_answers: [],
                       case_sensitive: false
@@ -479,7 +486,7 @@ export const QuestionEditor = ({ question, index, onUpdate, onRemove, errors }: 
                           onChange={(e) => {
                             const newAnswers = e.target.value.split('|');
                             const newOptions = [...currentOptions];
-                            const existingIdx = newOptions.findIndex(o => o.index === blankIndex);
+                            const existingIdx = newOptions.findIndex(o => Number(o.index) === blankIndex);
                             
                             const newDef = {
                               ...blankDef,
@@ -507,7 +514,7 @@ export const QuestionEditor = ({ question, index, onUpdate, onRemove, errors }: 
                             checked={blankDef.case_sensitive || false}
                             onChange={(e) => {
                               const newOptions = [...currentOptions];
-                              const existingIdx = newOptions.findIndex(o => o.index === blankIndex);
+                              const existingIdx = newOptions.findIndex(o => Number(o.index) === blankIndex);
                               
                               const newDef = {
                                 ...blankDef,
