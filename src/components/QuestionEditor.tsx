@@ -75,8 +75,14 @@ const questionTypeConfig = {
 export const QuestionEditor = ({ question, index, onUpdate, onRemove, errors }: QuestionEditorProps) => {
   const [selectedOptions, setSelectedOptions] = useState<Set<number>>(() => {
     const options = question.options as string[] | null;
-    const correctAnswers = question.correct_answers || [];
-    if (!options || !correctAnswers.length) return new Set();
+    let correctAnswers = question.correct_answers;
+
+    // Fallback for checkbox if correct_answers array is missing but correct_answer string exists
+    if (!correctAnswers && question.type === 'checkbox' && question.correct_answer) {
+      correctAnswers = question.correct_answer.split('|');
+    }
+
+    if (!options || !correctAnswers || !correctAnswers.length) return new Set();
     
     const indices = correctAnswers
       .map(ans => options.indexOf(ans))

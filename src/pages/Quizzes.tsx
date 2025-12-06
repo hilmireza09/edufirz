@@ -210,7 +210,7 @@ const Quizzes = () => {
       try {
         const { data: questions, error } = await supabase
           .from('quiz_questions')
-          .select('id, question_text, question_type, options, correct_answer, explanation, points, order_index')
+          .select('id, question_text, question_type, options, correct_answer, correct_answers, explanation, points, order_index')
           .eq('quiz_id', quiz.id)
           .order('order_index');
         
